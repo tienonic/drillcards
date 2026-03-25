@@ -34,14 +34,8 @@ async function fetchRetention() {
 }
 
 function updateScoreSignals() {
-  let score = 0;
-  for (const e of chartEntries) {
-    if (!e.correct || e.rating === 1) score -= 2;
-    else if (e.rating === 4) score += 4;
-    else if (e.rating === 3) score += 3;
-    else score += 1;
-    score = Math.max(0, score);
-  }
+  const cumScores = computeCumScores(chartEntries);
+  const score = cumScores.length > 0 ? cumScores[cumScores.length - 1] : 0;
   const total = chartEntries.length;
   batch(() => {
     setActivityScore(Math.round(score));
