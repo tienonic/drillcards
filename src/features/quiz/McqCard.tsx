@@ -1,5 +1,5 @@
 import { Show, For, createSignal } from 'solid-js';
-import type { QuizSession } from './store.ts';
+import type { McqView } from './types.ts';
 import { easyMode } from '../../core/store/app.ts';
 import { getLabel } from '../settings/keybinds.ts';
 import { LatexText } from '../../components/LatexText.tsx';
@@ -7,7 +7,7 @@ import { LatexText } from '../../components/LatexText.tsx';
 const RATING_CSS: Record<number, string> = { 1: 'rating-again', 2: 'rating-hard', 3: 'rating-good', 4: 'rating-easy' };
 const RATING_NAMES: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
 
-export function AddNewCards(props: { session: QuizSession }) {
+export function AddNewCards(props: { session: Pick<McqView, 'increaseNewCards'> }) {
   const [count, setCount] = createSignal(5);
   return (
     <div class="done-add-new">
@@ -19,7 +19,7 @@ export function AddNewCards(props: { session: QuizSession }) {
   );
 }
 
-export function McqCard(props: { session: QuizSession; isPassage?: boolean }) {
+export function McqCard(props: { session: McqView; isPassage?: boolean }) {
   const s = props.session;
 
   function optionClass(opt: string): string {

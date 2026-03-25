@@ -6,62 +6,13 @@ import { activeProject, setActiveProject, easyMode, sessionSummary, setSessionSu
 import { autoSave } from '../backup/backup.ts';
 import { setQuestionContext } from '../glossary/store.ts';
 import { pushChartEntry } from '../activity/store.ts';
-import { timeToRating, lookupQuestion, getCardType } from './helpers.ts';
+import { timeToRating, lookupQuestion, getCardType, resolveFlashCard } from './helpers.ts';
 import { createHistoryNav, type HistoryEntry } from './historyNav.ts';
+import { createGuard } from './guard.ts';
+import { createCramSession } from './cramSession.ts';
 import type { Section, Question } from '../../projects/types.ts';
-
-type QuizState = 'idle' | 'answering' | 'revealed' | 'rated' | 'reviewing-history' | 'done';
-
-export interface QuizSession {
-  state: () => QuizState;
-  cardId: () => string | null;
-  question: () => Question | null;
-  options: () => string[];
-  selected: () => string | null;
-  isCorrect: () => boolean;
-  ratingLabels: () => Record<number, string>;
-  score: () => { correct: number; attempted: number };
-  dueCount: () => { due: number; newCount: number; total: number };
-  flashMode: () => boolean;
-  flashCardId: () => string | null;
-  flashFlipped: () => boolean;
-  flashFront: () => string;
-  flashBack: () => string;
-  flashDefFirst: () => boolean;
-  passage: () => string;
-  historyReview: () => HistoryEntry | null;
-  leechWarning: () => boolean;
-  skipped: () => boolean;
-  currentImageLink: () => string;
-  cramMode: () => boolean;
-  cramCount: () => number;
-  pickNextCard: () => Promise<void>;
-  answer: (option: string) => Promise<void>;
-  skip: () => Promise<void>;
-  rate: (rating: number) => Promise<void>;
-  undo: () => Promise<void>;
-  suspend: () => Promise<void>;
-  bury: () => Promise<void>;
-  flipFlash: () => void;
-  rateFlash: (rating: number) => Promise<void>;
-  toggleFlashMode: () => void;
-  setFlashDefFirst: (v: boolean) => void;
-  advanceFromHistory: () => void;
-  goBackHistory: () => void;
-  shuffleFlash: () => Promise<void>;
-  shuffleMcq: () => Promise<void>;
-  resetSection: () => Promise<void>;
-  refreshDue: () => Promise<void>;
-  studyMore: () => Promise<void>;
-  flagWrong: () => Promise<void>;
-  startCram: () => Promise<void>;
-  endCram: () => void;
-  increaseNewCards: (count?: number) => Promise<void>;
-  unburyAll: () => Promise<void>;
-  timer:{ seconds: () => number; start: () => void; stop: () => number; reset: () => void; pause: () => void; resume: () => void; paused: () => boolean };
-  paused: () => boolean;
-  togglePause: () => void;
-}
+import type { QuizState, QuizSession } from './types.ts';
+export type { QuizSession } from './types.ts';
 
 import { bumpHandlerVersion, sectionHandlers } from '../../core/store/sections.ts';
 
@@ -86,10 +37,6 @@ export function createQuizSession(section: Section): QuizSession {
   const [passage, setPassage] = createSignal('');
   const [leechWarning, setLeechWarning] = createSignal(false);
   const [skipped, setSkipped] = createSignal(false);
-  const [cramMode, setCramMode] = createSignal(false);
-  const [cramCount, setCramCount] = createSignal(0);
-  const cramSeen = new Set<string>();
-
   const timer = useTimer();
 
   // When easyMode is toggled off while a question is revealed, load rating previews
@@ -106,8 +53,7 @@ export function createQuizSession(section: Section): QuizSession {
   });
 
   const histNav = createHistoryNav();
-  let picking = false;
-  let acting = false;
+  const guard = createGuard();
   let modeSwitch = false;
 
   function setFlashError(msg = 'Card data mismatch') {
@@ -132,6 +78,61 @@ export function createQuizSession(section: Section): QuizSession {
     });
   }
 
+  function buildQuestionContext(q: Question): string {
+    return [q.q, q.correct, q.imageName || q.cropName || '', q.explanation || ''].join(' ');
+  }
+
+  function applyMcqCard(cId: string, lookup: { question: Question; passage?: string }, shuffledOptions: string[], passageText: string) {
+    batch(() => {
+      setCardId(cId);
+      setQuestion(lookup.question);
+      setOptions(shuffledOptions);
+      setSelected(null);
+      setIsCorrect(false);
+      setPassage(passageText);
+      setRatingLabels({});
+      setLeechWarning(false);
+      setSkipped(false);
+      setState('answering');
+    });
+    timer.start();
+    setQuestionContext(buildQuestionContext(lookup.question));
+  }
+
+  function applyFlashCard(cardId: string, resolved: { card: { front: string; back: string } }) {
+    const defFirst = flashDefFirst();
+    batch(() => {
+      setFlashCardId(cardId);
+      setFlashFront(defFirst ? resolved.card.back : resolved.card.front);
+      setFlashBack(defFirst ? resolved.card.front : resolved.card.back);
+      setFlashFlipped(false);
+      setRatingLabels({});
+      setState('answering');
+    });
+    setQuestionContext([resolved.card.front, resolved.card.back].join(' '));
+  }
+
+  const cram = createCramSession({
+    projectSlug: () => project()?.slug,
+    sectionId: section.id,
+    flashMode,
+    sectionType: section.type,
+    onPickMcq: (cardId) => {
+      const lookup = lookupQuestion(section, cardId);
+      if (!lookup) { cram.endCram(); setState('done'); return; }
+      const shuffled = shuffle([lookup.question.correct, ...lookup.question.wrong]);
+      applyMcqCard(cardId, lookup, shuffled, lookup.passage ?? '');
+    },
+    onPickFlash: (cardId) => {
+      const resolved = resolveFlashCard(section, cardId);
+      if (!resolved) { cram.endCram(); setState('done'); return; }
+      applyFlashCard(cardId, resolved);
+    },
+    onDone: () => {
+      setState('done');
+    },
+  });
+
   async function refreshDue() {
     const p = project();
     if (!p) return;
@@ -146,20 +147,18 @@ export function createQuizSession(section: Section): QuizSession {
   }
 
   async function pickNextCard() {
-    if (picking) return;
-    picking = true;
-    try {
-      await pickNextCardImpl();
-    } catch (err) {
-      console.error(`[quiz:${section.id}] pickNextCard error:`, err);
-      if (state() === 'idle') setState('done');
-    } finally {
-      picking = false;
-    }
+    await guard.withActing(async () => {
+      try {
+        await pickNextCardImpl();
+      } catch (err) {
+        console.error(`[quiz:${section.id}] pickNextCard error:`, err);
+        if (state() === 'idle') setState('done');
+      }
+    });
   }
 
   async function pickNextCardImpl() {
-    if (cramMode()) { await pickNextCram(); return; }
+    if (cram.cramMode()) { await cram.pickNextCram(); return; }
     let p = project();
     if (!p) {
       for (let i = 0; i < 3 && !p; i++) {
@@ -188,35 +187,20 @@ export function createQuizSession(section: Section): QuizSession {
     const shuffled = shuffle([lookup.question.correct, ...lookup.question.wrong]);
     const passageText = lookup.passage ?? '';
 
-    batch(() => {
-      setCardId(result.cardId);
-      setQuestion(lookup.question);
-      setOptions(shuffled);
-      setSelected(null);
-      setIsCorrect(false);
-      setPassage(passageText);
-      setRatingLabels({});
-      setState('answering');
-    });
-
+    applyMcqCard(result.cardId, lookup, shuffled, passageText);
     pushHistoryEntry(result.cardId, lookup, shuffled, passageText);
-
-    timer.start();
-    const q = lookup.question;
-    setQuestionContext([q.q, q.correct, q.imageName || q.cropName || '', q.explanation || ''].join(' '));
 
     await refreshDue();
   }
 
   async function answer(option: string) {
-    if (acting || state() !== 'answering') return;
+    if (state() !== 'answering') return;
     const elapsed = timer.stop();
     const q = question();
     const cId = cardId();
     const p = project();
     if (!q || !cId || !p) return;
-    acting = true;
-    try {
+    await guard.withActing(async () => {
       const correct = option === q.correct;
 
       batch(() => {
@@ -242,18 +226,17 @@ export function createQuizSession(section: Section): QuizSession {
         const autoRating = correct ? timeToRating(elapsed) : 1;
         await doRate(cId, autoRating);
       }
-    } finally { acting = false; }
+    });
   }
 
   async function doSkip() {
-    if (acting || state() !== 'answering') return;
+    if (state() !== 'answering') return;
     timer.stop();
     const q = question();
     const cId = cardId();
     const p = project();
     if (!q || !cId || !p) return;
-    acting = true;
-    try {
+    await guard.withActing(async () => {
       batch(() => {
         setSelected(null);
         setIsCorrect(false);
@@ -275,18 +258,18 @@ export function createQuizSession(section: Section): QuizSession {
       }
 
       await doRate(cId, 1);
-    } finally { acting = false; }
+    });
   }
 
   async function doRate(cId: string, rating: number) {
     const p = project();
     if (!p) return;
 
-    if (cramMode()) {
+    if (cram.cramMode()) {
       workerApi.addActivity(p.slug, section.id, rating, rating !== 1).catch(() => {});
       pushChartEntry(rating, rating !== 1);
-      cramSeen.add(cId);
-      batch(() => { setCramCount(cramSeen.size); setState('rated'); });
+      cram.markSeen(cId);
+      setState('rated');
       return;
     }
 
@@ -300,20 +283,17 @@ export function createQuizSession(section: Section): QuizSession {
   }
 
   async function rate(rating: number) {
-    if (acting || state() !== 'revealed') return;
+    if (state() !== 'revealed') return;
     const cId = cardId();
     if (!cId) return;
-    acting = true;
-    try { await doRate(cId, rating); } finally { acting = false; }
+    await guard.withActing(async () => doRate(cId, rating));
   }
 
   async function flagWrong() {
-    if (acting) return;
     const cId = cardId();
     const p = project();
     if (!cId || !p) return;
-    acting = true;
-    try {
+    await guard.withActing(async () => {
       const st = state();
       if (st === 'revealed') {
         await doRate(cId, 1);
@@ -321,17 +301,15 @@ export function createQuizSession(section: Section): QuizSession {
         const result = await workerApi.undoReview();
         if (result.undone) await doRate(cId, 1);
       }
-    } finally { acting = false; }
+    });
   }
 
   async function undoAction() {
-    if (acting) return;
     const st = state();
     if (st !== 'revealed' && st !== 'rated') return;
     const cId = cardId();
     if (!cId) return;
-    acting = true;
-    try {
+    await guard.withActing(async () => {
       const result = await workerApi.undoReview();
       if (result.undone && result.cardId) {
         const restoredId = result.cardId;
@@ -345,52 +323,35 @@ export function createQuizSession(section: Section): QuizSession {
             entry.skipped = false;
             entry.optionOrder = newOptions;
           }
-          batch(() => {
-            setCardId(restoredId);
-            setQuestion(lookup.question);
-            setOptions(newOptions);
-            setSelected(null);
-            setIsCorrect(false);
-            setPassage(lookup.passage ?? '');
-            setRatingLabels({});
-            setState('answering');
-            setLeechWarning(false);
-            setSkipped(false);
-          });
-          timer.start();
+          applyMcqCard(restoredId, lookup, newOptions, lookup.passage ?? '');
           await refreshDue();
         }
       }
-    } finally { acting = false; }
+    });
   }
 
   async function suspendAction() {
-    if (acting) return;
     const cId = cardId();
     if (!cId) return;
-    acting = true;
-    try {
+    await guard.withActing(async () => {
       await workerApi.suspendCard(cId);
       await refreshDue();
-      await pickNextCard();
-    } finally { acting = false; }
+      await pickNextCardImpl();
+    });
   }
 
   async function buryAction() {
-    if (acting) return;
     const cId = cardId();
     if (!cId) return;
-    acting = true;
-    try {
+    await guard.withActing(async () => {
       await workerApi.buryCard(cId);
       await refreshDue();
-      await pickNextCard();
-    } finally { acting = false; }
+      await pickNextCardImpl();
+    });
   }
 
   async function pickNextFlash() {
-    flashRated = false;
-    if (cramMode()) { await pickNextCram(); return; }
+    if (cram.cramMode()) { await cram.pickNextCram(); return; }
     const p = project();
     if (!p || !section.flashcards || section.flashCardIds.length === 0) return;
 
@@ -409,18 +370,8 @@ export function createQuizSession(section: Section): QuizSession {
       return;
     }
 
-    const flashPrefix = section.id + '-flash-';
-    if (!result.cardId.startsWith(flashPrefix)) {
-      setFlashError();
-      return;
-    }
-    const idx = parseInt(result.cardId.slice(flashPrefix.length), 10);
-    if (isNaN(idx)) {
-      setFlashError();
-      return;
-    }
-    const card = section.flashcards[idx];
-    if (!card) {
+    const resolved = resolveFlashCard(section, result.cardId);
+    if (!resolved) {
       setFlashError();
       return;
     }
@@ -428,22 +379,20 @@ export function createQuizSession(section: Section): QuizSession {
     const defFirst = flashDefFirst();
     batch(() => {
       setFlashCardId(result.cardId);
-      setFlashFront(defFirst ? card.back : card.front);
-      setFlashBack(defFirst ? card.front : card.back);
+      setFlashFront(defFirst ? resolved.card.back : resolved.card.front);
+      setFlashBack(defFirst ? resolved.card.front : resolved.card.back);
       setFlashFlipped(false);
       setRatingLabels({});
       setState('answering');
     });
 
-    setQuestionContext([card.front, card.back].join(' '));
+    setQuestionContext([resolved.card.front, resolved.card.back].join(' '));
 
     await refreshDue();
   }
 
-  let flashRated = false;
-
   function flipFlash() {
-    if (acting) return;
+    if (guard.isActing()) return;
     const flipped = !flashFlipped();
     setFlashFlipped(flipped);
     const cId = flashCardId();
@@ -456,18 +405,15 @@ export function createQuizSession(section: Section): QuizSession {
   }
 
   async function rateFlashAction(rating: number) {
-    if (acting || flashRated) return;
     const fId = flashCardId();
     const p = project();
     if (!fId || !p) return;
-    flashRated = true;
-    acting = true;
-    try {
-      if (cramMode()) {
+    await guard.withActing(async () => {
+      if (cram.cramMode()) {
         workerApi.addActivity(p.slug, section.id, rating, rating !== 1).catch(() => {});
         pushChartEntry(rating, rating !== 1);
-        cramSeen.add(fId);
-        await pickNextCram();
+        cram.markSeen(fId);
+        await cram.pickNextCram();
         return;
       }
 
@@ -476,11 +422,11 @@ export function createQuizSession(section: Section): QuizSession {
       pushChartEntry(rating, rating !== 1);
       autoSave(p.slug);
       await pickNextFlash();
-    } finally { acting = false; }
+    });
   }
 
   function toggleFlashMode() {
-    if (acting || modeSwitch) return;
+    if (guard.isActing() || modeSwitch) return;
     modeSwitch = true;
     const next = !flashMode();
     batch(() => { setFlashMode(next); bumpHandlerVersion(); });
@@ -526,26 +472,23 @@ export function createQuizSession(section: Section): QuizSession {
   }
 
   function goBackHistory() {
-    if (acting || picking) return;
+    if (guard.isActing()) return;
     histNav.goBack(restoreHistoryEntry);
   }
 
   function advanceFromHistory() {
-    if (acting || picking) return;
+    if (guard.isActing()) return;
     if (state() !== 'reviewing-history') return;
     histNav.advance(restoreHistoryEntry, () => pickNextCard().catch(() => {}));
   }
 
   async function shuffleFlashAction() {
-    if (acting) return;
-    flashRated = false;
     if (!section.flashcards || section.flashCardIds.length === 0) return;
     const idx = Math.floor(Math.random() * section.flashcards.length);
     const card = section.flashcards[idx];
     const fId = section.flashCardIds[idx];
     if (!card || !fId) return;
-    acting = true;
-    try {
+    await guard.withActing(async () => {
       const defFirst = flashDefFirst();
       batch(() => {
         setFlashCardId(fId);
@@ -558,48 +501,31 @@ export function createQuizSession(section: Section): QuizSession {
 
       setQuestionContext([card.front, card.back].join(' '));
       await refreshDue();
-    } finally { acting = false; }
+    });
   }
 
   async function shuffleMcq() {
-    if (acting) return;
     const p = project();
     if (!p) return;
     const ids = section.cardIds;
     if (ids.length === 0) return;
-    acting = true;
-    try {
+    await guard.withActing(async () => {
       const randomId = ids[Math.floor(Math.random() * ids.length)];
       const lookup = lookupQuestion(section, randomId);
       if (!lookup) return;
       const shuffled = shuffle([lookup.question.correct, ...lookup.question.wrong]);
       const passageText = lookup.passage ?? '';
-      batch(() => {
-        setCardId(randomId);
-        setQuestion(lookup.question);
-        setOptions(shuffled);
-        setSelected(null);
-        setIsCorrect(false);
-        setPassage(passageText);
-        setRatingLabels({});
-        setLeechWarning(false);
-        setSkipped(false);
-        setState('answering');
-      });
+      applyMcqCard(randomId, lookup, shuffled, passageText);
       pushHistoryEntry(randomId, lookup, shuffled, passageText);
-      timer.start();
-      setQuestionContext([lookup.question.q, lookup.question.correct, lookup.question.imageName || lookup.question.cropName || '', lookup.question.explanation || ''].join(' '));
       await refreshDue();
-    } finally { acting = false; }
+    });
   }
 
   async function studyMore() {
-    if (acting) return;
     const p = project();
     if (!p) return;
-    acting = true;
-    try {
-      await pickNextCard();
+    await guard.withActing(async () => {
+      await pickNextCardImpl();
       if (state() !== 'done') return;
 
       // Fall back to weakest card by stability in this section
@@ -607,41 +533,25 @@ export function createQuizSession(section: Section): QuizSession {
       const result = await workerApi.pickNextOverride(p.slug, [section.id], cardType);
       if (result.cardId) {
         if (flashMode()) {
-          const flashPrefix = section.id + '-flash-';
-          if (!result.cardId.startsWith(flashPrefix)) return;
-          const idx = parseInt(result.cardId.slice(flashPrefix.length), 10);
-          if (isNaN(idx)) return;
-          const card = section.flashcards?.[idx];
-          if (!card) return;
+          const resolved = resolveFlashCard(section, result.cardId);
+          if (!resolved) return;
           const defFirst = flashDefFirst();
           batch(() => {
             setFlashCardId(result.cardId);
-            setFlashFront(defFirst ? card.back : card.front);
-            setFlashBack(defFirst ? card.front : card.back);
+            setFlashFront(defFirst ? resolved.card.back : resolved.card.front);
+            setFlashBack(defFirst ? resolved.card.front : resolved.card.back);
             setFlashFlipped(false);
             setRatingLabels({});
             setState('answering');
           });
-          setQuestionContext([card.front, card.back].join(' '));
+          setQuestionContext([resolved.card.front, resolved.card.back].join(' '));
         } else {
           const lookup = lookupQuestion(section, result.cardId);
           if (!lookup) return;
           const shuffled = shuffle([lookup.question.correct, ...lookup.question.wrong]);
-          batch(() => {
-            setCardId(result.cardId);
-            setQuestion(lookup.question);
-            setOptions(shuffled);
-            setSelected(null);
-            setIsCorrect(false);
-            setPassage(lookup.passage ?? '');
-            setRatingLabels({});
-            setState('answering');
-          });
-          pushHistoryEntry(result.cardId, lookup, shuffled, lookup.passage ?? '');
-          timer.start();
-          const q = lookup.question;
-          const ctx = [q.q, q.correct, q.imageName || q.cropName || '', q.explanation || ''].join(' ');
-          setQuestionContext(ctx);
+          const passageText = lookup.passage ?? '';
+          applyMcqCard(result.cardId, lookup, shuffled, passageText);
+          pushHistoryEntry(result.cardId, lookup, shuffled, passageText);
         }
         await refreshDue();
         return;
@@ -658,114 +568,47 @@ export function createQuizSession(section: Section): QuizSession {
           return;
         }
       }
-    } finally { acting = false; }
+    });
   }
 
-  async function pickNextCram() {
-    const p = project();
-    if (!p) return;
-    const wasFlash = flashMode();
-    const cardType = sectionCardType();
-    const result = await workerApi.pickNextOverride(p.slug, [section.id], cardType, [...cramSeen]);
-    if (flashMode() !== wasFlash) return; // Mode toggled during fetch — other path is handling it
-    if (!result.cardId) {
-      endCram();
-      return;
-    }
-
-    if (flashMode()) {
-      const flashPrefix = section.id + '-flash-';
-      if (!result.cardId.startsWith(flashPrefix)) { endCram(); return; }
-      const idx = parseInt(result.cardId.slice(flashPrefix.length), 10);
-      if (isNaN(idx)) { endCram(); return; }
-      const card = section.flashcards?.[idx];
-      if (!card) { endCram(); return; }
-      const defFirst = flashDefFirst();
-      batch(() => {
-        setFlashCardId(result.cardId);
-        setFlashFront(defFirst ? card.back : card.front);
-        setFlashBack(defFirst ? card.front : card.back);
-        setFlashFlipped(false);
-        setRatingLabels({});
-        setCramCount(cramSeen.size);
-        setState('answering');
-      });
-      setQuestionContext([card.front, card.back].join(' '));
-    } else {
-      const lookup = lookupQuestion(section, result.cardId);
-      if (!lookup) { endCram(); return; }
-      const shuffled = shuffle([lookup.question.correct, ...lookup.question.wrong]);
-      batch(() => {
-        setCardId(result.cardId);
-        setQuestion(lookup.question);
-        setOptions(shuffled);
-        setSelected(null);
-        setIsCorrect(false);
-        setPassage(lookup.passage ?? '');
-        setRatingLabels({});
-        setCramCount(cramSeen.size);
-        setState('answering');
-      });
-      timer.start();
-      const q = lookup.question;
-      const ctx = [q.q, q.correct, q.imageName || q.cropName || '', q.explanation || ''].join(' ');
-      setQuestionContext(ctx);
-    }
-  }
-
-  async function startCram() {
-    if (acting) return;
-    cramSeen.clear();
-    acting = true;
-    try {
-      batch(() => { setCramCount(0); setCramMode(true); });
-      await pickNextCram();
-    } finally { acting = false; }
-  }
-
-  function endCram() {
-    cramSeen.clear();
-    batch(() => { setCramMode(false); setCramCount(0); setState('done'); });
+  async function startCramAction() {
+    await guard.withActing(async () => {
+      await cram.startCram();
+    });
   }
 
   async function increaseNewCards(count?: number) {
-    if (acting) return;
     const p = project();
     if (p && count != null) {
       setActiveProject({ ...p, config: { ...p.config, new_per_session: count } });
     }
-    acting = true;
-    try {
+    await guard.withActing(async () => {
       await workerApi.resetNewCount();
       if (flashMode()) {
         await pickNextFlash();
       } else {
-        await pickNextCard();
+        await pickNextCardImpl();
       }
-    } finally { acting = false; }
+    });
   }
 
   async function unburyAllAction() {
-    if (acting) return;
     const p = project();
     if (!p) return;
-    acting = true;
-    try {
+    await guard.withActing(async () => {
       await workerApi.unburyAll(p.slug);
       if (flashMode()) {
         await pickNextFlash();
       } else {
-        await pickNextCard();
+        await pickNextCardImpl();
       }
-    } finally { acting = false; }
+    });
   }
 
   async function resetSectionAction() {
-    if (acting) return;
     const p = project();
     if (!p) return;
-    acting = true;
-    try {
+    await guard.withActing(async () => {
       await workerApi.resetSection(p.slug, section.id);
       const mcqType: 'mcq' | 'passage' = section.type === 'passage-quiz' ? 'passage' : 'mcq';
       const cardRegs = [
@@ -782,14 +625,14 @@ export function createQuizSession(section: Section): QuizSession {
       ];
       await workerApi.loadProject(p.slug, [section.id], cardRegs);
       histNav.reset();
-      cramSeen.clear();
-      batch(() => { setScore({ correct: 0, attempted: 0 }); setCramMode(false); setCramCount(0); });
+      cram.endCram();
+      setScore({ correct: 0, attempted: 0 });
       if (flashMode()) {
         await pickNextFlash();
       } else {
-        await pickNextCard();
+        await pickNextCardImpl();
       }
-    } finally { acting = false; }
+    });
   }
 
   function currentImageLink(): string {
@@ -823,8 +666,8 @@ export function createQuizSession(section: Section): QuizSession {
     leechWarning,
     skipped,
     currentImageLink,
-    cramMode,
-    cramCount,
+    cramMode: cram.cramMode,
+    cramCount: cram.cramCount,
 
     pickNextCard,
     answer,
@@ -839,16 +682,12 @@ export function createQuizSession(section: Section): QuizSession {
     setFlashDefFirst: (v: boolean) => {
       setFlashDefFirst(v);
       const fId = flashCardId();
-      if (!fId || !section.flashcards) return;
-      const flashPrefix = section.id + '-flash-';
-      if (!fId.startsWith(flashPrefix)) return;
-      const idx = parseInt(fId.slice(flashPrefix.length), 10);
-      if (isNaN(idx)) return;
-      const card = section.flashcards[idx];
-      if (!card) return;
+      if (!fId) return;
+      const resolved = resolveFlashCard(section, fId);
+      if (!resolved) return;
       batch(() => {
-        setFlashFront(v ? card.back : card.front);
-        setFlashBack(v ? card.front : card.back);
+        setFlashFront(v ? resolved.card.back : resolved.card.front);
+        setFlashBack(v ? resolved.card.front : resolved.card.back);
         setFlashFlipped(false);
       });
     },
@@ -860,8 +699,8 @@ export function createQuizSession(section: Section): QuizSession {
     refreshDue,
     studyMore,
     flagWrong,
-    startCram,
-    endCram,
+    startCram: startCramAction,
+    endCram: () => { cram.endCram(); setState('done'); },
     increaseNewCards,
     unburyAll: unburyAllAction,
 

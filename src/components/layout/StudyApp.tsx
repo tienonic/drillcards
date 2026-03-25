@@ -10,11 +10,13 @@ import { SectionsContainer } from './SectionsContainer.tsx';
 import { TermsDropdown } from '../../features/glossary/TermsDropdown.tsx';
 import { NoteBox } from '../../features/notes/NoteBox.tsx';
 import { ActivityWidget } from '../../features/activity/ActivityWidget.tsx';
+import { initActivityEffects } from '../../features/activity/store.ts';
 
 const DRAG_THRESHOLD = 5;
 
 export function StudyApp() {
   useKeyboard();
+  initActivityEffects();
 
   const isMathTab = () => {
     const project = activeProject();

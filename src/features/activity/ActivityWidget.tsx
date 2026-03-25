@@ -4,7 +4,7 @@ import { activeProject } from '../../core/store/app.ts';
 import { workerApi } from '../../core/hooks/useWorker.ts';
 import {
   activityScore, reviewStats, sidebarScore,
-  setCanvasRef, loadActivity, initActivityEffects,
+  setCanvasRef, loadActivity,
 } from './store.ts';
 
 interface ActiveSession {
@@ -22,8 +22,6 @@ interface ActiveSession {
 }
 
 export function ActivityWidget(props: { isFlashMode: () => boolean; activeSession: () => ActiveSession | undefined }) {
-  initActivityEffects();
-
   const timer = () => props.activeSession()?.timer;
   const seconds = () => timer()?.seconds() ?? 0;
   const isAnswering = () => props.activeSession()?.state?.() === 'answering';

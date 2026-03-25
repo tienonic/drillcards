@@ -1,5 +1,5 @@
 import { Show, For } from 'solid-js';
-import type { QuizSession } from './store.ts';
+import type { FlashView } from './types.ts';
 import { easyMode } from '../../core/store/app.ts';
 import { LatexHtml } from '../../components/LatexText.tsx';
 import { AddNewCards } from './McqCard.tsx';
@@ -7,7 +7,7 @@ import { AddNewCards } from './McqCard.tsx';
 const RATING_CSS: Record<number, string> = { 1: 'rating-again', 2: 'rating-hard', 3: 'rating-good', 4: 'rating-easy' };
 const RATING_NAMES: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
 
-export function FlashcardArea(props: { session: QuizSession }) {
+export function FlashcardArea(props: { session: FlashView }) {
   const s = props.session;
 
   return (
