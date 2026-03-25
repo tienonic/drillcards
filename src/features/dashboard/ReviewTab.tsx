@@ -38,11 +38,6 @@ export function ReviewTab(props: ReviewTabProps) {
       <Show when={props.projects.length > 0} fallback={
         <div class="db-review-empty">No decks yet. Browse, import, or create one.</div>
       }>
-        <div class="db-review-legend">
-          <span class="db-pill-legend db-pill-new">new</span>
-          <span class="db-pill-legend db-pill-learning">learning</span>
-          <span class="db-pill-legend db-pill-due">due</span>
-        </div>
         <div class="db-review-list">
           <For each={props.projects}>
             {(p) => {
@@ -55,9 +50,9 @@ export function ReviewTab(props: ReviewTabProps) {
                       <span class="db-review-inline-error">{loadError()}</span>
                     </Show>
                     <span class="db-review-pills">
-                      <span class={`db-pill db-pill-new ${p.new === 0 ? 'db-pill--zero' : ''}`}>{p.new}</span>
-                      <span class={`db-pill db-pill-learning ${p.learning === 0 ? 'db-pill--zero' : ''}`}>{p.learning}</span>
-                      <span class={`db-pill db-pill-due ${p.due === 0 ? 'db-pill--zero' : ''}`}>{p.due}</span>
+                      <span class={`db-pill db-pill-new ${p.new === 0 ? 'db-pill--zero' : ''}`} title="New">{p.new}</span>
+                      <span class={`db-pill db-pill-learning ${p.learning === 0 ? 'db-pill--zero' : ''}`} title="Learning">{p.learning}</span>
+                      <span class={`db-pill db-pill-due ${p.due === 0 ? 'db-pill--zero' : ''}`} title="Due">{p.due}</span>
                     </span>
                     <button type="button" class="db-review-remove" onClick={(e) => { e.stopPropagation(); props.onRemove(p.slug); }} title="Remove from recents">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
