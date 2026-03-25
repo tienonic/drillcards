@@ -77,7 +77,9 @@ async function loadSidebarScore() {
   if (!section || section.type === 'math-gen') return;
 
   try {
-    const cardType = section.type === 'passage-quiz' ? 'passage' as const : 'mcq' as const;
+    const handler = sectionHandlers.get(tab);
+    const isFlash = handler?.flashMode?.() ?? false;
+    const cardType = isFlash ? 'flashcard' as const : section.type === 'passage-quiz' ? 'passage' as const : 'mcq' as const;
     const [scores, dueResult] = await Promise.all([
       workerApi.getScores(slug),
       workerApi.countDue(slug, [tab], cardType),

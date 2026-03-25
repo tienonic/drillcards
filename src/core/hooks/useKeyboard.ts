@@ -1,5 +1,5 @@
 import { onMount, onCleanup } from 'solid-js';
-import { activeTab, activeProject, setNoteBoxVisible, termsOpen, easyMode, zenMode, toggleZenMode } from '../store/app.ts';
+import { activeTab, activeProject, setNoteBoxVisible, termsOpen, easyMode, zenMode, toggleZenMode, headerVisible, activePanel } from '../store/app.ts';
 import { sectionHandlers } from '../store/sections.ts';
 import { matchesKey } from '../../features/settings/keybinds.ts';
 import type { MathSession } from '../../features/math/store.ts';
@@ -46,8 +46,9 @@ export function useKeyboard() {
       return;
     }
 
-    // Escape toggles zen mode (when not in fullscreen, so first Esc exits fullscreen naturally)
+    // Escape toggles zen mode (when not in fullscreen and no panel is open)
     if (e.key === 'Escape' && !document.fullscreenElement) {
+      if (headerVisible() || activePanel() || termsOpen()) return;
       toggleZenMode();
       return;
     }

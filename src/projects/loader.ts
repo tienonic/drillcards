@@ -2,7 +2,6 @@ import type { ProjectData, Project, ProjectConfig, Section } from './types.ts';
 
 const DEFAULT_CONFIG: ProjectConfig = {
   desired_retention: 0.9,
-  learn_steps: [1, 10],
   new_per_session: 20,
   leech_threshold: 8,
   max_interval: 90,

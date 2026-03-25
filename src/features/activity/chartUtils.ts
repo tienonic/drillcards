@@ -1,4 +1,5 @@
 export function niceYTicks(min: number, max: number, targetCount: number): number[] {
+  if (max <= min) return [min];
   const range = max - min;
   const rawStep = range / (targetCount - 1);
   const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
@@ -71,21 +72,4 @@ export function drawChartData(ctx: CanvasRenderingContext2D, n: number, toX: (i:
     ctx.fillStyle = recent[i].correct ? '#3d7a4f' : '#a84036';
     ctx.beginPath(); ctx.arc(toX(i), toY(cumScores[i]), 3, 0, Math.PI * 2); ctx.fill();
   }
-}
-
-export function renderChart(canvas: HTMLCanvasElement, entries: { rating: number; correct: boolean }[]) {
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  const w = canvas.width; const h = canvas.height;
-  ctx.clearRect(0, 0, w, h);
-  const recent = entries.slice(-50);
-  if (recent.length === 0) return;
-  const cumScores = computeCumScores(recent);
-  const minS = 0; const maxS = Math.max(20, ...cumScores); const rangeS = maxS - minS || 1;
-  const leftPad = 22; const rightPad = 6; const topPad = 6;
-  const plotW = w - leftPad - rightPad; const plotH = h - topPad - 14;
-  const toY = (val: number) => topPad + ((maxS - val) / rangeS) * plotH;
-  const toX = (i: number) => leftPad + (i / (recent.length - 1 || 1)) * plotW;
-  drawChartAxes(ctx, leftPad, rightPad, topPad, plotH, w, toY, minS, maxS);
-  drawChartData(ctx, recent.length, toX, toY, cumScores, recent, topPad, plotH);
 }

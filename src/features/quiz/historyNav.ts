@@ -1,5 +1,4 @@
 import { createSignal } from 'solid-js';
-import type { Section } from '../../projects/types.ts';
 
 export interface HistoryEntry {
   idx: number;
@@ -15,7 +14,7 @@ export interface HistoryEntry {
   passage: string;
 }
 
-export function createHistoryNav(_section: Section) {
+export function createHistoryNav() {
   let history: HistoryEntry[] = [];
   let histPos = -1;
   const [historyReview, setHistoryReview] = createSignal<HistoryEntry | null>(null);

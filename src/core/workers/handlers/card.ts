@@ -97,7 +97,6 @@ export async function previewRatings(
   ctx: WorkerContext,
   cardId: string,
 ): Promise<{ labels: Record<number, string> }> {
-  ctx.initFSRS();
   const row = await ctx.queryOne(`SELECT * FROM cards WHERE card_id = ?`, [cardId]);
   if (!row) return { labels: {} };
 
@@ -126,8 +125,6 @@ export async function reviewCard(
   isLeech: boolean;
   lapses: number;
 }> {
-  ctx.initFSRS();
-
   const row = await ctx.queryOne(`SELECT * FROM cards WHERE card_id = ?`, [cardId]);
   if (!row) throw new Error(`Card not found: ${cardId}`);
 

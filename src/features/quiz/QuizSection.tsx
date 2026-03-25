@@ -31,7 +31,6 @@ export function QuizSection(props: { section: Section }) {
     if (untrack(() => session.state()) === 'answering') session.timer.start();
   });
 
-  const hasFlash = () => props.section.hasFlashcards && (props.section.flashcards?.length ?? 0) > 0;
   const isPassage = () => props.section.type === 'passage-quiz';
   const sourceFolder = () => activeProject()?.sourceFolder;
 

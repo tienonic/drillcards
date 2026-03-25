@@ -50,14 +50,14 @@ export async function resetSection(
       [projectId, sectionId],
     );
     await ctx.run(`DELETE FROM undo_stack`);
+    await ctx.run(
+      `DELETE FROM daily_new WHERE project_id = ? AND key LIKE ?`,
+      [projectId, `%|${sectionId}|%`]
+    );
     await ctx.run('COMMIT');
   } catch (e) {
     await ctx.run('ROLLBACK');
     throw e;
   }
-  await ctx.run(
-    `DELETE FROM daily_new WHERE project_id = ? AND key LIKE ?`,
-    [projectId, `%|${sectionId}|%`]
-  );
   return { ok: true };
 }

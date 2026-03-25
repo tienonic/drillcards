@@ -103,7 +103,6 @@ export async function getRetention(
   ctx: WorkerContext,
   projectId: string,
 ): Promise<{ retention: number | null }> {
-  ctx.initFSRS();
   const rows = await ctx.queryAll(
     `SELECT * FROM cards WHERE project_id = ? AND fsrs_state = 2 AND suspended = 0`,
     [projectId],

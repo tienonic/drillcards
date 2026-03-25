@@ -32,6 +32,7 @@ function getWorker(): Worker {
 }
 
 async function sendWorkerMessage<T = unknown>(request: WorkerRequest): Promise<T> {
+  if (request.type !== 'INIT' && initPromise) await initPromise;
   const w = getWorker();
   const id = ++msgId;
   const msg: WorkerMessage = { id, request };
