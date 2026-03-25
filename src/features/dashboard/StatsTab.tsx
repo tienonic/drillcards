@@ -38,6 +38,7 @@ const MAX_VISIBLE = 6;
 export function StatsTab(props: StatsTabProps) {
   const [expanded, setExpanded] = createSignal<Set<string>>(new Set());
   const [showAllDecks, setShowAllDecks] = createSignal(false);
+  const [deckSearch, setDeckSearch] = createSignal('');
 
   function toggle(slug: string) {
     setExpanded(prev => {
@@ -48,8 +49,13 @@ export function StatsTab(props: StatsTabProps) {
   }
 
   const fmtRet = (r: number | null) => r != null ? Math.round(r * 100) + '%' : '--';
-  const visibleGroups = () => showAllDecks() ? props.groups : props.groups.slice(0, MAX_VISIBLE);
-  const hasOverflow = () => props.groups.length > MAX_VISIBLE;
+  const filteredGroups = () => {
+    const q = deckSearch().toLowerCase();
+    if (!q) return props.groups;
+    return props.groups.filter(g => g.name.toLowerCase().includes(q));
+  };
+  const visibleGroups = () => showAllDecks() ? filteredGroups() : filteredGroups().slice(0, MAX_VISIBLE);
+  const hasOverflow = () => filteredGroups().length > MAX_VISIBLE;
 
   return (
     <div class="db-stats">
@@ -58,31 +64,21 @@ export function StatsTab(props: StatsTabProps) {
       }>
         <div class="db-stats-body">
           <div class="db-stats-main">
-            {/* Summary */}
-            <div class="db-stats-summary">
-              <div class="db-stats-metric">
-                <span class="db-stats-value">{props.totalReviews}</span>
-                <span class="db-stats-label">Total Reviews</span>
-              </div>
-              <div class="db-stats-metric">
-                <span class="db-stats-value">{fmtRet(props.retention)}</span>
-                <span class="db-stats-label">Retention</span>
-              </div>
-              <Show when={props.weakCards.length > 0}>
-                <div class="db-stats-metric">
-                  <span class="db-stats-value db-stats-value--warn">{props.weakCards.length}</span>
-                  <span class="db-stats-label">Difficult</span>
-                </div>
-              </Show>
-            </div>
-
             {/* Deck Table */}
             <Show when={props.groups.length > 0}>
               <div class={showAllDecks() && hasOverflow() ? 'db-stats-table-scroll' : ''}>
                 <table class="db-stats-table">
                   <thead>
                     <tr>
-                      <th>Deck / Section</th>
+                      <th>
+                        <span>Deck / Section</span>
+                        <input
+                          type="text"
+                          class="db-stats-search"
+                          value={deckSearch()}
+                          onInput={(e) => setDeckSearch(e.currentTarget.value)}
+                        />
+                      </th>
                       <th>Reviewed</th>
                       <th>Retention</th>
                       <th>Due</th>
@@ -157,7 +153,7 @@ export function StatsTab(props: StatsTabProps) {
             {/* Chart Panels */}
             <Show when={props.cards.length > 0 || props.reviewLog.length > 0}>
               <div class="sm-grid sm-grid-inline">
-                <PanelToday log={props.reviewLog} />
+                <PanelToday log={props.reviewLog} totalReviews={props.totalReviews} retention={props.retention} weakCount={props.weakCards.length} />
                 <PanelCardCounts cards={props.cards} />
                 <PanelFutureDue cards={props.cards} />
                 <PanelCalendar log={props.reviewLog} />
@@ -174,7 +170,8 @@ export function StatsTab(props: StatsTabProps) {
 
 // --- Chart Panels ---
 
-function PanelToday(props: { log: ReviewLogRow[] }) {
+function PanelToday(props: { log: ReviewLogRow[]; totalReviews: number; retention: number | null; weakCount: number }) {
+  const fmtRet = (r: number | null) => r != null ? Math.round(r * 100) + '%' : '--';
   const summary = () => aggregateTodaySummary(props.log);
   return (
     <div class="sm-card">
@@ -195,6 +192,24 @@ function PanelToday(props: { log: ReviewLogRow[] }) {
           </div>
         </div>
       </Show>
+      <div class="sm-divider" />
+      <div class="sm-card-title">Total</div>
+      <div class="sm-today">
+        <div class="sm-metric">
+          <span class="sm-metric-value">{props.totalReviews}</span>
+          <span class="sm-metric-label">reviewed</span>
+        </div>
+        <div class="sm-metric">
+          <span class="sm-metric-value">{fmtRet(props.retention)}</span>
+          <span class="sm-metric-label">retention</span>
+        </div>
+        <Show when={props.weakCount > 0}>
+          <div class="sm-metric">
+            <span class="sm-metric-value sm-metric-value--warn">{props.weakCount}</span>
+            <span class="sm-metric-label">difficult</span>
+          </div>
+        </Show>
+      </div>
     </div>
   );
 }
