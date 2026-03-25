@@ -60,16 +60,16 @@ export function StatsTab(props: StatsTabProps) {
           <div class="db-stats-main">
             {/* Summary */}
             <div class="db-stats-summary">
-              <div class="db-stats-metric" title="Total card reviews">
+              <div class="db-stats-metric">
                 <span class="db-stats-value">{props.totalReviews}</span>
                 <span class="db-stats-label">Total Reviews</span>
               </div>
-              <div class="db-stats-metric" title="Recall probability">
+              <div class="db-stats-metric">
                 <span class="db-stats-value">{fmtRet(props.retention)}</span>
                 <span class="db-stats-label">Retention</span>
               </div>
               <Show when={props.weakCards.length > 0}>
-                <div class="db-stats-metric" title="Leeches">
+                <div class="db-stats-metric">
                   <span class="db-stats-value db-stats-value--warn">{props.weakCards.length}</span>
                   <span class="db-stats-label">Difficult</span>
                 </div>
@@ -82,10 +82,10 @@ export function StatsTab(props: StatsTabProps) {
                 <table class="db-stats-table">
                   <thead>
                     <tr>
-                      <th title="Click to expand">Deck / Section</th>
-                      <th title="Total answered">Reviewed</th>
-                      <th title="Recall probability">Retention</th>
-                      <th title="Due now">Due</th>
+                      <th>Deck / Section</th>
+                      <th>Reviewed</th>
+                      <th>Retention</th>
+                      <th>Due</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -177,19 +177,19 @@ export function StatsTab(props: StatsTabProps) {
 function PanelToday(props: { log: ReviewLogRow[] }) {
   const summary = () => aggregateTodaySummary(props.log);
   return (
-    <div class="sm-card" title="Today's activity">
+    <div class="sm-card">
       <div class="sm-card-title">Today</div>
       <Show when={summary().studied > 0} fallback={<div class="sm-empty">No cards studied today.</div>}>
         <div class="sm-today">
-          <div class="sm-metric" title="Reviewed today">
+          <div class="sm-metric">
             <span class="sm-metric-value">{summary().studied}</span>
             <span class="sm-metric-label">studied</span>
           </div>
-          <div class="sm-metric" title="Correct rate">
+          <div class="sm-metric">
             <span class="sm-metric-value">{summary().correctPct}%</span>
             <span class="sm-metric-label">correct</span>
           </div>
-          <div class="sm-metric" title="Rated Again">
+          <div class="sm-metric">
             <span class="sm-metric-value">{summary().againCount}</span>
             <span class="sm-metric-label">again</span>
           </div>
@@ -210,7 +210,7 @@ function PanelCardCounts(props: { cards: CardRow[] }) {
   });
 
   return (
-    <div class="sm-card" title="Cards by FSRS state">
+    <div class="sm-card">
       <div class="sm-card-title">Counts</div>
       <canvas ref={canvasEl} class="sm-canvas sm-canvas-pie" />
       <div class="sm-summary">{total()} total</div>
@@ -241,7 +241,7 @@ function PanelFutureDue(props: { cards: CardRow[] }) {
   onCleanup(() => ttCleanup?.());
 
   return (
-    <div class="sm-card sm-full" title="Upcoming due cards">
+    <div class="sm-card sm-full">
       <div class="sm-card-header">
         <div class="sm-card-title">Future Due</div>
         <div class="sm-toggles">
@@ -288,7 +288,7 @@ function PanelReviews(props: { log: ReviewLogRow[] }) {
   onCleanup(() => ttCleanup?.());
 
   return (
-    <div class="sm-card sm-full" title="Daily reviews by rating">
+    <div class="sm-card sm-full">
       <div class="sm-card-header">
         <div class="sm-card-title">Reviews</div>
         <div class="sm-toggles">
@@ -364,7 +364,7 @@ function PanelIntervals(props: { cards: CardRow[] }) {
   const avg = () => avgInterval(props.cards);
 
   return (
-    <div class="sm-card sm-full" title="Review spacing">
+    <div class="sm-card sm-full">
       <div class="sm-card-header">
         <div class="sm-card-title">Review Intervals</div>
         <div class="sm-toggles">

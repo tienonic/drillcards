@@ -35,7 +35,7 @@ const C = {
 
 function drawEmpty(canvas: HTMLCanvasElement): HitRegion[] {
   const { ctx, w, h } = setup(canvas);
-  ctx.font = '12px Inter, sans-serif';
+  ctx.font = '12px Saans, system-ui, sans-serif';
   ctx.fillStyle = C.text;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -44,7 +44,7 @@ function drawEmpty(canvas: HTMLCanvasElement): HitRegion[] {
 }
 
 function yAxis(ctx: CanvasRenderingContext2D, ticks: number[], yMax: number, lp: number, rp: number, tp: number, plotH: number, w: number) {
-  ctx.font = '10px Inter, sans-serif';
+  ctx.font = '10px Saans, system-ui, sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'middle';
   for (const tick of ticks) {
@@ -120,7 +120,7 @@ export function drawBarChart(
   ctx.fillStyle = C.text;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.font = '9px Inter, sans-serif';
+  ctx.font = '9px Saans, system-ui, sans-serif';
   const step = Math.max(1, Math.floor(bars.length / 8));
   for (let i = 0; i < bars.length; i += step) {
     const x = lp + ((i + 0.5) / bars.length) * plotW;
@@ -180,7 +180,7 @@ export function drawStackedBarChart(
   ctx.fillStyle = C.text;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.font = '9px Inter, sans-serif';
+  ctx.font = '9px Saans, system-ui, sans-serif';
   const step = Math.max(1, Math.floor(bars.length / 8));
   for (let i = 0; i < bars.length; i += step) {
     const x = lp + ((i + 0.5) / bars.length) * plotW;
@@ -217,7 +217,7 @@ export function drawPieChart(
   }
 
   // Legend
-  ctx.font = '500 11px Inter, sans-serif';
+  ctx.font = '500 11px Saans, system-ui, sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   const lx = w * 0.6;
@@ -254,7 +254,7 @@ export function drawHeatmap(
   const gap = 2;
 
   // Month labels
-  ctx.font = '9px Inter, sans-serif';
+  ctx.font = '9px Saans, system-ui, sans-serif';
   ctx.fillStyle = C.text;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
