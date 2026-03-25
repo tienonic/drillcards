@@ -483,49 +483,6 @@
   border-color: var(--color-text-light);
 }
 
-.flash-easy-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 10px;
-}
-
-.flash-easy-btn {
-  padding: 4px 14px;
-  border-radius: 4px;
-  border: 1px solid;
-  background: transparent;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.75rem;
-}
-
-.flashcard-hint {
-  text-align: center;
-  color: var(--color-text-light);
-  font-size: 0.85rem;
-  margin-top: 8px;
-}
-
-.flash-sidebar-controls {
-  border-top: 1px solid var(--color-border);
-  padding: 4px 8px;
-}
-
-.flash-sidebar-btns {
-  display: flex;
-  gap: 4px;
-  margin-top: 3px;
-}
-
-.flash-sidebar-btns .flash-nav-btn {
-  flex: 1;
-  text-align: center;
-  padding: 2px 6px;
-  font-size: 0.6rem;
-}
-
 /* === Cram Mode === */
 .cram-btn {
   border-color: var(--color-accent);

@@ -2,13 +2,12 @@ import { createSignal, createEffect, batch } from 'solid-js';
 import { workerApi } from '../../core/hooks/useWorker.ts';
 import { useTimer } from '../../core/hooks/useTimer.ts';
 import { shuffle } from '../../utils/shuffle.ts';
-import { activeProject, easyMode, sessionSummary, setSessionSummary, setActiveTab } from '../../core/store/app.ts';
+import { activeProject, setActiveProject, easyMode, sessionSummary, setSessionSummary, setActiveTab } from '../../core/store/app.ts';
 import { autoSave } from '../backup/backup.ts';
 import { setQuestionContext } from '../glossary/store.ts';
 import { pushChartEntry } from '../activity/store.ts';
 import { timeToRating, lookupQuestion, getCardType } from './helpers.ts';
 import { createHistoryNav, type HistoryEntry } from './historyNav.ts';
-import { createCramSession } from './cramSession.ts';
 import type { Section, Question } from '../../projects/types.ts';
 
 type QuizState = 'idle' | 'answering' | 'revealed' | 'rated' | 'reviewing-history' | 'done';
@@ -106,7 +105,7 @@ export function createQuizSession(section: Section): QuizSession {
     }
   });
 
-  const histNav = createHistoryNav(section);
+  const histNav = createHistoryNav();
   let picking = false;
   let acting = false;
   let modeSwitch = false;
@@ -732,7 +731,9 @@ export function createQuizSession(section: Section): QuizSession {
   async function increaseNewCards(count?: number) {
     if (acting) return;
     const p = project();
-    if (p && count != null) p.config.new_per_session = count;
+    if (p && count != null) {
+      setActiveProject({ ...p, config: { ...p.config, new_per_session: count } });
+    }
     acting = true;
     try {
       await workerApi.resetNewCount();

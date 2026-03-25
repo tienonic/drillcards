@@ -151,7 +151,7 @@ export async function runInsights() {
     if (signal.aborted) return;
     setInsightsError(err instanceof Error ? err.message : String(err));
   } finally {
-    if (activeAbort === ctrl || activeAbort === null) setInsightsLoading(false);
+    if (!signal.aborted) setInsightsLoading(false);
     if (activeAbort === ctrl) activeAbort = null;
   }
 }
@@ -182,7 +182,7 @@ export async function runGenerate(sourceText: string, count: number) {
     if (signal.aborted) return;
     setGenerateError(err instanceof Error ? err.message : String(err));
   } finally {
-    if (activeAbort === ctrl || activeAbort === null) setGenerateLoading(false);
+    if (!signal.aborted) setGenerateLoading(false);
     if (activeAbort === ctrl) activeAbort = null;
   }
 }
@@ -270,7 +270,7 @@ export async function runTargeted(count: number) {
     if (signal.aborted) return;
     setTargetedError(err instanceof Error ? err.message : String(err));
   } finally {
-    if (activeAbort === ctrl || activeAbort === null) setTargetedLoading(false);
+    if (!signal.aborted) setTargetedLoading(false);
     if (activeAbort === ctrl) activeAbort = null;
   }
 }

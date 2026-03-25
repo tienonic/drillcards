@@ -1,7 +1,7 @@
 import './settings.css';
 import { Show, onMount, onCleanup, createSignal, batch } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import { activeProject, activePanel, setActivePanel, setHeaderLocked, graphVisible, toggleGraphVisible, syncActivity, toggleSyncActivity, termsVisible, toggleTermsVisible } from '../../core/store/app.ts';
+import { activeProject, setActiveProject, activePanel, setActivePanel, setHeaderLocked, graphVisible, toggleGraphVisible, syncActivity, toggleSyncActivity, termsVisible, toggleTermsVisible } from '../../core/store/app.ts';
 import { exportProjectData } from '../export/export.ts';
 import { workerApi } from '../../core/hooks/useWorker.ts';
 import { saveProjectConfig, openRecentProject } from '../launcher/store.ts';
@@ -77,10 +77,7 @@ export function SettingsPanel() {
     const lt = Math.max(2, Math.min(30, Math.round(leechThreshold())));
     const mi = Math.max(7, Math.min(365, Math.round(maxInterval())));
 
-    project.config.desired_retention = ret;
-    project.config.new_per_session = nps;
-    project.config.leech_threshold = lt;
-    project.config.max_interval = mi;
+    setActiveProject({ ...project, config: { ...project.config, desired_retention: ret, new_per_session: nps, leech_threshold: lt, max_interval: mi } });
 
     try {
       await workerApi.setFSRSParams(ret, lt, mi);

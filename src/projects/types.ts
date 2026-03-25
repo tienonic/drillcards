@@ -36,7 +36,6 @@ export interface Section {
 
 export interface ProjectConfig {
   desired_retention: number;
-  learn_steps: number[];
   new_per_session: number;
   leech_threshold: number;
   max_interval: number;

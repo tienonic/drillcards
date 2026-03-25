@@ -1,7 +1,8 @@
-import { Show, For, createSignal } from 'solid-js';
+import { Show, For } from 'solid-js';
 import type { QuizSession } from './store.ts';
 import { easyMode } from '../../core/store/app.ts';
 import { LatexHtml } from '../../components/LatexText.tsx';
+import { AddNewCards } from './McqCard.tsx';
 
 const RATING_CSS: Record<number, string> = { 1: 'rating-again', 2: 'rating-hard', 3: 'rating-good', 4: 'rating-easy' };
 const RATING_NAMES: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
@@ -40,7 +41,7 @@ export function FlashcardArea(props: { session: QuizSession }) {
           <div class="done-actions">
             <button type="button" class="action-sm" onClick={() => s.studyMore().catch(() => {})}>Study More</button>
             <button type="button" class="action-sm cram-btn" onClick={() => s.startCram().catch(() => {})}>Cram</button>
-            <div class="done-add-new">{(() => { const [count, setCount] = createSignal(5); return <><input type="number" value={count()} min="1" class="new-cards-input" onInput={(e) => setCount(Math.max(1, parseInt(e.currentTarget.value, 10) || 1))} /><button type="button" class="action-sm" onClick={() => s.increaseNewCards(count()).catch(() => {})}>Add New</button></>; })()}</div>
+            <AddNewCards session={s} />
             <button type="button" class="action-sm" onClick={() => s.unburyAll().catch(() => {})}>Unbury Cards</button>
           </div>
         </div>

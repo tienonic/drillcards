@@ -7,7 +7,7 @@ import { LatexText } from '../../components/LatexText.tsx';
 const RATING_CSS: Record<number, string> = { 1: 'rating-again', 2: 'rating-hard', 3: 'rating-good', 4: 'rating-easy' };
 const RATING_NAMES: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
 
-function AddNewCards(props: { session: QuizSession }) {
+export function AddNewCards(props: { session: QuizSession }) {
   const [count, setCount] = createSignal(5);
   return (
     <div class="done-add-new">

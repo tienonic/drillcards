@@ -1,4 +1,4 @@
-import { createSignal, For, Show, onMount, createEffect } from 'solid-js';
+import { createSignal, For, Show, onCleanup } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { injectFlashcards } from '../ai/injectCards.ts';
 
@@ -34,6 +34,7 @@ export function DiyEditorModal(props: Props) {
   const [rows, setRows] = createSignal<CardRow[]>(loadDraft());
   const [sectionName, setSectionName] = createSignal('DIY Flashcards');
   let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => { if (saveTimer) clearTimeout(saveTimer); });
 
   const completePairs = () => rows().filter(r => r.front.trim() && r.back.trim());
 

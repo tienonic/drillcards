@@ -125,15 +125,16 @@ export function StudyApp() {
 function SessionBanner(props: { gap: string; dueNow: number }) {
   const [fading, setFading] = createSignal(false);
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let fadeTimer: ReturnType<typeof setTimeout> | undefined;
 
   onMount(() => {
     timer = setTimeout(() => {
       setFading(true);
-      setTimeout(() => setSessionSummary(null), 600);
+      fadeTimer = setTimeout(() => setSessionSummary(null), 600);
     }, 7400);
   });
 
-  onCleanup(() => { if (timer) clearTimeout(timer); });
+  onCleanup(() => { if (timer) clearTimeout(timer); if (fadeTimer) clearTimeout(fadeTimer); });
 
   return (
     <div class={`session-banner ${fading() ? 'session-banner--fade' : ''}`} onClick={() => setSessionSummary(null)}>
