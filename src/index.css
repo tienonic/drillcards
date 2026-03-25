@@ -1,0 +1,121 @@
+@import "@fontsource/inter/latin-400.css";
+@import "@fontsource/inter/latin-500.css";
+@import "@fontsource/inter/latin-600.css";
+@import "@fontsource/merriweather/latin-400.css";
+@import "@fontsource/merriweather/latin-700.css";
+@import "katex/dist/katex.min.css";
+@import "./features/ai/ai.css";
+
+@font-face {
+  font-family: 'Signifier';
+  src: url('/fonts/SignifierLight.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Signifier';
+  src: url('/fonts/SignifierRegular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Signifier';
+  src: url('/fonts/SignifierMedium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Signifier';
+  src: url('/fonts/SignifierBold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Theme tokens */
+:root {
+  --color-bg: #f5f0e8;
+  --color-card: #faf7f2;
+  --color-primary: #4a7fb5;
+  --color-primary-light: #e4eef7;
+  --color-primary-dark: #2c5a8a;
+  --color-accent: #c48f3f;
+  --color-accent-light: #f5ebe0;
+  --color-accent-dark: #a06830;
+  --color-danger: #b54a3f;
+  --color-danger-light: #f5e0dc;
+  --color-danger-dark: #8b3a32;
+  --color-text: #2d2a26;
+  --color-text-light: #6b6560;
+  --color-border: #d9d1c7;
+  --color-info: #4a7a96;
+  --color-info-light: #e4eff5;
+  --color-success-dark: #2d6b3e;
+  --color-warm-bg: #f5ece0;
+
+  --font-body: 'Merriweather', Georgia, 'Times New Roman', serif;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --shadow-soft: rgba(0, 0, 0, 0.1);
+  --shadow-overlay: rgba(0, 0, 0, 0.12);
+  --shadow-medium: rgba(0, 0, 0, 0.15);
+}
+
+/* === Reset === */
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; font-family: var(--font-body); color: var(--color-text); background: var(--color-bg); font-size: 1.125rem; line-height: 1.625; }
+button, input, textarea, select { font-family: inherit; }
+
+/* === Zen mode === */
+.zen .header-pull { opacity: 0; }
+.zen .header-pull:hover, .zen .header-pull-open { opacity: 0.5; }
+.zen .card-actions { display: none; }
+.zen .sidebar-right { display: none !important; }
+.zen .mode-btn { display: none; }
+.zen .mode-toggle { border-color: transparent; margin-bottom: 4px; }
+.zen .dk-btn { display: none; }
+.zen .timer { display: none; }
+.zen .flashcard-hint { display: none; }
+.zen .feedback { display: none !important; }
+.zen .options:has(.option-btn.wrong) .option-btn.correct { border-color: var(--color-border); background: var(--color-card); opacity: 0.85; }
+
+.zen .top-toggles { opacity: 0.15 !important; }
+.zen .top-toggles .top-toggle-label { display: none; }
+.zen .top-toggles:hover { opacity: 0.6 !important; }
+
+.zen main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.zen .card {
+  box-shadow: none;
+  border: none;
+}
+
+/* Zen mode: hide math extras */
+.zen .math-category-btns { display: none; }
+
+/* === Responsive === */
+@media (max-width: 1100px) {
+  .sidebar-right { display: none !important; }
+}
+
+@media (max-width: 600px) {
+  .card { padding: 16px; }
+  .flashcard-front { font-size: 1rem; }
+  .rating-btn { min-width: 60px; padding: 8px 4px; }
+}
+
+/* Utilities */
+.hidden { display: none !important; }

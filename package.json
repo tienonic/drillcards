@@ -1,0 +1,26 @@
+{
+  "name": "drill",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Spaced repetition study app using FSRS. MCQ quizzes, flashcards, and math drills with offline-first SQLite persistence.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/merriweather": "^5.2.11",
+    "katex": "^0.16.21",
+    "solid-js": "^1.9.5",
+    "ts-fsrs": "^5.2.3",
+    "wa-sqlite": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vite": "^6.3.1",
+    "vite-plugin-pwa": "^1.2.0",
+    "vite-plugin-solid": "^2.11.6"
+  }
+}
