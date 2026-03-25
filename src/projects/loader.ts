@@ -1,5 +1,6 @@
 import type { ProjectData, Project, ProjectConfig, Section } from './types.ts';
 import { getGlobalFSRSDefaults } from '../core/store/config.ts';
+import { getCardTypeEntry } from './cardTypeRegistry.ts';
 
 function buildDefaultConfig(): ProjectConfig {
   const fsrs = getGlobalFSRSDefaults();
@@ -17,26 +18,7 @@ export function slugify(str: string): string {
 }
 
 function buildCardIds(section: Section): void {
-  section.cardIds = [];
-  section.flashCardIds = [];
-
-  if (section.type === 'mc-quiz' && section.questions) {
-    section.questions.forEach((_, i) => {
-      section.cardIds.push(`${section.id}-${i}`);
-    });
-  } else if (section.type === 'passage-quiz' && section.scenarios) {
-    section.scenarios.forEach((s, si) => {
-      s.questions.forEach((_, qi) => {
-        section.cardIds.push(`${section.id}-${si}-${qi}`);
-      });
-    });
-  }
-
-  if (section.flashcards) {
-    section.flashcards.forEach((_, i) => {
-      section.flashCardIds.push(`${section.id}-flash-${i}`);
-    });
-  }
+  getCardTypeEntry(section.type).buildCardIds(section);
 }
 
 export function loadProject(data: ProjectData): Project {

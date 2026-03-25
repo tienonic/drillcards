@@ -196,6 +196,10 @@ export function aggregateIntervals(cards: CardRow[], percentileCap: number | nul
   return result;
 }
 
+export function formatRetention(r: number | null): string {
+  return r != null ? Math.round(r * 100) + '%' : '--';
+}
+
 export function avgInterval(cards: CardRow[]): number {
   const intervals = cards
     .filter(c => c.fsrs_state === 2 && !c.suspended)

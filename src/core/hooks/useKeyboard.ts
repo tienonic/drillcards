@@ -2,6 +2,7 @@ import { onMount, onCleanup } from 'solid-js';
 import { activeTab, activeProject, setNoteBoxVisible, termsOpen, easyMode, zenMode, toggleZenMode, headerVisible, activePanel } from '../store/app.ts';
 import { sectionHandlers } from '../store/sections.ts';
 import { matchesKey } from '../../features/settings/keybinds.ts';
+import { getCardTypeEntry } from '../../projects/cardTypeRegistry.ts';
 import type { MathSession } from '../../features/math/store.ts';
 import type { McqView, FlashView } from '../../features/quiz/types.ts';
 
@@ -79,7 +80,8 @@ export function useKeyboard() {
     const session = sectionHandlers.get(tab);
     if (!session) return;
 
-    if (section.type === 'math-gen') {
+    const entry = getCardTypeEntry(section.type);
+    if (entry.keyboardHandler === 'math') {
       handleMathKeyboard(e, session as unknown as MathSession);
     } else if (session.flashMode?.()) {
       handleFlashcardKeyboard(e, session as unknown as FlashView);
