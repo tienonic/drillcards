@@ -179,7 +179,7 @@ export function createQuizSession(section: Section): QuizSession {
 
     const cardType = sectionCardType();
     const result = await workerApi.pickNext(p.slug, [section.id], p.config.new_per_session, cardType);
-    if (flashMode()) { setState('done'); return; }
+    if (flashMode()) return; // Stale: flash mode toggled during pick — flash path handles it
     if (!result.cardId) { setState('done'); return; }
 
     const lookup = lookupQuestion(section, result.cardId);
@@ -480,8 +480,6 @@ export function createQuizSession(section: Section): QuizSession {
     if (!card || !fId) return;
     await guard.withActing(async () => {
       applyFlashCard(fId, { card });
-
-      setQuestionContext([card.front, card.back].join(' '));
       await refreshDue();
     });
   }

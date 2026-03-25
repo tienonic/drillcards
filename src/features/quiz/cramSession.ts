@@ -6,7 +6,7 @@ export interface CramDeps {
   projectSlug: () => string | undefined;
   sectionId: string;
   flashMode: () => boolean;
-  sectionType: string;
+  sectionType: 'mc-quiz' | 'passage-quiz' | 'math-gen';
   onPickMcq: (cardId: string) => void;
   onPickFlash: (cardId: string) => void;
   onDone: () => void;
