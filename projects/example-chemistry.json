@@ -1,0 +1,147 @@
+{
+  "name": "Chemistry 101",
+  "version": 1,
+  "config": {
+    "desired_retention": 0.9,
+    "new_per_session": 20,
+    "leech_threshold": 8
+  },
+  "sections": [
+    {
+      "id": "elements",
+      "name": "Elements & Periodic Table",
+      "type": "mc-quiz",
+      "hasFlashcards": true,
+      "questions": [
+        {
+          "q": "What is the chemical symbol for Gold?",
+          "correct": "Au",
+          "wrong": ["Go", "Gd", "Ag"],
+          "explanation": "Au comes from the Latin 'aurum' meaning gold."
+        },
+        {
+          "q": "What is the atomic number of Carbon?",
+          "correct": "6",
+          "wrong": ["8", "12", "14"],
+          "explanation": "Carbon has 6 protons. Atomic number = number of protons."
+        },
+        {
+          "q": "Which element has the symbol 'Fe'?",
+          "correct": "Iron",
+          "wrong": ["Fluorine", "Fermium", "Francium"],
+          "explanation": "Fe comes from the Latin 'ferrum'."
+        },
+        {
+          "q": "What group do Helium, Neon, and Argon belong to?",
+          "correct": "Noble gases",
+          "wrong": ["Halogens", "Alkali metals", "Transition metals"],
+          "explanation": "Noble gases (Group 18) have full outer electron shells."
+        },
+        {
+          "q": "Which element has the highest electronegativity?",
+          "correct": "Fluorine",
+          "wrong": ["Oxygen", "Chlorine", "Nitrogen"],
+          "explanation": "Fluorine (3.98) is the most electronegative element."
+        }
+      ],
+      "flashcards": [
+        {
+          "front": "Carbon (C)",
+          "back": "<strong>Atomic #:</strong> 6<br><strong>Mass:</strong> 12.011<br><strong>Group:</strong> Nonmetal<br><strong>Note:</strong> Basis of organic chemistry, 4 bonds"
+        },
+        {
+          "front": "Iron (Fe)",
+          "back": "<strong>Atomic #:</strong> 26<br><strong>Mass:</strong> 55.845<br><strong>Group:</strong> Transition metal<br><strong>Note:</strong> Most common element on Earth by mass"
+        },
+        {
+          "front": "Gold (Au)",
+          "back": "<strong>Atomic #:</strong> 79<br><strong>Mass:</strong> 196.967<br><strong>Group:</strong> Transition metal<br><strong>Note:</strong> Highly malleable, doesn't tarnish"
+        }
+      ]
+    },
+    {
+      "id": "reactions",
+      "name": "Chemical Reactions",
+      "type": "passage-quiz",
+      "scenarios": [
+        {
+          "passage": "In an exothermic reaction, energy is released to the surroundings as heat. The products have less energy than the reactants and ΔH is negative. Examples: combustion, neutralization, rusting. Endothermic reactions absorb energy — ΔH is positive. Examples: photosynthesis, melting ice.",
+          "source": "General Chemistry, Ch. 5",
+          "questions": [
+            {
+              "q": "In an exothermic reaction, the enthalpy change (ΔH) is:",
+              "correct": "Negative",
+              "wrong": ["Positive", "Zero", "Undefined"],
+              "explanation": "Energy leaves the system → ΔH < 0."
+            },
+            {
+              "q": "Which is an example of an endothermic process?",
+              "correct": "Melting ice",
+              "wrong": ["Burning wood", "Rusting iron", "Neutralization"],
+              "explanation": "Melting absorbs heat from surroundings."
+            }
+          ]
+        },
+        {
+          "passage": "Balancing chemical equations follows the Law of Conservation of Mass: atoms are neither created nor destroyed. Add coefficients (not subscripts) to balance. Example: H₂ + O₂ → H₂O becomes 2H₂ + O₂ → 2H₂O.",
+          "source": "General Chemistry, Ch. 3",
+          "questions": [
+            {
+              "q": "When balancing equations, you adjust:",
+              "correct": "Coefficients",
+              "wrong": ["Subscripts", "Atomic numbers", "Electron counts"],
+              "explanation": "Changing subscripts would change the substance itself."
+            }
+          ]
+        }
+      ],
+      "tips": [
+        "Balance metals first, then nonmetals, then H, then O",
+        "Coefficients multiply ALL atoms in a formula"
+      ]
+    },
+    {
+      "id": "bonding",
+      "name": "Chemical Bonding",
+      "type": "mc-quiz",
+      "questions": [
+        {
+          "q": "What type of bond forms between a metal and a nonmetal?",
+          "correct": "Ionic bond",
+          "wrong": ["Covalent bond", "Metallic bond", "Hydrogen bond"],
+          "explanation": "Metals lose electrons, nonmetals gain them → ionic bond."
+        },
+        {
+          "q": "In a covalent bond, electrons are:",
+          "correct": "Shared between atoms",
+          "wrong": ["Transferred", "Destroyed", "Added from outside"],
+          "explanation": "Covalent = co-valence = sharing electrons."
+        },
+        {
+          "q": "Which intermolecular force is the weakest?",
+          "correct": "London dispersion forces",
+          "wrong": ["Hydrogen bonding", "Dipole-dipole", "Ion-dipole"],
+          "explanation": "London forces are temporary induced dipoles — weakest IMF."
+        }
+      ]
+    },
+    {
+      "id": "math",
+      "name": "Chem Math",
+      "type": "math-gen",
+      "generators": ["conversion", "percent", "average"]
+    }
+  ],
+  "glossary": [
+    { "term": "Atom", "def": "Smallest unit of an element. Made of protons, neutrons, electrons." },
+    { "term": "Ion", "def": "Atom with a net charge from gaining or losing electrons. Cation (+), Anion (−)." },
+    { "term": "Electronegativity", "def": "Tendency of an atom to attract shared electrons. Fluorine is highest (3.98)." },
+    { "term": "Ionic Bond", "def": "Bond formed by electron transfer from metal to nonmetal." },
+    { "term": "Covalent Bond", "def": "Bond formed by sharing electron pairs between nonmetals." },
+    { "term": "Enthalpy (ΔH)", "def": "Heat content. Negative = exothermic, positive = endothermic." },
+    { "term": "Catalyst", "def": "Speeds up a reaction without being consumed. Lowers activation energy." },
+    { "term": "Mole", "def": "6.022 × 10²³ particles (Avogadro's number)." },
+    { "term": "Stoichiometry", "def": "Quantitative relationships between reactants and products in a balanced equation." },
+    { "term": "pH", "def": "Acidity measure. < 7 acidic, 7 neutral, > 7 basic." }
+  ]
+}
