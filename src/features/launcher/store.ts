@@ -7,6 +7,7 @@ import { buildGlossary } from '../glossary/store.ts';
 import { loadKeybinds } from '../settings/keybinds.ts';
 import { fetchAutosave, restoreBackup } from '../backup/backup.ts';
 import { getGlobalFSRSDefaults } from '../../core/store/config.ts';
+import { sectionToCardType } from '../quiz/helpers.ts';
 import type { Project, ProjectData } from '../../projects/types.ts';
 
 interface RecentProject {
@@ -96,7 +97,7 @@ export async function openProject(data: ProjectData, isDefault: boolean, registr
     const sectionIds: string[] = [];
     for (const s of project.sections) {
       sectionIds.push(s.id);
-      const mcqType = s.type === 'passage-quiz' ? 'passage' : 'mcq';
+      const mcqType = sectionToCardType(s.type);
       for (const id of s.cardIds) {
         cardRegs.push({ sectionId: s.id, cardId: id, cardType: mcqType });
       }
