@@ -1,4 +1,4 @@
-import type { Section, Question } from '../../projects/types.ts';
+import type { Section, Question, Flashcard } from '../../projects/types.ts';
 
 export function timeToRating(seconds: number): number {
   if (seconds >= 59) return 1; // Again
@@ -46,4 +46,16 @@ export function getCardType(
 ): 'mcq' | 'passage' | 'flashcard' {
   if (flashMode) return 'flashcard';
   return sectionType === 'passage-quiz' ? 'passage' : 'mcq';
+}
+
+export function resolveFlashCard(
+  section: Section,
+  cardId: string,
+): { idx: number; card: Flashcard } | null {
+  const prefix = section.id + '-flash-';
+  if (!cardId.startsWith(prefix)) return null;
+  const idx = parseInt(cardId.slice(prefix.length), 10);
+  if (isNaN(idx)) return null;
+  const card = section.flashcards?.[idx];
+  return card ? { idx, card } : null;
 }

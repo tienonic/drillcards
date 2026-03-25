@@ -6,7 +6,7 @@ import { setAppPhase, setActiveProject, setActiveTab, setHeaderVisible, setActiv
 import { buildGlossary } from '../glossary/store.ts';
 import { loadKeybinds } from '../settings/keybinds.ts';
 import { fetchAutosave, restoreBackup } from '../backup/backup.ts';
-import { getGlobalFSRSDefaults } from '../dashboard/ParametersTabContainer.tsx';
+import { getGlobalFSRSDefaults } from '../../core/store/config.ts';
 import type { Project, ProjectData } from '../../projects/types.ts';
 
 interface RecentProject {

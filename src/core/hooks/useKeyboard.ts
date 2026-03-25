@@ -3,7 +3,7 @@ import { activeTab, activeProject, setNoteBoxVisible, termsOpen, easyMode, zenMo
 import { sectionHandlers } from '../store/sections.ts';
 import { matchesKey } from '../../features/settings/keybinds.ts';
 import type { MathSession } from '../../features/math/store.ts';
-import type { QuizSession } from '../../features/quiz/store.ts';
+import type { McqView, FlashView } from '../../features/quiz/types.ts';
 
 export function useKeyboard() {
   let autoPaused = false;
@@ -82,9 +82,9 @@ export function useKeyboard() {
     if (section.type === 'math-gen') {
       handleMathKeyboard(e, session as unknown as MathSession);
     } else if (session.flashMode?.()) {
-      handleFlashcardKeyboard(e, session as unknown as QuizSession);
+      handleFlashcardKeyboard(e, session as unknown as FlashView);
     } else {
-      handleMcqKeyboard(e, session as unknown as QuizSession);
+      handleMcqKeyboard(e, session as unknown as McqView);
     }
   }
 
@@ -113,7 +113,7 @@ function handleMathKeyboard(e: KeyboardEvent, session: MathSession) {
   }
 }
 
-function handleFlashcardKeyboard(e: KeyboardEvent, session: QuizSession) {
+function handleFlashcardKeyboard(e: KeyboardEvent, session: FlashView) {
   const isFlipped = session.flashFlipped();
 
   // Space / flipCard: always toggle flip, never auto-rate
@@ -138,7 +138,7 @@ function handleFlashcardKeyboard(e: KeyboardEvent, session: QuizSession) {
   }
 }
 
-function handleAnswerKey(e: KeyboardEvent, session: QuizSession, st: string) {
+function handleAnswerKey(e: KeyboardEvent, session: McqView, st: string) {
   e.preventDefault();
   const answerActions = ['answer1', 'answer2', 'answer3', 'answer4'] as const;
   const idx = answerActions.findIndex(a => matchesKey(e, a));
@@ -151,7 +151,7 @@ function handleAnswerKey(e: KeyboardEvent, session: QuizSession, st: string) {
   }
 }
 
-function handleSpaceKey(e: KeyboardEvent, session: QuizSession, st: string) {
+function handleSpaceKey(e: KeyboardEvent, session: McqView, st: string) {
   e.preventDefault();
   if (st === 'reviewing-history') {
     session.advanceFromHistory();
@@ -164,7 +164,7 @@ function handleSpaceKey(e: KeyboardEvent, session: QuizSession, st: string) {
   }
 }
 
-function handleForwardKey(e: KeyboardEvent, session: QuizSession, st: string) {
+function handleForwardKey(e: KeyboardEvent, session: McqView, st: string) {
   e.preventDefault();
   if (st === 'reviewing-history') {
     session.advanceFromHistory();
@@ -176,7 +176,7 @@ function handleForwardKey(e: KeyboardEvent, session: QuizSession, st: string) {
   // answering → do nothing (can't go forward without answering)
 }
 
-function handleMcqKeyboard(e: KeyboardEvent, session: QuizSession) {
+function handleMcqKeyboard(e: KeyboardEvent, session: McqView) {
   const st = session.state();
   if (matchesKey(e, 'answer1') || matchesKey(e, 'answer2') || matchesKey(e, 'answer3') || matchesKey(e, 'answer4')) { handleAnswerKey(e, session, st); return; }
   if (matchesKey(e, 'skip')) { handleSpaceKey(e, session, st); return; }

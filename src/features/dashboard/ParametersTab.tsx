@@ -1,12 +1,6 @@
 import { createSignal, For, Show } from 'solid-js';
 import { createHoverMenu } from './createHoverMenu.ts';
-
-interface FSRSDefaults {
-  desired_retention: number;
-  new_per_session: number;
-  leech_threshold: number;
-  max_interval: number;
-}
+import type { FSRSDefaults } from '../../core/store/config.ts';
 
 interface ParametersTabProps {
   defaults: FSRSDefaults;
