@@ -22,7 +22,7 @@ function openFolderPlugin() {
           const absPath = resolve(relPath);
           const hasExt = /\.\w+$/.test(relPath);
           if (hasExt) {
-            spawn('explorer', ['/select,', absPath], { shell: false });
+            spawn('explorer', [`/select,${absPath}`], { shell: false });
           } else {
             spawn('explorer', [absPath], { shell: false });
           }
