@@ -6,23 +6,12 @@ import { activeProject, easyMode, sessionSummary, setSessionSummary, setActiveTa
 import { autoSave } from '../backup/backup.ts';
 import { setQuestionContext } from '../glossary/store.ts';
 import { pushChartEntry } from '../activity/store.ts';
+import { timeToRating, lookupQuestion, getCardType } from './helpers.ts';
+import { createHistoryNav, type HistoryEntry } from './historyNav.ts';
+import { createCramSession } from './cramSession.ts';
 import type { Section, Question } from '../../projects/types.ts';
 
 type QuizState = 'idle' | 'answering' | 'revealed' | 'rated' | 'reviewing-history' | 'done';
-
-interface HistoryEntry {
-  idx: number;
-  scenarioIdx?: number;
-  questionIdx?: number;
-  cardId: string;
-  selected: string | null;
-  correct: string;
-  optionOrder: string[];
-  isCorrect: boolean;
-  skipped: boolean;
-  explanation: string;
-  passage: string;
-}
 
 export interface QuizSession {
   state: () => QuizState;
@@ -77,13 +66,6 @@ export interface QuizSession {
 
 import { bumpHandlerVersion, sectionHandlers } from '../../core/store/sections.ts';
 
-function timeToRating(seconds: number): number {
-  if (seconds >= 59) return 1; // Again
-  if (seconds >= 40) return 2; // Hard
-  if (seconds >= 8) return 3;  // Good
-  return 4; // Easy
-}
-
 export function createQuizSession(section: Section): QuizSession {
   const project = () => activeProject();
 
@@ -103,7 +85,6 @@ export function createQuizSession(section: Section): QuizSession {
   const [flashBack, setFlashBack] = createSignal('');
   const [flashDefFirst, setFlashDefFirst] = createSignal(false);
   const [passage, setPassage] = createSignal('');
-  const [historyReview, setHistoryReview] = createSignal<HistoryEntry | null>(null);
   const [leechWarning, setLeechWarning] = createSignal(false);
   const [skipped, setSkipped] = createSignal(false);
   const [cramMode, setCramMode] = createSignal(false);
@@ -125,8 +106,7 @@ export function createQuizSession(section: Section): QuizSession {
     }
   });
 
-  let history: HistoryEntry[] = [];
-  let histPos = -1;
+  const histNav = createHistoryNav(section);
   let picking = false;
   let acting = false;
   let modeSwitch = false;
@@ -139,46 +119,15 @@ export function createQuizSession(section: Section): QuizSession {
     return flashMode() ? section.flashCardIds : section.cardIds;
   }
 
-  function getCardType(): 'mcq' | 'passage' | 'flashcard' {
-    if (flashMode()) return 'flashcard';
-    return section.type === 'passage-quiz' ? 'passage' : 'mcq';
+  function sectionCardType(): 'mcq' | 'passage' | 'flashcard' {
+    return getCardType(section.type, flashMode());
   }
 
-  function lookupQuestion(cId: string): { question: Question; scenarioIdx?: number; questionIdx?: number; passage?: string } | null {
-    if (section.type === 'mc-quiz' && section.questions) {
-      const idx = parseInt(cId.slice(section.id.length + 1), 10);
-      if (isNaN(idx)) return null;
-      const q = section.questions[idx];
-      return q ? { question: q } : null;
-    }
-    if (section.type === 'passage-quiz' && section.scenarios) {
-      // Card ID format: sectionId-scenarioIdx-questionIdx
-      const suffix = cId.slice(section.id.length + 1); // remove "sectionId-"
-      const parts = suffix.split('-');
-      if (parts.length < 2) return null;
-      const si = parseInt(parts[0], 10);
-      const qi = parseInt(parts[1], 10);
-      if (isNaN(si) || isNaN(qi)) return null;
-      const scenario = section.scenarios[si];
-      if (!scenario) return null;
-      const q = scenario.questions[qi];
-      if (!q) return null;
-      return {
-        question: q,
-        scenarioIdx: si,
-        questionIdx: qi,
-        passage: scenario.passage + (scenario.source ? `<span class="source">${scenario.source.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>` : ''),
-      };
-    }
-    return null;
-  }
-
-  function pushHistoryEntry(cardId: string, lookup: { question: Question; scenarioIdx?: number; questionIdx?: number; passage?: string }, optionOrder: string[], passage: string) {
-    history = history.slice(0, ++histPos);
-    history.push({
-      idx: section.type === 'mc-quiz' ? (parseInt(cardId.slice(section.id.length + 1), 10) || 0) : 0,
+  function pushHistoryEntry(cId: string, lookup: { question: Question; scenarioIdx?: number; questionIdx?: number; passage?: string }, optionOrder: string[], passage: string) {
+    histNav.push({
+      idx: section.type === 'mc-quiz' ? (parseInt(cId.slice(section.id.length + 1), 10) || 0) : 0,
       scenarioIdx: lookup.scenarioIdx, questionIdx: lookup.questionIdx,
-      cardId, selected: null, correct: lookup.question.correct,
+      cardId: cId, selected: null, correct: lookup.question.correct,
       optionOrder, isCorrect: false, skipped: false,
       explanation: lookup.question.explanation ?? '', passage,
     });
@@ -188,12 +137,12 @@ export function createQuizSession(section: Section): QuizSession {
     const p = project();
     if (!p) return;
     const slug = p.slug;
-    const cardType = getCardType();
+    const cardType = sectionCardType();
     const ids = cardType === 'flashcard' ? section.flashCardIds : section.cardIds;
     if (ids.length === 0) return;
     const result = await workerApi.countDue(slug, [section.id], cardType);
     if (project()?.slug !== slug) return; // Stale: project changed while fetching
-    if (getCardType() !== cardType) return; // Stale: mode changed while fetching
+    if (sectionCardType() !== cardType) return; // Stale: mode changed while fetching
     setDueCount(result);
   }
 
@@ -223,17 +172,18 @@ export function createQuizSession(section: Section): QuizSession {
 
     if (sessionSummary()) setSessionSummary(null);
 
-    batch(() => { setLeechWarning(false); setHistoryReview(null); setSkipped(false); });
+    batch(() => { setLeechWarning(false); setSkipped(false); });
+    histNav.clearReview();
 
     const ids = getCardIds();
     if (ids.length === 0) { setState('done'); return; }
 
-    const cardType = getCardType();
+    const cardType = sectionCardType();
     const result = await workerApi.pickNext(p.slug, [section.id], p.config.new_per_session, cardType);
     if (flashMode()) { setState('done'); return; }
     if (!result.cardId) { setState('done'); return; }
 
-    const lookup = lookupQuestion(result.cardId);
+    const lookup = lookupQuestion(section, result.cardId);
     if (!lookup) { setState('done'); return; }
 
     const shuffled = shuffle([lookup.question.correct, ...lookup.question.wrong]);
@@ -280,7 +230,7 @@ export function createQuizSession(section: Section): QuizSession {
       const s = await workerApi.updateScore(p.slug, section.id, correct);
       setScore({ correct: s.correct, attempted: s.attempted });
 
-      const entry = history[histPos];
+      const entry = histNav.getEntry(histNav.getPos());
       if (entry && entry.cardId === cId) {
         entry.selected = option;
         entry.correct = q.correct;
@@ -315,7 +265,7 @@ export function createQuizSession(section: Section): QuizSession {
       const s = await workerApi.updateScore(p.slug, section.id, false);
       setScore({ correct: s.correct, attempted: s.attempted });
 
-      const entry = history[histPos];
+      const entry = histNav.getEntry(histNav.getPos());
       if (entry && entry.cardId === cId) {
         entry.selected = null;
         entry.correct = q.correct;
@@ -386,10 +336,10 @@ export function createQuizSession(section: Section): QuizSession {
       const result = await workerApi.undoReview();
       if (result.undone && result.cardId) {
         const restoredId = result.cardId;
-        const lookup = lookupQuestion(restoredId);
+        const lookup = lookupQuestion(section, restoredId);
         if (lookup) {
           const newOptions = shuffle([lookup.question.correct, ...lookup.question.wrong]);
-          const entry = history[histPos];
+          const entry = histNav.getEntry(histNav.getPos());
           if (entry && entry.cardId === restoredId) {
             entry.selected = null;
             entry.isCorrect = false;
@@ -538,16 +488,28 @@ export function createQuizSession(section: Section): QuizSession {
     (next ? pickNextFlash() : pickNextCard()).catch(() => {}).finally(() => { modeSwitch = false; });
   }
 
-  function goBackHistory() {
-    if (acting || picking) return;
-    if (history.length === 0 || histPos <= 0) return;
-    histPos--;
-    const entry = history[histPos];
-    if (!entry) return;
-
-    const lookup = lookupQuestion(entry.cardId);
+  function restoreHistoryEntry(entry: HistoryEntry) {
+    const lookup = lookupQuestion(section, entry.cardId);
     if (!lookup) return;
 
+    // Unanswered entry: go straight to answering
+    if (entry.selected === null && !entry.skipped) {
+      batch(() => {
+        setLeechWarning(false);
+        setCardId(entry.cardId);
+        setQuestion(lookup.question);
+        setOptions(entry.optionOrder);
+        setSelected(null);
+        setIsCorrect(false);
+        setSkipped(false);
+        setPassage(entry.passage);
+        setState('answering');
+      });
+      timer.start();
+      return;
+    }
+
+    // Answered entry: show in review mode
     batch(() => {
       setLeechWarning(false);
       setCardId(entry.cardId);
@@ -560,61 +522,19 @@ export function createQuizSession(section: Section): QuizSession {
       setSkipped(entry.skipped);
       setPassage(entry.passage);
       setRatingLabels({});
-      setHistoryReview(entry);
       setState('reviewing-history');
     });
+  }
+
+  function goBackHistory() {
+    if (acting || picking) return;
+    histNav.goBack(restoreHistoryEntry);
   }
 
   function advanceFromHistory() {
     if (acting || picking) return;
     if (state() !== 'reviewing-history') return;
-    if (histPos < history.length - 1) {
-      histPos++;
-      const entry = history[histPos];
-      // Restore unanswered card directly (don't re-pick from scheduler)
-      if (entry && entry.selected === null && !entry.skipped) {
-        const lookup = lookupQuestion(entry.cardId);
-        if (lookup) {
-          batch(() => {
-            setHistoryReview(null);
-            setLeechWarning(false);
-            setCardId(entry.cardId);
-            setQuestion(lookup.question);
-            setOptions(entry.optionOrder);
-            setSelected(null);
-            setIsCorrect(false);
-            setSkipped(false);
-            setPassage(entry.passage);
-            setState('answering');
-          });
-          timer.start();
-          return;
-        }
-      }
-      if (entry && (section.type === 'mc-quiz' || section.type === 'passage-quiz')) {
-        const lookup = lookupQuestion(entry.cardId);
-        if (lookup) {
-          batch(() => {
-            setLeechWarning(false);
-            setCardId(entry.cardId);
-            setQuestion(lookup.question);
-            if (entry.optionOrder.length > 0) {
-              setOptions(entry.optionOrder);
-            }
-            setSelected(entry.selected);
-            setIsCorrect(entry.isCorrect);
-            setSkipped(entry.skipped);
-            setPassage(entry.passage);
-            setRatingLabels({});
-            setHistoryReview(entry);
-            setState('reviewing-history');
-          });
-          return;
-        }
-      }
-    }
-    setHistoryReview(null);
-    pickNextCard().catch(() => {});
+    histNav.advance(restoreHistoryEntry, () => pickNextCard().catch(() => {}));
   }
 
   async function shuffleFlashAction() {
@@ -651,7 +571,7 @@ export function createQuizSession(section: Section): QuizSession {
     acting = true;
     try {
       const randomId = ids[Math.floor(Math.random() * ids.length)];
-      const lookup = lookupQuestion(randomId);
+      const lookup = lookupQuestion(section, randomId);
       if (!lookup) return;
       const shuffled = shuffle([lookup.question.correct, ...lookup.question.wrong]);
       const passageText = lookup.passage ?? '';
@@ -684,7 +604,7 @@ export function createQuizSession(section: Section): QuizSession {
       if (state() !== 'done') return;
 
       // Fall back to weakest card by stability in this section
-      const cardType = getCardType();
+      const cardType = sectionCardType();
       const result = await workerApi.pickNextOverride(p.slug, [section.id], cardType);
       if (result.cardId) {
         if (flashMode()) {
@@ -705,7 +625,7 @@ export function createQuizSession(section: Section): QuizSession {
           });
           setQuestionContext([card.front, card.back].join(' '));
         } else {
-          const lookup = lookupQuestion(result.cardId);
+          const lookup = lookupQuestion(section, result.cardId);
           if (!lookup) return;
           const shuffled = shuffle([lookup.question.correct, ...lookup.question.wrong]);
           batch(() => {
@@ -746,7 +666,7 @@ export function createQuizSession(section: Section): QuizSession {
     const p = project();
     if (!p) return;
     const wasFlash = flashMode();
-    const cardType = getCardType();
+    const cardType = sectionCardType();
     const result = await workerApi.pickNextOverride(p.slug, [section.id], cardType, [...cramSeen]);
     if (flashMode() !== wasFlash) return; // Mode toggled during fetch — other path is handling it
     if (!result.cardId) {
@@ -773,7 +693,7 @@ export function createQuizSession(section: Section): QuizSession {
       });
       setQuestionContext([card.front, card.back].join(' '));
     } else {
-      const lookup = lookupQuestion(result.cardId);
+      const lookup = lookupQuestion(section, result.cardId);
       if (!lookup) { endCram(); return; }
       const shuffled = shuffle([lookup.question.correct, ...lookup.question.wrong]);
       batch(() => {
@@ -860,8 +780,7 @@ export function createQuizSession(section: Section): QuizSession {
         })),
       ];
       await workerApi.loadProject(p.slug, [section.id], cardRegs);
-      history = [];
-      histPos = -1;
+      histNav.reset();
       cramSeen.clear();
       batch(() => { setScore({ correct: 0, attempted: 0 }); setCramMode(false); setCramCount(0); });
       if (flashMode()) {
@@ -899,7 +818,7 @@ export function createQuizSession(section: Section): QuizSession {
     flashBack,
     flashDefFirst,
     passage,
-    historyReview,
+    historyReview: histNav.historyReview,
     leechWarning,
     skipped,
     currentImageLink,
