@@ -32,7 +32,12 @@ function getWorker(): Worker {
 }
 
 async function sendWorkerMessage<T = unknown>(request: WorkerRequest): Promise<T> {
-  if (request.type !== 'INIT' && initPromise) await initPromise;
+  if (request.type !== 'INIT') {
+    // Ensure worker is initialized — handles both normal startup and crash recovery
+    // (after crash, initPromise is null but the new worker still needs INIT)
+    if (!initPromise) await initWorker();
+    else await initPromise;
+  }
   const w = getWorker();
   const id = ++msgId;
   const msg: WorkerMessage = { id, request };
