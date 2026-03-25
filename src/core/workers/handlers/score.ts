@@ -55,6 +55,9 @@ export async function resetSection(
     await ctx.run('ROLLBACK');
     throw e;
   }
-  await ctx.run(`DELETE FROM daily_new WHERE project_id = ?`, [projectId]);
+  await ctx.run(
+    `DELETE FROM daily_new WHERE project_id = ? AND key LIKE ?`,
+    [projectId, `%|${sectionId}|%`]
+  );
   return { ok: true };
 }

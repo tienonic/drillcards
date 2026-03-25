@@ -655,7 +655,7 @@ export function createQuizSession(section: Section): QuizSession {
         if (due.due > 0 || due.newCount > 0) {
           setActiveTab(sec.id);
           const handler = sectionHandlers.get(sec.id);
-          if (handler) await handler.pickNextCard();
+          if (handler?.pickNextCard) await handler.pickNextCard();
           return;
         }
       }

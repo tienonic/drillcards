@@ -18,7 +18,7 @@ interface ActiveSession {
   dueCount?: () => { newCount: number; due: number; total: number };
   shuffleFlash?: () => Promise<void>;
   shuffleMcq?: () => Promise<void>;
-  resetSection?: () => Promise<void>;
+  resetSection?: () => void | Promise<void>;
 }
 
 export function ActivityWidget(props: { isFlashMode: () => boolean; activeSession: () => ActiveSession | undefined }) {

@@ -26,7 +26,7 @@ export function StudyApp() {
   const activeSession = () => {
     handlerVersion();
     const tab = activeTab();
-    return tab ? sectionHandlers.get(tab) : null;
+    return tab ? sectionHandlers.get(tab) : undefined;
   };
 
   const isFlashMode = () => activeSession()?.flashMode?.() ?? false;

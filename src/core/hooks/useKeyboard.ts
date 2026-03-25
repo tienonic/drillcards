@@ -79,11 +79,11 @@ export function useKeyboard() {
     if (!session) return;
 
     if (section.type === 'math-gen') {
-      handleMathKeyboard(e, session);
-    } else if (session.flashMode()) {
-      handleFlashcardKeyboard(e, session);
+      handleMathKeyboard(e, session as unknown as MathSession);
+    } else if (session.flashMode?.()) {
+      handleFlashcardKeyboard(e, session as unknown as QuizSession);
     } else {
-      handleMcqKeyboard(e, session);
+      handleMcqKeyboard(e, session as unknown as QuizSession);
     }
   }
 
