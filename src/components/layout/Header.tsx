@@ -3,7 +3,7 @@ import { activeProject, activeTab, setActiveTab, easyMode, toggleEasyMode, heade
 import { goToLauncher } from '../../features/launcher/store.ts';
 import { sectionHandlers, handlerVersion } from '../../core/store/sections.ts';
 
-interface FlashHandler { flashMode: () => boolean; toggleFlashMode: () => void; }
+import type { FlashModeView } from '../../features/quiz/types.ts';
 import { SettingsPanel } from '../../features/settings/SettingsPanel.tsx';
 import { KeybindsPanel } from '../../features/settings/KeybindsPanel.tsx';
 import { TipsPanel } from '../../features/settings/TipsPanel.tsx';
@@ -37,7 +37,7 @@ export function Header() {
     const h = currentHandler();
     return h && typeof h.flashMode === 'function' && typeof h.toggleFlashMode === 'function';
   };
-  const flashHandler = () => currentHandler() as FlashHandler;
+  const flashHandler = () => currentHandler() as FlashModeView;
 
   const clickOutsideHandler = (e: MouseEvent) => {
     if (!headerVisible()) return;

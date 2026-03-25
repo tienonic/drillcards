@@ -1,12 +1,16 @@
 import type { ProjectData, Project, ProjectConfig, Section } from './types.ts';
+import { getGlobalFSRSDefaults } from '../core/store/config.ts';
 
-const DEFAULT_CONFIG: ProjectConfig = {
-  desired_retention: 0.9,
-  new_per_session: 20,
-  leech_threshold: 8,
-  max_interval: 90,
-  imageSearchSuffix: '',
-};
+function buildDefaultConfig(): ProjectConfig {
+  const fsrs = getGlobalFSRSDefaults();
+  return {
+    desired_retention: fsrs.desired_retention,
+    new_per_session: fsrs.new_per_session,
+    leech_threshold: fsrs.leech_threshold,
+    max_interval: fsrs.max_interval,
+    imageSearchSuffix: '',
+  };
+}
 
 export function slugify(str: string): string {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -36,7 +40,7 @@ function buildCardIds(section: Section): void {
 }
 
 export function loadProject(data: ProjectData): Project {
-  const config: ProjectConfig = { ...DEFAULT_CONFIG, ...data.config };
+  const config: ProjectConfig = { ...buildDefaultConfig(), ...data.config };
   const sections: Section[] = data.sections.map(s => {
     const section: Section = { ...s, cardIds: [], flashCardIds: [] };
     buildCardIds(section);
