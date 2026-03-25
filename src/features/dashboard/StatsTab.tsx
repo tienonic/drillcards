@@ -64,7 +64,7 @@ export function StatsTab(props: StatsTabProps) {
                 <span class="db-stats-value">{props.totalReviews}</span>
                 <span class="db-stats-label">Total Reviews</span>
               </div>
-              <div class="db-stats-metric" title="FSRS recall probability">
+              <div class="db-stats-metric" title="Recall probability">
                 <span class="db-stats-value">{fmtRet(props.retention)}</span>
                 <span class="db-stats-label">Retention</span>
               </div>
@@ -327,7 +327,7 @@ function PanelCalendar(props: { log: ReviewLogRow[] }) {
   onCleanup(() => ttCleanup?.());
 
   return (
-    <div class="sm-card sm-full" title="Reviews per day">
+    <div class="sm-card sm-full">
       <div class="sm-card-header">
         <div class="sm-card-title">Calendar</div>
         <div class="sm-toggles">

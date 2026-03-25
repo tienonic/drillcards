@@ -65,8 +65,10 @@ function yAxis(ctx: CanvasRenderingContext2D, ticks: number[], yMax: number, lp:
 export function setupTooltip(canvas: HTMLCanvasElement, tip: HTMLDivElement, regions: HitRegion[]) {
   function onMove(e: MouseEvent) {
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
+    const scaleX = canvas.clientWidth / rect.width;
+    const scaleY = canvas.clientHeight / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top) * scaleY;
     const hit = regions.find(r => mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h);
     if (hit) {
       tip.textContent = `${hit.label}: ${hit.value}`;
