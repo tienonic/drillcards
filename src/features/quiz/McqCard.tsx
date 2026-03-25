@@ -7,6 +7,18 @@ import { LatexText } from '../../components/LatexText.tsx';
 const RATING_CSS: Record<number, string> = { 1: 'rating-again', 2: 'rating-hard', 3: 'rating-good', 4: 'rating-easy' };
 const RATING_NAMES: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
 
+function AddNewCards(props: { session: QuizSession }) {
+  const [count, setCount] = createSignal(5);
+  return (
+    <div class="done-add-new">
+      <input type="number" value={count()} min="1" class="new-cards-input"
+        onInput={(e) => setCount(Math.max(1, parseInt(e.currentTarget.value, 10) || 1))} />
+      <button type="button" class="action-sm"
+        onClick={() => props.session.increaseNewCards(count()).catch(() => {})}>Add New</button>
+    </div>
+  );
+}
+
 export function McqCard(props: { session: QuizSession; isPassage?: boolean }) {
   const s = props.session;
 
@@ -78,9 +90,7 @@ export function McqCard(props: { session: QuizSession; isPassage?: boolean }) {
           <div class="done-actions">
             <button type="button" class="action-sm" onClick={() => s.studyMore().catch(() => {})}>Study More</button>
             <button type="button" class="action-sm cram-btn" onClick={() => s.startCram().catch(() => {})}>Cram</button>
-            <div class="done-add-new">
-              {(() => { const [count, setCount] = createSignal(5); return <><input type="number" value={count()} min="1" class="new-cards-input" onInput={(e) => setCount(Math.max(1, parseInt(e.currentTarget.value, 10) || 1))} /><button type="button" class="action-sm" onClick={() => s.increaseNewCards(count()).catch(() => {})}>Add New</button></>; })()}
-            </div>
+            <AddNewCards session={s} />
             <button type="button" class="action-sm" onClick={() => s.unburyAll().catch(() => {})}>Unbury Cards</button>
           </div>
         </div>

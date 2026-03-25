@@ -7,11 +7,11 @@ export const GEMINI_MODELS = {
 } as const;
 
 export function getGeminiKey(): string | null {
-  try { return localStorage.getItem('gemini-api-key'); } catch { return null; }
+  try { return sessionStorage.getItem('gemini-api-key'); } catch { return null; }
 }
 
 export function setGeminiKey(key: string) {
-  try { localStorage.setItem('gemini-api-key', key); } catch { /* */ }
+  try { sessionStorage.setItem('gemini-api-key', key); } catch { /* */ }
 }
 
 export async function callGemini(
