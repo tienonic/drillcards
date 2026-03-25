@@ -1,9 +1,9 @@
 import { createSignal, batch } from 'solid-js';
 import { workerApi } from '../../core/hooks/useWorker.ts';
-import { activeProject, setActiveProject, setActiveTab } from '../../core/store/app.ts';
-import { bumpHandlerVersion } from '../../core/store/sections.ts';
+import { activeProject } from '../../core/store/app.ts';
 import type { Section, Question } from '../../projects/types.ts';
 import type { AITab, PerformanceSummary, GeneratedQuestion } from './types.ts';
+import { registerAndActivateSection } from './sectionInjector.ts';
 import {
   formatPerformanceSummary, formatSampleQuestions,
   parseGeneratedQuestions,
@@ -188,46 +188,26 @@ export async function runGenerate(sourceText: string, count: number) {
 }
 
 export async function injectAcceptedQuestions(sectionName?: string) {
-  const project = activeProject();
-  if (!project) return;
-
   const questions = generateOutput();
   const accepted = generateAccepted();
   const selected = questions.filter((_, i) => accepted.has(i));
   if (selected.length === 0) return;
 
   const sectionId = 'ai-' + Date.now();
-  const name = sectionName || 'AI Generated';
-
   const mcqQuestions: Question[] = selected.map(q => ({
-    q: q.q,
-    correct: q.correct,
-    wrong: q.wrong,
-    explanation: q.explanation,
+    q: q.q, correct: q.correct, wrong: q.wrong, explanation: q.explanation,
   }));
-
   const cardIds = mcqQuestions.map((_, i) => `${sectionId}-${i}`);
 
   const newSection: Section = {
-    id: sectionId,
-    name,
-    type: 'mc-quiz',
-    questions: mcqQuestions,
-    cardIds,
-    flashCardIds: [],
+    id: sectionId, name: sectionName || 'AI Generated', type: 'mc-quiz',
+    questions: mcqQuestions, cardIds, flashCardIds: [],
   };
+  const cardRegs = cardIds.map(cardId => ({ sectionId, cardId, cardType: 'mcq' as const }));
 
-  const cardRegs = cardIds.map(cardId => ({
-    sectionId,
-    cardId,
-    cardType: 'mcq' as const,
-  }));
-  await workerApi.loadProject(project.slug, [sectionId], cardRegs);
-  const currentProject = activeProject();
-  if (!currentProject || currentProject.slug !== project.slug) return; // Project changed while loading
-
-  const updatedSections = [...currentProject.sections, newSection];
-  batch(() => { setActiveProject({ ...currentProject, sections: updatedSections }); setActiveTab(sectionId); bumpHandlerVersion(); setGenerateOutput([]); setGenerateAccepted(new Set<number>()); });
+  await registerAndActivateSection(newSection, cardRegs, () => {
+    setGenerateOutput([]); setGenerateAccepted(new Set<number>());
+  });
 }
 
 export async function runTargeted(count: number) {
@@ -276,44 +256,24 @@ export async function runTargeted(count: number) {
 }
 
 export async function injectTargetedQuestions(sectionName?: string) {
-  const project = activeProject();
-  if (!project) return;
-
   const questions = targetedOutput();
   const accepted = targetedAccepted();
   const selected = questions.filter((_, i) => accepted.has(i));
   if (selected.length === 0) return;
 
   const sectionId = 'ai-targeted-' + Date.now();
-  const name = sectionName || 'AI Targeted Practice';
-
   const mcqQuestions: Question[] = selected.map(q => ({
-    q: q.q,
-    correct: q.correct,
-    wrong: q.wrong,
-    explanation: q.explanation,
+    q: q.q, correct: q.correct, wrong: q.wrong, explanation: q.explanation,
   }));
-
   const cardIds = mcqQuestions.map((_, i) => `${sectionId}-${i}`);
 
   const newSection: Section = {
-    id: sectionId,
-    name,
-    type: 'mc-quiz',
-    questions: mcqQuestions,
-    cardIds,
-    flashCardIds: [],
+    id: sectionId, name: sectionName || 'AI Targeted Practice', type: 'mc-quiz',
+    questions: mcqQuestions, cardIds, flashCardIds: [],
   };
+  const cardRegs = cardIds.map(cardId => ({ sectionId, cardId, cardType: 'mcq' as const }));
 
-  const cardRegs = cardIds.map(cardId => ({
-    sectionId,
-    cardId,
-    cardType: 'mcq' as const,
-  }));
-  await workerApi.loadProject(project.slug, [sectionId], cardRegs);
-  const currentProject = activeProject();
-  if (!currentProject || currentProject.slug !== project.slug) return; // Project changed while loading
-
-  const updatedSections = [...currentProject.sections, newSection];
-  batch(() => { setActiveProject({ ...currentProject, sections: updatedSections }); setActiveTab(sectionId); bumpHandlerVersion(); setTargetedOutput([]); setTargetedAccepted(new Set<number>()); });
+  await registerAndActivateSection(newSection, cardRegs, () => {
+    setTargetedOutput([]); setTargetedAccepted(new Set<number>());
+  });
 }
