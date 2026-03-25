@@ -11,26 +11,18 @@ export function ReviewTabContainer() {
   async function loadProjects() {
     await initWorker();
     const recent = getRecentProjects();
-    const rows: ProjectRowData[] = [];
-    for (const p of recent) {
+    const rows = await Promise.all(recent.map(async (p): Promise<ProjectRowData> => {
       try {
         const [stats, sectionStats] = await Promise.all([
           workerApi.getDeckStats(p.slug),
           workerApi.getSectionStats(p.slug),
         ]);
         const totalCards = sectionStats.reduce((sum, s) => sum + s.total, 0);
-        rows.push({
-          slug: p.slug,
-          name: p.name,
-          new: stats.new,
-          learning: stats.learning,
-          due: stats.due,
-          total: totalCards,
-        });
+        return { slug: p.slug, name: p.name, new: stats.new, learning: stats.learning, due: stats.due, total: totalCards };
       } catch {
-        rows.push({ slug: p.slug, name: p.name, new: 0, learning: 0, due: 0, total: 0 });
+        return { slug: p.slug, name: p.name, new: 0, learning: 0, due: 0, total: 0 };
       }
-    }
+    }));
     setProjects(rows);
   }
 

@@ -31,15 +31,7 @@ export function StatsTabContainer() {
       return;
     }
 
-    let totalRev = 0;
-    let retSum = 0;
-    let retCount = 0;
-    const projectGroups: ProjectGroup[] = [];
-    const cards: CardRow[] = [];
-    const reviewLogs: ReviewLogRow[] = [];
-    const weak: WeakCard[] = [];
-
-    for (const slug of projectIds) {
+    const results = await Promise.all(projectIds.map(async (slug) => {
       try {
         const [reviewLog, ret, scores, sectionStats, exported] = await Promise.all([
           workerApi.getReviewLog(slug, 10000),
@@ -48,57 +40,70 @@ export function StatsTabContainer() {
           workerApi.getSectionStats(slug),
           workerApi.exportProjectData(slug),
         ]);
-
-        totalRev += reviewLog.length;
-        if (ret.retention != null) {
-          retSum += ret.retention;
-          retCount++;
-        }
-
-        cards.push(...exported.cards);
-        reviewLogs.push(...exported.review_log);
-
-        // Derive project display name from slug
-        const name = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-
-        for (const c of exported.cards) {
-          if (c.lapses >= 3 && !c.suspended) {
-            weak.push({
-              card_id: c.card_id,
-              section_id: c.section_id,
-              section_name: `${name} - ${c.section_id}`,
-              lapses: c.lapses,
-              stability: c.stability,
-              difficulty: c.difficulty,
-            });
-          }
-        }
-
-        const scoreMap = new Map(scores.map(s => [s.section_id, s]));
-        const sections: SectionStatRow[] = [];
-        let groupReviewed = 0;
-        let groupDue = 0;
-
-        for (const ss of sectionStats) {
-          const score = scoreMap.get(ss.section_id);
-          const reviewed = score?.attempted ?? 0;
-          const due = ss.learning + ss.due;
-          groupReviewed += reviewed;
-          groupDue += due;
-          sections.push({ name: ss.section_id, reviewed, retention: null, due });
-        }
-
-        projectGroups.push({
-          name,
-          slug,
-          reviewed: groupReviewed,
-          retention: ret.retention,
-          due: groupDue,
-          sections,
-        });
+        return { slug, reviewLog, ret, scores, sectionStats, exported };
       } catch {
-        // Skip projects that fail to load
+        return null;
       }
+    }));
+
+    let totalRev = 0;
+    let retSum = 0;
+    let retCount = 0;
+    const projectGroups: ProjectGroup[] = [];
+    const cards: CardRow[] = [];
+    const reviewLogs: ReviewLogRow[] = [];
+    const weak: WeakCard[] = [];
+
+    for (const r of results) {
+      if (!r) continue;
+      const { slug, reviewLog, ret, scores, sectionStats, exported } = r;
+
+      totalRev += reviewLog.length;
+      if (ret.retention != null) {
+        retSum += ret.retention;
+        retCount++;
+      }
+
+      cards.push(...exported.cards);
+      reviewLogs.push(...exported.review_log);
+
+      const name = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+      for (const c of exported.cards) {
+        if (c.lapses >= 3 && !c.suspended) {
+          weak.push({
+            card_id: c.card_id,
+            section_id: c.section_id,
+            section_name: `${name} - ${c.section_id}`,
+            lapses: c.lapses,
+            stability: c.stability,
+            difficulty: c.difficulty,
+          });
+        }
+      }
+
+      const scoreMap = new Map(scores.map(s => [s.section_id, s]));
+      const sections: SectionStatRow[] = [];
+      let groupReviewed = 0;
+      let groupDue = 0;
+
+      for (const ss of sectionStats) {
+        const score = scoreMap.get(ss.section_id);
+        const reviewed = score?.attempted ?? 0;
+        const due = ss.learning + ss.due;
+        groupReviewed += reviewed;
+        groupDue += due;
+        sections.push({ name: ss.section_id, reviewed, retention: null, due });
+      }
+
+      projectGroups.push({
+        name,
+        slug,
+        reviewed: groupReviewed,
+        retention: ret.retention,
+        due: groupDue,
+        sections,
+      });
     }
 
     setTotalReviews(totalRev);
