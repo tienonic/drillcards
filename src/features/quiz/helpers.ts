@@ -41,7 +41,7 @@ export function lookupQuestion(
 }
 
 export function getCardType(
-  sectionType: string,
+  sectionType: 'mc-quiz' | 'passage-quiz' | 'math-gen',
   flashMode: boolean,
 ): 'mcq' | 'passage' | 'flashcard' {
   if (flashMode) return 'flashcard';
