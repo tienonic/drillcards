@@ -129,6 +129,7 @@ export function createQuizSession(section: Section): QuizSession {
       applyFlashCard(cardId, resolved);
     },
     onDone: () => {
+      cram.endCram();
       setState('done');
     },
   });
@@ -376,18 +377,7 @@ export function createQuizSession(section: Section): QuizSession {
       return;
     }
 
-    const defFirst = flashDefFirst();
-    batch(() => {
-      setFlashCardId(result.cardId);
-      setFlashFront(defFirst ? resolved.card.back : resolved.card.front);
-      setFlashBack(defFirst ? resolved.card.front : resolved.card.back);
-      setFlashFlipped(false);
-      setRatingLabels({});
-      setState('answering');
-    });
-
-    setQuestionContext([resolved.card.front, resolved.card.back].join(' '));
-
+    applyFlashCard(result.cardId, resolved);
     await refreshDue();
   }
 
@@ -489,15 +479,7 @@ export function createQuizSession(section: Section): QuizSession {
     const fId = section.flashCardIds[idx];
     if (!card || !fId) return;
     await guard.withActing(async () => {
-      const defFirst = flashDefFirst();
-      batch(() => {
-        setFlashCardId(fId);
-        setFlashFront(defFirst ? card.back : card.front);
-        setFlashBack(defFirst ? card.front : card.back);
-        setFlashFlipped(false);
-        setRatingLabels({});
-        if (state() === 'done') setState('answering');
-      });
+      applyFlashCard(fId, { card });
 
       setQuestionContext([card.front, card.back].join(' '));
       await refreshDue();
@@ -535,16 +517,7 @@ export function createQuizSession(section: Section): QuizSession {
         if (flashMode()) {
           const resolved = resolveFlashCard(section, result.cardId);
           if (!resolved) return;
-          const defFirst = flashDefFirst();
-          batch(() => {
-            setFlashCardId(result.cardId);
-            setFlashFront(defFirst ? resolved.card.back : resolved.card.front);
-            setFlashBack(defFirst ? resolved.card.front : resolved.card.back);
-            setFlashFlipped(false);
-            setRatingLabels({});
-            setState('answering');
-          });
-          setQuestionContext([resolved.card.front, resolved.card.back].join(' '));
+          applyFlashCard(result.cardId, resolved);
         } else {
           const lookup = lookupQuestion(section, result.cardId);
           if (!lookup) return;
