@@ -1,5 +1,10 @@
 import type { Section, Question, Flashcard } from '../../projects/types.ts';
 
+/** Compile-time exhaustiveness check — use in default/else branches on discriminated unions */
+export function assertNever(value: never, msg = 'Unhandled type'): never {
+  throw new Error(`${msg}: ${value}`);
+}
+
 export function timeToRating(seconds: number): number {
   if (seconds >= 59) return 1; // Again
   if (seconds >= 40) return 2; // Hard
@@ -41,11 +46,26 @@ export function lookupQuestion(
 }
 
 export function getCardType(
-  sectionType: 'mc-quiz' | 'passage-quiz' | 'math-gen',
+  sectionType: Section['type'],
   flashMode: boolean,
 ): 'mcq' | 'passage' | 'flashcard' {
   if (flashMode) return 'flashcard';
-  return sectionType === 'passage-quiz' ? 'passage' : 'mcq';
+  switch (sectionType) {
+    case 'mc-quiz': return 'mcq';
+    case 'passage-quiz': return 'passage';
+    case 'math-gen': return 'mcq';
+    default: assertNever(sectionType, 'Unknown section type');
+  }
+}
+
+/** Map section type to worker card type for registration (no flash mode consideration) */
+export function sectionToCardType(sectionType: Section['type']): 'mcq' | 'passage' {
+  switch (sectionType) {
+    case 'mc-quiz': return 'mcq';
+    case 'passage-quiz': return 'passage';
+    case 'math-gen': return 'mcq';
+    default: assertNever(sectionType, 'Unknown section type');
+  }
 }
 
 export function resolveFlashCard(

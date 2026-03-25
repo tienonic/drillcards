@@ -2,6 +2,7 @@ import { createSignal, createEffect, onCleanup, batch, untrack } from 'solid-js'
 import { activeProject, activeTab, syncActivity } from '../../core/store/app.ts';
 import { workerApi } from '../../core/hooks/useWorker.ts';
 import { sectionHandlers, handlerVersion } from '../../core/store/sections.ts';
+import { getCardType } from '../quiz/helpers.ts';
 import { computeCumScores, drawChartAxes, drawChartData } from './chartUtils.ts';
 
 
@@ -79,7 +80,7 @@ async function loadSidebarScore() {
   try {
     const handler = sectionHandlers.get(tab);
     const isFlash = handler?.flashMode?.() ?? false;
-    const cardType = isFlash ? 'flashcard' as const : section.type === 'passage-quiz' ? 'passage' as const : 'mcq' as const;
+    const cardType = getCardType(section.type, isFlash);
     const [scores, dueResult] = await Promise.all([
       workerApi.getScores(slug),
       workerApi.countDue(slug, [tab], cardType),
