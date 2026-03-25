@@ -20,7 +20,11 @@ function openFolderPlugin() {
           }
           const absPath = resolve(relPath);
           const hasExt = /\.\w+$/.test(relPath);
-          exec(hasExt ? `explorer /select,"${absPath}"` : `explorer "${absPath}"`);
+          if (hasExt) {
+            spawn('explorer', ['/select,', absPath], { shell: false });
+          } else {
+            spawn('explorer', [absPath], { shell: false });
+          }
           res.statusCode = 200;
           res.end('ok');
           return;

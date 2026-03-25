@@ -93,7 +93,7 @@ export function ParametersTab(props: ParametersTabProps) {
           <span class="db-create-item-sub">Deck generation</span>
           <div class={`db-submenu db-submenu-wide ${menu.isOpen('tips') ? 'db-submenu--open' : ''}`}>
             <div class="db-params-dropdown-body db-params-tips">
-              <p>Paste <button type="button" class="db-tips-open-btn" title="Open file in Explorer" onClick={() => fetch('/__open-folder?path=GENERATING_PROJECTS.md').catch(() => {})}>GENERATING_PROJECTS.md</button> into any LLM with your source material. It will generate a JSON you can import directly.</p>
+              <p>Paste <button type="button" class="db-tips-open-btn" title="Open in explorer" onClick={() => fetch('/__open-folder?path=GENERATING_PROJECTS.md').catch(() => {})}>GENERATING_PROJECTS.md</button> into any LLM with your source material. It will generate a JSON you can import directly.</p>
             </div>
           </div>
         </div>
