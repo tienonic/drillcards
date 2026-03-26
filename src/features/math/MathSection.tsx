@@ -3,19 +3,20 @@ import { Show, For, createEffect, onMount, onCleanup, untrack } from 'solid-js';
 import type { Section } from '../../projects/types.ts';
 import { createMathSession } from './store.ts';
 import { sectionHandlers, bumpHandlerVersion } from '../../core/store/sections.ts';
+import { forProject } from '../../core/hooks/useWorker.ts';
 import { CATEGORY_LABELS } from '../../data/math.ts';
 import { renderLatex } from '../../core/hooks/useLatex.ts';
-import { activeTab } from '../../core/store/app.ts';
+import { activeProject, activeTab } from '../../core/store/app.ts';
 
 export function MathSection(props: { section: Section }) {
-  const session = createMathSession(props.section);
+  const session = createMathSession(props.section, forProject(activeProject()!.slug));
 
   let inputRef: HTMLInputElement | undefined;
   let questionRef: HTMLSpanElement | undefined;
   let feedbackRef: HTMLDivElement | undefined;
   let stepsRef: HTMLDivElement | undefined;
 
-  onMount(() => { sectionHandlers.set(props.section.id, session); bumpHandlerVersion(); session.generateProblem(); });
+  onMount(() => { sectionHandlers.set(props.section.id, { kind: 'math', session }); bumpHandlerVersion(); session.generateProblem(); });
   onCleanup(() => { sectionHandlers.delete(props.section.id); bumpHandlerVersion(); });
 
   // Reset timer when this section becomes the active tab — same fix as QuizSection

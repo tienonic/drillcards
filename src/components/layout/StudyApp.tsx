@@ -25,13 +25,16 @@ export function StudyApp() {
     return project.sections.find(s => s.id === tab)?.type === 'math-gen';
   };
 
-  const activeSession = () => {
+  const activeEntry = () => {
     handlerVersion();
     const tab = activeTab();
     return tab ? sectionHandlers.get(tab) : undefined;
   };
 
-  const isFlashMode = () => activeSession()?.flashMode?.() ?? false;
+  const isFlashMode = () => {
+    const e = activeEntry();
+    return e?.kind === 'quiz' ? e.session.flashMode() : false;
+  };
 
   // --- Sidebar Y-axis drag (click-vs-drag with threshold) ---
   const [dragging, setDragging] = createSignal(false);
@@ -109,7 +112,7 @@ export function StudyApp() {
             <TermsDropdown />
           </Show>
           <Show when={graphVisible()}>
-            <ActivityWidget isFlashMode={isFlashMode} activeSession={activeSession} />
+            <ActivityWidget isFlashMode={isFlashMode} activeEntry={activeEntry} />
           </Show>
           <Show when={sessionSummary()}>
             {(summary) => <SessionBanner gap={summary().gap} dueNow={summary().dueNow} />}

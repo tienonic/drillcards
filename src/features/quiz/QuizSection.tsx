@@ -3,15 +3,16 @@ import { Show, onMount, onCleanup, createEffect, untrack } from 'solid-js';
 import type { Section } from '../../projects/types.ts';
 import { createQuizSession } from './store.ts';
 import { sectionHandlers, bumpHandlerVersion } from '../../core/store/sections.ts';
+import { forProject } from '../../core/hooks/useWorker.ts';
 import { activeProject, activeTab } from '../../core/store/app.ts';
 import { McqCard } from './McqCard.tsx';
 import { FlashcardArea } from './FlashcardArea.tsx';
 
 export function QuizSection(props: { section: Section }) {
-  const session = createQuizSession(props.section);
+  const session = createQuizSession(props.section, forProject(activeProject()!.slug));
 
   onMount(() => {
-    sectionHandlers.set(props.section.id, session);
+    sectionHandlers.set(props.section.id, { kind: 'quiz', session });
     bumpHandlerVersion();
     if (!session.flashMode()) {
       session.pickNextCard().then(() => {

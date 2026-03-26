@@ -2,8 +2,6 @@ import { For, Show, createSignal, onMount, onCleanup } from 'solid-js';
 import { activeProject, activeTab, setActiveTab, easyMode, toggleEasyMode, headerVisible, setHeaderVisible, headerLocked } from '../../core/store/app.ts';
 import { goToLauncher } from '../../features/launcher/store.ts';
 import { sectionHandlers, handlerVersion } from '../../core/store/sections.ts';
-
-import type { FlashModeView } from '../../features/quiz/types.ts';
 import { SettingsPanel } from '../../features/settings/SettingsPanel.tsx';
 import { KeybindsPanel } from '../../features/settings/KeybindsPanel.tsx';
 import { TipsPanel } from '../../features/settings/TipsPanel.tsx';
@@ -32,12 +30,9 @@ export function Header() {
     }, 800);
   }
 
-  const currentHandler = () => { handlerVersion(); const tab = activeTab(); return tab ? sectionHandlers.get(tab) : undefined; };
-  const canFlash = () => {
-    const h = currentHandler();
-    return h && typeof h.flashMode === 'function' && typeof h.toggleFlashMode === 'function';
-  };
-  const flashHandler = () => currentHandler() as FlashModeView;
+  const currentEntry = () => { handlerVersion(); const tab = activeTab(); return tab ? sectionHandlers.get(tab) : undefined; };
+  const canFlash = () => currentEntry()?.kind === 'quiz';
+  const quizSession = () => { const e = currentEntry(); return e?.kind === 'quiz' ? e.session : undefined; };
 
   const clickOutsideHandler = (e: MouseEvent) => {
     if (!headerVisible()) return;
@@ -72,8 +67,8 @@ export function Header() {
           </For>
           <Show when={canFlash()}>
             <div class="header-menu-divider" />
-            <button type="button" class={`header-menu-item header-menu-tab ${!flashHandler().flashMode() ? 'active' : ''}`} onClick={() => { if (flashHandler().flashMode()) flashHandler().toggleFlashMode(); }}>Quiz</button>
-            <button type="button" class={`header-menu-item header-menu-tab ${flashHandler().flashMode() ? 'active' : ''}`} onClick={() => { if (!flashHandler().flashMode()) flashHandler().toggleFlashMode(); }}>Flashcards</button>
+            <button type="button" class={`header-menu-item header-menu-tab ${!quizSession()!.flashMode() ? 'active' : ''}`} onClick={() => { if (quizSession()!.flashMode()) quizSession()!.toggleFlashMode(); }}>Quiz</button>
+            <button type="button" class={`header-menu-item header-menu-tab ${quizSession()!.flashMode() ? 'active' : ''}`} onClick={() => { if (!quizSession()!.flashMode()) quizSession()!.toggleFlashMode(); }}>Flashcards</button>
           </Show>
         </div>
       </Show>

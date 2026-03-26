@@ -38,7 +38,9 @@ export function useTimer() {
     batch(() => { setSeconds(0); setPaused(false); });
   }
 
+  function togglePause() { paused() ? resume() : pause(); }
+
   onCleanup(() => { if (interval !== null) clearInterval(interval); });
 
-  return { seconds, start, stop, reset, pause, resume, paused };
+  return { seconds, start, stop, reset, pause, resume, paused, togglePause };
 }
