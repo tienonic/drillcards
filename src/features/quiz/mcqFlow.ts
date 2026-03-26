@@ -1,10 +1,10 @@
 import { batch } from 'solid-js';
-import { workerApi } from '../../core/hooks/useWorker.ts';
 import { shuffle } from '../../utils/shuffle.ts';
 import { easyMode, sessionSummary, setSessionSummary } from '../../core/store/app.ts';
 import { setQuestionContext } from '../glossary/store.ts';
 import { timeToRating, lookupQuestion, getCardType } from './helpers.ts';
 import { createHistoryNav, type HistoryEntry } from './historyNav.ts';
+import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 import type { Guard } from './guard.ts';
 import type { Section, Question } from '../../projects/types.ts';
 import type { QuizState } from './types.ts';
@@ -44,6 +44,7 @@ export interface McqDeps {
   refreshDue: () => Promise<void>;
   cramMode: () => boolean;
   pickNextCram: () => Promise<void>;
+  api: ProjectApi;
 }
 
 export function createMcqFlow(s: McqSignals, d: McqDeps) {
@@ -82,13 +83,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
 
   async function pickNextCardImpl() {
     if (d.cramMode()) { await d.pickNextCram(); return; }
-    let p = d.project();
-    if (!p) {
-      for (let i = 0; i < 3 && !p; i++) {
-        await new Promise(r => setTimeout(r, 150));
-        p = d.project();
-      }
-    }
+    const p = d.project();
     if (!p) { s.setState('done'); return; }
 
     if (sessionSummary()) setSessionSummary(null);
@@ -100,7 +95,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
     if (ids.length === 0) { s.setState('done'); return; }
 
     const cardType = getCardType(d.section.type, false);
-    const result = await workerApi.pickNext(p.slug, [d.section.id], p.config.new_per_session, cardType);
+    const result = await d.api.pickNext([d.section.id], p.config.new_per_session, cardType);
     if (s.flashMode()) return; // Stale: flash mode toggled during pick — flash path handles it
     if (!result.cardId) { s.setState('done'); return; }
 
@@ -133,7 +128,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
         s.setSkipped(false);
       });
 
-      const sc = await workerApi.updateScore(p.slug, d.section.id, correct);
+      const sc = await d.api.updateScore(d.section.id, correct);
       s.setScore({ correct: sc.correct, attempted: sc.attempted });
 
       const entry = histNav.getEntry(histNav.getPos());
@@ -167,7 +162,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
         s.setSkipped(true);
       });
 
-      const sc = await workerApi.updateScore(p.slug, d.section.id, false);
+      const sc = await d.api.updateScore(d.section.id, false);
       s.setScore({ correct: sc.correct, attempted: sc.attempted });
 
       const entry = histNav.getEntry(histNav.getPos());
@@ -200,7 +195,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
       if (st === 'revealed') {
         await d.doRate(cId, 1);
       } else if (st === 'rated') {
-        const result = await workerApi.undoReview();
+        const result = await d.api.undoReview();
         if (result.undone) await d.doRate(cId, 1);
       }
     });
@@ -212,7 +207,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
     const cId = s.cardId();
     if (!cId) return;
     await d.guard.withActing(async () => {
-      const result = await workerApi.undoReview();
+      const result = await d.api.undoReview();
       if (result.undone && result.cardId) {
         const restoredId = result.cardId;
         const lookup = lookupQuestion(d.section, restoredId);
@@ -236,7 +231,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
     const cId = s.cardId();
     if (!cId) return;
     await d.guard.withActing(async () => {
-      await workerApi.suspendCard(cId);
+      await d.api.suspendCard(cId);
       await d.refreshDue();
       await pickNextCardImpl();
     });
@@ -246,7 +241,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
     const cId = s.cardId();
     if (!cId) return;
     await d.guard.withActing(async () => {
-      await workerApi.buryCard(cId);
+      await d.api.buryCard(cId);
       await d.refreshDue();
       await pickNextCardImpl();
     });
