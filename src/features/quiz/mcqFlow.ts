@@ -111,6 +111,18 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
     await d.refreshDue();
   }
 
+  function updateHistoryEntry(cId: string, q: Question, opts: { selected: string | null; isCorrect: boolean; skipped: boolean }) {
+    const entry = histNav.getEntry(histNav.getPos());
+    if (entry && entry.cardId === cId) {
+      entry.selected = opts.selected;
+      entry.correct = q.correct;
+      entry.optionOrder = s.options();
+      entry.isCorrect = opts.isCorrect;
+      entry.skipped = opts.skipped;
+      entry.explanation = q.explanation ?? '';
+    }
+  }
+
   async function answer(option: string) {
     if (s.state() !== 'answering') return;
     const elapsed = d.timer.stop();
@@ -130,15 +142,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
 
       const sc = await d.api.updateScore(d.section.id, correct);
       s.setScore({ correct: sc.correct, attempted: sc.attempted });
-
-      const entry = histNav.getEntry(histNav.getPos());
-      if (entry && entry.cardId === cId) {
-        entry.selected = option;
-        entry.correct = q.correct;
-        entry.optionOrder = s.options();
-        entry.isCorrect = correct;
-        entry.explanation = q.explanation ?? '';
-      }
+      updateHistoryEntry(cId, q, { selected: option, isCorrect: correct, skipped: false });
 
       if (easyMode()) {
         const autoRating = correct ? timeToRating(elapsed) : 1;
@@ -164,16 +168,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
 
       const sc = await d.api.updateScore(d.section.id, false);
       s.setScore({ correct: sc.correct, attempted: sc.attempted });
-
-      const entry = histNav.getEntry(histNav.getPos());
-      if (entry && entry.cardId === cId) {
-        entry.selected = null;
-        entry.correct = q.correct;
-        entry.optionOrder = s.options();
-        entry.isCorrect = false;
-        entry.skipped = true;
-        entry.explanation = q.explanation ?? '';
-      }
+      updateHistoryEntry(cId, q, { selected: null, isCorrect: false, skipped: true });
 
       await d.doRate(cId, 1);
     });
@@ -251,36 +246,20 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
     const lookup = lookupQuestion(d.section, entry.cardId);
     if (!lookup) return;
 
-    if (entry.selected === null && !entry.skipped) {
-      batch(() => {
-        s.setLeechWarning(false);
-        s.setCardId(entry.cardId);
-        s.setQuestion(lookup.question);
-        s.setOptions(entry.optionOrder);
-        s.setSelected(null);
-        s.setIsCorrect(false);
-        s.setSkipped(false);
-        s.setPassage(entry.passage);
-        s.setState('answering');
-      });
-      d.timer.start();
-      return;
-    }
-
+    const unanswered = entry.selected === null && !entry.skipped;
     batch(() => {
       s.setLeechWarning(false);
       s.setCardId(entry.cardId);
       s.setQuestion(lookup.question);
-      if (entry.optionOrder.length > 0) {
-        s.setOptions(entry.optionOrder);
-      }
-      s.setSelected(entry.selected);
-      s.setIsCorrect(entry.isCorrect);
-      s.setSkipped(entry.skipped);
+      s.setOptions(entry.optionOrder);
+      s.setSelected(unanswered ? null : entry.selected);
+      s.setIsCorrect(unanswered ? false : entry.isCorrect);
+      s.setSkipped(unanswered ? false : entry.skipped);
       s.setPassage(entry.passage);
-      s.setRatingLabels({});
-      s.setState('reviewing-history');
+      if (!unanswered) s.setRatingLabels({});
+      s.setState(unanswered ? 'answering' : 'reviewing-history');
     });
+    if (unanswered) d.timer.start();
   }
 
   function goBackHistory() {

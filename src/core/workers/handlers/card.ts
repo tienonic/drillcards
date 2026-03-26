@@ -1,5 +1,5 @@
 import type { WorkerContext } from '../workerContext.ts';
-import { Rating, State, type Card, type RecordLogItem } from 'ts-fsrs';
+import { Rating, State, type Card, type Grade, type IPreview, type RecordLogItem } from 'ts-fsrs';
 import { formatInterval, isLeech, newTodayKey } from '../helpers.ts';
 
 export async function pickNext(
@@ -101,13 +101,10 @@ export async function previewRatings(
   if (!row) return { labels: {} };
 
   const card = ctx.cardToFSRS(row);
-  const result = ctx.fsrsEngine().repeat(card, new Date()) as unknown as Record<
-    number,
-    { card: Card }
-  >;
+  const result: IPreview = ctx.fsrsEngine().repeat(card, new Date());
   const labels: Record<number, string> = {};
   for (const r of [Rating.Again, Rating.Hard, Rating.Good, Rating.Easy]) {
-    const nextCard = result[r].card;
+    const nextCard = result[r as Grade].card;
     const days = Math.max(0, (nextCard.due.getTime() - Date.now()) / 86400000);
     labels[r] = formatInterval(days);
   }
@@ -131,11 +128,8 @@ export async function reviewCard(
   const card = ctx.cardToFSRS(row);
 
   // Apply FSRS (pure computation, before transaction)
-  const result = ctx.fsrsEngine().repeat(card, new Date()) as unknown as Record<
-    number,
-    RecordLogItem
-  >;
-  const reviewed = result[rating];
+  const result: IPreview = ctx.fsrsEngine().repeat(card, new Date());
+  const reviewed = result[rating as Grade];
   const newCard = reviewed.card;
 
   let newLapses = row.lapses as number;

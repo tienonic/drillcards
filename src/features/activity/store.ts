@@ -1,6 +1,7 @@
 import { createSignal, createEffect, onCleanup, batch, untrack } from 'solid-js';
 import { activeProject, activeTab, syncActivity } from '../../core/store/app.ts';
-import { workerApi } from '../../core/hooks/useWorker.ts';
+import type { ProjectApi } from '../../core/hooks/useWorker.ts';
+import { forProject } from '../../core/hooks/useWorker.ts';
 import { sectionHandlers, handlerVersion } from '../../core/store/sections.ts';
 import { getCardType } from '../quiz/helpers.ts';
 import { computeCumScores, drawChartAxes, drawChartData } from './chartUtils.ts';
@@ -11,6 +12,12 @@ const [reviewStats, setReviewStats] = createSignal({ reviews: 0, retention: '0%'
 const [sidebarScore, setSidebarScore] = createSignal({ correct: 0, attempted: 0, due: 0, total: 0 });
 
 export { activityScore, reviewStats, sidebarScore };
+
+let activityApi: ProjectApi | null = null;
+
+export function setActivityApi(api: ProjectApi) {
+  activityApi = api;
+}
 
 let canvasRef: HTMLCanvasElement | undefined;
 let chartEntries: { rating: number; correct: boolean }[] = [];
@@ -23,9 +30,9 @@ let currentRetention = '—';
 
 async function fetchRetention() {
   const project = activeProject();
-  if (!project) return;
+  if (!project || !activityApi) return;
   try {
-    const result = await workerApi.getRetention(project.slug);
+    const result = await activityApi.getRetention();
     if (activeProject()?.slug !== project.slug) return;
     currentRetention = result.retention != null ? Math.round(result.retention * 100) + '%' : '—';
   } catch {
@@ -45,10 +52,10 @@ function updateScoreSignals() {
 
 export async function loadActivity() {
   const project = activeProject();
-  if (!project) return;
+  if (!project || !activityApi) return;
   const slug = project.slug;
   try {
-    let entries = await workerApi.getActivity(slug, 200);
+    let entries = await activityApi.getActivity(200);
     if (activeProject()?.slug !== slug) return; // Project changed while fetching
     if (!syncActivity()) {
       const tab = activeTab();
@@ -66,18 +73,18 @@ export async function loadActivity() {
 async function loadSidebarScore() {
   const project = activeProject();
   const tab = activeTab();
-  if (!project || !tab) return;
+  if (!project || !tab || !activityApi) return;
   const slug = project.slug;
   const section = project.sections.find(s => s.id === tab);
   if (!section || section.type === 'math-gen') return;
 
   try {
-    const handler = sectionHandlers.get(tab);
-    const isFlash = handler?.flashMode?.() ?? false;
+    const entry = sectionHandlers.get(tab);
+    const isFlash = entry?.kind === 'quiz' ? entry.session.flashMode() : false;
     const cardType = getCardType(section.type, isFlash);
     const [scores, dueResult] = await Promise.all([
-      workerApi.getScores(slug),
-      workerApi.countDue(slug, [tab], cardType),
+      activityApi.getScores(),
+      activityApi.countDue([tab], cardType),
     ]);
     const s = scores.find((sc) => sc.section_id === tab);
     if (activeTab() !== tab || activeProject()?.slug !== slug) return; // Stale result — tab or project changed
@@ -112,6 +119,11 @@ function drawChart() {
   drawChartData(ctx, recent.length, toX, toY, cumScores, recent, topPad, plotH);
 }
 
+export async function clearActivity() {
+  if (!activityApi) return;
+  await activityApi.clearActivity();
+}
+
 export function pushChartEntry(rating: number, correct: boolean) {
   chartEntries.push({ rating, correct });
   updateScoreSignals();
@@ -120,6 +132,12 @@ export function pushChartEntry(rating: number, correct: boolean) {
 }
 
 export function initActivityEffects() {
+  createEffect(() => {
+    const project = activeProject();
+    if (project) setActivityApi(forProject(project.slug));
+    else activityApi = null;
+  });
+
   createEffect(() => {
     activeTab();
     syncActivity();
@@ -131,9 +149,8 @@ export function initActivityEffects() {
     handlerVersion();
     const tab = untrack(() => activeTab());
     if (!tab) return;
-    const session = sectionHandlers.get(tab);
-    if (session?.dueCount) session.dueCount();
-    if (session?.score) session.score();
+    const entry = sectionHandlers.get(tab);
+    if (entry?.kind === 'quiz') { entry.session.dueCount(); entry.session.score(); }
     untrack(() => { loadActivity(); loadSidebarScore(); });
   });
 

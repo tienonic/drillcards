@@ -3,13 +3,15 @@ import { activeTab, zenMode, toggleZenMode, headerVisible, termsOpen } from '../
 import { sectionHandlers, handlerVersion } from '../../core/store/sections.ts';
 
 export function TopToggles() {
-  const activeSession = () => {
+  const quizSession = () => {
     handlerVersion();
     const tab = activeTab();
-    return tab ? sectionHandlers.get(tab) : undefined;
+    if (!tab) return undefined;
+    const entry = sectionHandlers.get(tab);
+    return entry?.kind === 'quiz' ? entry.session : undefined;
   };
 
-  const isFlashMode = () => activeSession()?.flashMode?.() ?? false;
+  const isFlashMode = () => quizSession()?.flashMode() ?? false;
 
   return (
     <div class={`top-toggles${headerVisible() || termsOpen() ? ' hidden' : ''}`}>
@@ -18,8 +20,8 @@ export function TopToggles() {
           <span class="top-toggle-label">flip</span>
           <input
             type="checkbox"
-            checked={activeSession()?.flashDefFirst?.() ?? false}
-            onChange={(e) => activeSession()?.setFlashDefFirst?.(e.currentTarget.checked)}
+            checked={quizSession()?.flashDefFirst() ?? false}
+            onChange={(e) => quizSession()?.setFlashDefFirst(e.currentTarget.checked)}
           />
         </label>
       </Show>

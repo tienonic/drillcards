@@ -1,8 +1,7 @@
 import { createSignal, createEffect, batch } from 'solid-js';
-import { workerApi } from '../../core/hooks/useWorker.ts';
 import { useTimer } from '../../core/hooks/useTimer.ts';
 import { shuffle } from '../../utils/shuffle.ts';
-import { activeProject, setActiveProject, easyMode, setActiveTab } from '../../core/store/app.ts';
+import { activeProject, setActiveProject, easyMode } from '../../core/store/app.ts';
 import { autoSave } from '../backup/backup.ts';
 import { pushChartEntry } from '../activity/store.ts';
 import { getCardType, sectionToCardType, lookupQuestion, resolveFlashCard } from './helpers.ts';
@@ -10,12 +9,13 @@ import { createGuard } from './guard.ts';
 import { createCramSession } from './cramSession.ts';
 import { createMcqFlow } from './mcqFlow.ts';
 import { createFlashFlow } from './flashFlow.ts';
-import { bumpHandlerVersion, sectionHandlers } from '../../core/store/sections.ts';
+import { bumpHandlerVersion, switchToSection } from '../../core/store/sections.ts';
+import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 import type { Section } from '../../projects/types.ts';
 import type { QuizState, QuizSession } from './types.ts';
 export type { QuizSession } from './types.ts';
 
-export function createQuizSession(section: Section): QuizSession {
+export function createQuizSession(section: Section, api: ProjectApi): QuizSession {
   const project = () => activeProject();
 
   // --- Shared signals ---
@@ -52,7 +52,7 @@ export function createQuizSession(section: Section): QuizSession {
     const cardType = sectionCardType();
     const ids = cardType === 'flashcard' ? section.flashCardIds : section.cardIds;
     if (ids.length === 0) return;
-    const result = await workerApi.countDue(slug, [section.id], cardType);
+    const result = await api.countDue([section.id], cardType);
     if (project()?.slug !== slug) return;
     if (sectionCardType() !== cardType) return;
     setDueCount(result);
@@ -63,15 +63,13 @@ export function createQuizSession(section: Section): QuizSession {
     if (!p) return;
 
     if (cram.cramMode()) {
-      workerApi.addActivity(p.slug, section.id, rating, rating !== 1).catch(() => {});
-      pushChartEntry(rating, rating !== 1);
-      cram.markSeen(cId);
+      cram.rateCram(cId, rating);
       setState('rated');
       return;
     }
 
-    const result = await workerApi.reviewCard(cId, p.slug, section.id, rating);
-    workerApi.addActivity(p.slug, section.id, rating, rating !== 1).catch(() => {});
+    const result = await api.reviewCard(cId, section.id, rating);
+    api.addActivity(section.id, rating, rating !== 1).catch(() => {});
     pushChartEntry(rating, rating !== 1);
     autoSave(p.slug);
 
@@ -85,20 +83,20 @@ export function createQuizSession(section: Section): QuizSession {
     sectionId: section.id,
     flashMode,
     sectionType: section.type,
+    api,
     onPickMcq: (id) => {
       const lookup = lookupQuestion(section, id);
-      if (!lookup) { cram.endCram(); setState('done'); return; }
+      if (!lookup) { batch(() => { cram.endCram(); setState('done'); }); return; }
       const shuffled = shuffle([lookup.question.correct, ...lookup.question.wrong]);
       mcq.applyMcqCard(id, lookup, shuffled, lookup.passage ?? '');
     },
     onPickFlash: (id) => {
       const resolved = resolveFlashCard(section, id);
-      if (!resolved) { cram.endCram(); setState('done'); return; }
+      if (!resolved) { batch(() => { cram.endCram(); setState('done'); }); return; }
       flash.applyFlashCard(id, resolved);
     },
     onDone: () => {
-      cram.endCram();
-      setState('done');
+      batch(() => { cram.endCram(); setState('done'); });
     },
   });
 
@@ -109,7 +107,7 @@ export function createQuizSession(section: Section): QuizSession {
       ratingLabels, setRatingLabels, score, setScore, leechWarning, setLeechWarning,
       skipped, setSkipped, flashMode },
     { section, project, guard, timer, doRate, refreshDue,
-      cramMode: cram.cramMode, pickNextCram: cram.pickNextCram },
+      cramMode: cram.cramMode, pickNextCram: cram.pickNextCram, api },
   );
 
   // --- Flash flow ---
@@ -118,7 +116,7 @@ export function createQuizSession(section: Section): QuizSession {
       flashFront, setFlashFront, flashBack, setFlashBack, flashDefFirst,
       ratingLabels, setRatingLabels },
     { section, project, guard, refreshDue,
-      cramMode: cram.cramMode, cramMarkSeen: cram.markSeen, cramPickNext: cram.pickNextCram },
+      cramMode: cram.cramMode, cramMarkSeen: cram.markSeen, cramPickNext: cram.pickNextCram, cramRate: cram.rateCram, api },
   );
 
   // --- Effects ---
@@ -128,7 +126,7 @@ export function createQuizSession(section: Section): QuizSession {
     const cId = cardId();
     if (!easy && st === 'revealed' && cId) {
       const captured = cId;
-      workerApi.previewRatings(cId).then(preview => {
+      api.previewRatings(cId).then(preview => {
         if (cardId() === captured) setRatingLabels(preview.labels);
       }).catch(() => {});
     }
@@ -164,7 +162,7 @@ export function createQuizSession(section: Section): QuizSession {
       if (state() !== 'done') return;
 
       const cardType = sectionCardType();
-      const result = await workerApi.pickNextOverride(p.slug, [section.id], cardType);
+      const result = await api.pickNextOverride([section.id], cardType);
       if (result.cardId) {
         if (flashMode()) {
           const resolved = resolveFlashCard(section, result.cardId);
@@ -184,11 +182,9 @@ export function createQuizSession(section: Section): QuizSession {
 
       for (const sec of p.sections) {
         if (sec.id === section.id) continue;
-        const due = await workerApi.countDue(p.slug, [sec.id]);
+        const due = await api.countDue([sec.id]);
         if (due.due > 0 || due.newCount > 0) {
-          setActiveTab(sec.id);
-          const handler = sectionHandlers.get(sec.id);
-          if (handler?.pickNextCard) await handler.pickNextCard();
+          await switchToSection(sec.id);
           return;
         }
       }
@@ -207,7 +203,7 @@ export function createQuizSession(section: Section): QuizSession {
       setActiveProject({ ...p, config: { ...p.config, new_per_session: count } });
     }
     await guard.withActing(async () => {
-      await workerApi.resetNewCount();
+      await api.resetNewCount();
       if (flashMode()) {
         await flash.pickNextFlash();
       } else {
@@ -220,7 +216,7 @@ export function createQuizSession(section: Section): QuizSession {
     const p = project();
     if (!p) return;
     await guard.withActing(async () => {
-      await workerApi.unburyAll(p.slug);
+      await api.unburyAll();
       if (flashMode()) {
         await flash.pickNextFlash();
       } else {
@@ -233,16 +229,15 @@ export function createQuizSession(section: Section): QuizSession {
     const p = project();
     if (!p) return;
     await guard.withActing(async () => {
-      await workerApi.resetSection(p.slug, section.id);
+      await api.resetSection(section.id);
       const mcqType = sectionToCardType(section.type);
       const cardRegs = [
         ...section.cardIds.map(id => ({ sectionId: section.id, cardId: id, cardType: mcqType })),
         ...section.flashCardIds.map(id => ({ sectionId: section.id, cardId: id, cardType: 'flashcard' as const })),
       ];
-      await workerApi.loadProject(p.slug, [section.id], cardRegs);
+      await api.loadProject([section.id], cardRegs);
       mcq.histNav.reset();
-      cram.endCram();
-      setScore({ correct: 0, attempted: 0 });
+      batch(() => { cram.endCram(); setScore({ correct: 0, attempted: 0 }); });
       if (flashMode()) {
         await flash.pickNextFlash();
       } else {
@@ -290,12 +285,12 @@ export function createQuizSession(section: Section): QuizSession {
     studyMore,
     flagWrong: mcq.flagWrong,
     startCram: startCramAction,
-    endCram: () => { cram.endCram(); setState('done'); },
+    endCram: () => { batch(() => { cram.endCram(); setState('done'); }); },
     increaseNewCards,
     unburyAll: unburyAllAction,
 
     timer,
     paused: timer.paused,
-    togglePause: () => { timer.paused() ? timer.resume() : timer.pause(); },
+    togglePause: timer.togglePause,
   };
 }

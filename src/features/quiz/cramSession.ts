@@ -1,6 +1,7 @@
 import { createSignal, batch } from 'solid-js';
-import { workerApi } from '../../core/hooks/useWorker.ts';
 import { getCardType } from './helpers.ts';
+import { pushChartEntry } from '../activity/store.ts';
+import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 
 export interface CramDeps {
   projectSlug: () => string | undefined;
@@ -10,6 +11,7 @@ export interface CramDeps {
   onPickMcq: (cardId: string) => void;
   onPickFlash: (cardId: string) => void;
   onDone: () => void;
+  api: ProjectApi;
 }
 
 export function createCramSession(deps: CramDeps) {
@@ -22,7 +24,7 @@ export function createCramSession(deps: CramDeps) {
     if (!slug) { deps.onDone(); return; }
 
     const cardType = getCardType(deps.sectionType, deps.flashMode());
-    const result = await workerApi.pickNextOverride(slug, [deps.sectionId], cardType, [...cramSeen]);
+    const result = await deps.api.pickNextOverride([deps.sectionId], cardType, [...cramSeen]);
 
     if (!result.cardId) {
       deps.onDone();
@@ -52,6 +54,12 @@ export function createCramSession(deps: CramDeps) {
     setCramCount(cramSeen.size);
   }
 
+  function rateCram(cardId: string, rating: number) {
+    deps.api.addActivity(deps.sectionId, rating, rating !== 1).catch(() => {});
+    pushChartEntry(rating, rating !== 1);
+    markSeen(cardId);
+  }
+
   return {
     cramMode,
     cramCount,
@@ -59,5 +67,6 @@ export function createCramSession(deps: CramDeps) {
     endCram,
     pickNextCram,
     markSeen,
+    rateCram,
   };
 }

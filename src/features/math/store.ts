@@ -1,8 +1,8 @@
 import { createSignal, batch } from 'solid-js';
-import { workerApi } from '../../core/hooks/useWorker.ts';
 import { useTimer } from '../../core/hooks/useTimer.ts';
 import { activeProject } from '../../core/store/app.ts';
 import { mathGenerators } from '../../data/math.ts';
+import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 import type { MathProblem } from '../../data/math.ts';
 import type { Section } from '../../projects/types.ts';
 
@@ -32,7 +32,7 @@ export interface MathSession {
   togglePause: () => void;
 }
 
-export function createMathSession(section: Section): MathSession {
+export function createMathSession(section: Section, api: ProjectApi): MathSession {
   const project = () => activeProject();
 
   const [state, setState] = createSignal<MathState>('answering');
@@ -111,9 +111,8 @@ export function createMathSession(section: Section): MathSession {
       });
     }
 
-    const proj = project();
-    if (proj) {
-      workerApi.updateScore(proj.slug, section.id, isCorrect).catch(() => {});
+    if (project()) {
+      api.updateScore(section.id, isCorrect).catch(() => {});
     }
   }
 
@@ -148,7 +147,7 @@ export function createMathSession(section: Section): MathSession {
 
     const proj = project();
     if (proj) {
-      workerApi.updateScore(proj.slug, section.id, false).catch(() => {});
+      api.updateScore(section.id, false).catch(() => {});
     }
   }
 
@@ -173,9 +172,8 @@ export function createMathSession(section: Section): MathSession {
     });
     generateProblem();
 
-    const proj = project();
-    if (proj) {
-      workerApi.resetSection(proj.slug, section.id).catch(() => {});
+    if (project()) {
+      api.resetSection(section.id).catch(() => {});
     }
   }
 
@@ -200,6 +198,6 @@ export function createMathSession(section: Section): MathSession {
 
     timer,
     paused: timer.paused,
-    togglePause: () => { timer.paused() ? timer.resume() : timer.pause(); },
+    togglePause: timer.togglePause,
   };
 }

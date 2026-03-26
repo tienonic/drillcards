@@ -1,32 +1,19 @@
 import './activity.css';
 import { Show, createSignal, onMount, onCleanup, batch } from 'solid-js';
-import { activeProject } from '../../core/store/app.ts';
-import { workerApi } from '../../core/hooks/useWorker.ts';
 import {
   activityScore, reviewStats, sidebarScore,
-  setCanvasRef, loadActivity,
+  setCanvasRef, loadActivity, clearActivity,
 } from './store.ts';
 
-interface ActiveSession {
-  timer?: { seconds: () => number };
-  state?: () => string;
-  paused?: () => boolean;
-  togglePause?: () => void;
-  cramMode?: () => boolean;
-  cramCount?: () => number;
-  endCram?: () => void;
-  dueCount?: () => { newCount: number; due: number; total: number };
-  shuffleFlash?: () => Promise<void>;
-  shuffleMcq?: () => Promise<void>;
-  resetSection?: () => void | Promise<void>;
-}
+import type { SessionEntry } from '../../core/store/sections.ts';
 
-export function ActivityWidget(props: { isFlashMode: () => boolean; activeSession: () => ActiveSession | undefined }) {
-  const timer = () => props.activeSession()?.timer;
-  const seconds = () => timer()?.seconds() ?? 0;
-  const isAnswering = () => props.activeSession()?.state?.() === 'answering';
-  const paused = () => props.activeSession()?.paused?.() ?? false;
-  const togglePause = () => props.activeSession()?.togglePause?.();
+export function ActivityWidget(props: { isFlashMode: () => boolean; activeEntry: () => SessionEntry | undefined }) {
+  const session = () => props.activeEntry()?.session;
+  const quizSession = () => { const e = props.activeEntry(); return e?.kind === 'quiz' ? e.session : undefined; };
+  const seconds = () => session()?.timer.seconds() ?? 0;
+  const isAnswering = () => session()?.state() === 'answering';
+  const paused = () => session()?.paused() ?? false;
+  const togglePause = () => session()?.togglePause();
   const timerCls = () => { const s = seconds(); return `sidebar-timer${paused() ? ' paused' : ''}${s >= 59 ? ' skull' : s >= 15 ? ' red' : ''}`; };
   const timerContent = () => { const s = seconds(); return paused() ? '\u23F8' : s >= 59 ? '\u{1F480}' : s + 's'; };
 
@@ -49,22 +36,22 @@ export function ActivityWidget(props: { isFlashMode: () => boolean; activeSessio
           <div class="activity-reset-wrap" ref={resetWrapRef}>
             <button type="button" class="activity-reset-btn" onClick={() => {
               batch(() => { setResetMenuOpen(false); setConfirmAction(null); });
-              if (props.isFlashMode()) props.activeSession()?.shuffleFlash?.()?.catch(() => {});
-              else props.activeSession()?.shuffleMcq?.()?.catch(() => {});
+              if (props.isFlashMode()) quizSession()?.shuffleFlash?.()?.catch(() => {});
+              else quizSession()?.shuffleMcq?.()?.catch(() => {});
             }}>shuffle</button>
             <button type="button" class="activity-reset-btn" onClick={() => setResetMenuOpen(v => !v)}>reset</button>
             <Show when={resetMenuOpen()}>
               <div class="reset-menu">
                 <Show when={!confirmAction()} fallback={<div class="reset-confirm"><span class="reset-confirm-label">Are you sure?</span><div class="reset-confirm-btns"><button type="button" class="reset-confirm-yes" onClick={() => { confirmAction()?.(); batch(() => { setConfirmAction(null); setResetMenuOpen(false); }); }}>Yes</button><button type="button" class="reset-confirm-no" onClick={() => setConfirmAction(null)}>No</button></div></div>}>
-                  <button type="button" class="reset-menu-item" onClick={() => { setConfirmAction(() => async () => { try { const p = activeProject(); if (p) { await workerApi.clearActivity(p.slug); loadActivity(); } } catch { /* UI action — failure keeps stale graph, no state to roll back */ } }); }}>Reset Graph</button>
-                  <button type="button" class="reset-menu-item" onClick={() => { setConfirmAction(() => () => { props.activeSession()?.resetSection?.()?.catch(() => {}); }); }}>Reset Section</button>
+                  <button type="button" class="reset-menu-item" onClick={() => { setConfirmAction(() => async () => { try { await clearActivity(); loadActivity(); } catch { /* UI action — failure keeps stale graph, no state to roll back */ } }); }}>Reset Graph</button>
+                  <button type="button" class="reset-menu-item" onClick={() => { setConfirmAction(() => () => { const s = session(); if (s) { const r = s.resetSection(); if (r instanceof Promise) r.catch(() => {}); } }); }}>Reset Section</button>
                 </Show>
               </div>
             </Show>
           </div>
         </div>
-        <Show when={props.activeSession()?.cramMode?.()}>
-          <div class="cram-bar">Cram mode — {props.activeSession()?.cramCount?.()} reviewed <button type="button" class="cram-end" onClick={() => props.activeSession()?.endCram?.()}>End</button></div>
+        <Show when={quizSession()?.cramMode()}>
+          <div class="cram-bar">Cram mode — {quizSession()?.cramCount()} reviewed <button type="button" class="cram-end" onClick={() => quizSession()?.endCram()}>End</button></div>
         </Show>
       </div>
     </>

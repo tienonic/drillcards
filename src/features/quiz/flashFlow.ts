@@ -1,9 +1,9 @@
 import { batch } from 'solid-js';
-import { workerApi } from '../../core/hooks/useWorker.ts';
 import { setQuestionContext } from '../glossary/store.ts';
 import { pushChartEntry } from '../activity/store.ts';
 import { autoSave } from '../backup/backup.ts';
 import { resolveFlashCard } from './helpers.ts';
+import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 import type { Guard } from './guard.ts';
 import type { Section } from '../../projects/types.ts';
 import type { QuizState } from './types.ts';
@@ -31,7 +31,9 @@ export interface FlashDeps {
   cramMode: () => boolean;
   cramMarkSeen: (id: string) => void;
   cramPickNext: () => Promise<void>;
+  cramRate: (cardId: string, rating: number) => void;
   refreshDue: () => Promise<void>;
+  api: ProjectApi;
 }
 
 export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
@@ -57,7 +59,7 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
     const p = d.project();
     if (!p || !d.section.flashcards || d.section.flashCardIds.length === 0) return;
 
-    const result = await workerApi.pickNext(p.slug, [d.section.id], p.config.new_per_session, 'flashcard');
+    const result = await d.api.pickNext([d.section.id], p.config.new_per_session, 'flashcard');
     if (!s.state()) return; // component unmounted
 
     if (!result.cardId) {
@@ -89,7 +91,7 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
     const cId = s.flashCardId();
     if (flipped && cId) {
       const captured = cId;
-      workerApi.previewRatings(cId).then(preview => {
+      d.api.previewRatings(cId).then(preview => {
         if (s.flashCardId() === captured) s.setRatingLabels(preview.labels);
       }).catch(() => {});
     }
@@ -101,15 +103,13 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
     if (!fId || !p) return;
     await d.guard.withActing(async () => {
       if (d.cramMode()) {
-        workerApi.addActivity(p.slug, d.section.id, rating, rating !== 1).catch(() => {});
-        pushChartEntry(rating, rating !== 1);
-        d.cramMarkSeen(fId);
+        d.cramRate(fId, rating);
         await d.cramPickNext();
         return;
       }
 
-      await workerApi.reviewCard(fId, p.slug, d.section.id, rating);
-      workerApi.addActivity(p.slug, d.section.id, rating, rating !== 1).catch(() => {});
+      await d.api.reviewCard(fId, d.section.id, rating);
+      d.api.addActivity(d.section.id, rating, rating !== 1).catch(() => {});
       pushChartEntry(rating, rating !== 1);
       autoSave(p.slug);
       await pickNextFlash();

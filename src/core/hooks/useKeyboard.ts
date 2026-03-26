@@ -2,7 +2,6 @@ import { onMount, onCleanup } from 'solid-js';
 import { activeTab, activeProject, setNoteBoxVisible, termsOpen, easyMode, zenMode, toggleZenMode, headerVisible, activePanel } from '../store/app.ts';
 import { sectionHandlers } from '../store/sections.ts';
 import { matchesKey } from '../../features/settings/keybinds.ts';
-import { getCardTypeEntry } from '../../projects/cardTypeRegistry.ts';
 import type { MathSession } from '../../features/math/store.ts';
 import type { McqView, FlashView } from '../../features/quiz/types.ts';
 
@@ -12,10 +11,10 @@ export function useKeyboard() {
   function pauseIfActive() {
     const tab = activeTab();
     if (!tab) return;
-    const session = sectionHandlers.get(tab);
-    if (!session) return;
-    if (!session.paused()) {
-      session.timer.pause();
+    const entry = sectionHandlers.get(tab);
+    if (!entry) return;
+    if (!entry.session.paused()) {
+      entry.session.timer.pause();
       autoPaused = true;
     }
   }
@@ -24,9 +23,9 @@ export function useKeyboard() {
     if (!autoPaused) return;
     const tab = activeTab();
     if (!tab) return;
-    const session = sectionHandlers.get(tab);
-    if (!session) return;
-    session.timer.resume();
+    const entry = sectionHandlers.get(tab);
+    if (!entry) return;
+    entry.session.timer.resume();
     autoPaused = false;
   }
 
@@ -55,11 +54,7 @@ export function useKeyboard() {
     }
 
     const tab = activeTab();
-    const project = activeProject();
-    if (!tab || !project) return;
-
-    const section = project.sections.find(s => s.id === tab);
-    if (!section) return;
+    if (!tab || !activeProject()) return;
 
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
@@ -77,16 +72,15 @@ export function useKeyboard() {
     // Ignore when modifier keys are held (Ctrl+1 = Firefox tab switch, not answer)
     if (e.ctrlKey || e.metaKey || e.altKey) return;
 
-    const session = sectionHandlers.get(tab);
-    if (!session) return;
+    const entry = sectionHandlers.get(tab);
+    if (!entry) return;
 
-    const entry = getCardTypeEntry(section.type);
-    if (entry.keyboardHandler === 'math') {
-      handleMathKeyboard(e, session as unknown as MathSession);
-    } else if (session.flashMode?.()) {
-      handleFlashcardKeyboard(e, session as unknown as FlashView);
+    if (entry.kind === 'math') {
+      handleMathKeyboard(e, entry.session);
+    } else if (entry.session.flashMode()) {
+      handleFlashcardKeyboard(e, entry.session);
     } else {
-      handleMcqKeyboard(e, session as unknown as McqView);
+      handleMcqKeyboard(e, entry.session);
     }
   }
 
