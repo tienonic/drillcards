@@ -25,6 +25,11 @@ const [activePanel, setActivePanel] = createSignal<'activity' | 'ai' | 'settings
 const [sessionSummary, setSessionSummary] = createSignal<{ lastReviewAt: string; dueNow: number; gap: string } | null>(null);
 const [graphVisible, setGraphVisible] = createSignal(readLocalBool('graph-visible', true));
 const [termsVisible, setTermsVisible] = createSignal(readLocalBool('terms-visible', true));
+const [mergedMode, setMergedMode] = createSignal(readLocalBool('merged-mode', false));
+const [copiedFlash, setCopiedFlash] = createSignal(false);
+let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+function flashCopied() { clearTimeout(copiedTimer); setCopiedFlash(true); copiedTimer = setTimeout(() => setCopiedFlash(false), 600); }
+
 const [sidebarOffsetY, setSidebarOffsetY] = createSignal(
   (() => { try { return parseInt(localStorage.getItem('sidebar-offset-y') || '0', 10) || 0; } catch { return 0; } })()
 );
@@ -54,7 +59,9 @@ export {
   sessionSummary, setSessionSummary,
   graphVisible, setGraphVisible,
   termsVisible, setTermsVisible,
+  mergedMode, setMergedMode,
   sidebarOffsetY, setSidebarOffsetY,
+  copiedFlash, flashCopied,
   formatGap,
 };
 
@@ -85,6 +92,12 @@ export function toggleGraphVisible() {
   const next = !graphVisible();
   setGraphVisible(next);
   try { localStorage.setItem('graph-visible', String(next)); } catch { /* */ }
+}
+
+export function toggleMergedMode() {
+  const next = !mergedMode();
+  setMergedMode(next);
+  try { localStorage.setItem('merged-mode', String(next)); } catch { /* */ }
 }
 
 export function toggleTermsVisible() {

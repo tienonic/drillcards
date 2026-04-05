@@ -1,5 +1,5 @@
 import { onMount, onCleanup } from 'solid-js';
-import { activeTab, activeProject, setNoteBoxVisible, termsOpen, easyMode, zenMode, toggleZenMode, headerVisible, activePanel } from '../store/app.ts';
+import { activeTab, activeProject, setNoteBoxVisible, termsOpen, easyMode, zenMode, toggleZenMode, headerVisible, activePanel, flashCopied } from '../store/app.ts';
 import { sectionHandlers } from '../store/sections.ts';
 import { matchesKey } from '../../features/settings/keybinds.ts';
 import type { MathSession } from '../../features/math/store.ts';
@@ -98,7 +98,17 @@ export function useKeyboard() {
   });
 }
 
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text).then(() => flashCopied()).catch(() => {});
+}
+
 function handleMathKeyboard(e: KeyboardEvent, session: MathSession) {
+  if (e.key === 'r' || e.key === 'R') {
+    e.preventDefault();
+    const p = session.problem();
+    if (p) copyToClipboard(p.q);
+    return;
+  }
   if (e.code === 'Space' || matchesKey(e, 'mathSubmit') || e.key === 'Enter') {
     e.preventDefault();
     if (session.state() === 'revealed') {
@@ -110,6 +120,15 @@ function handleMathKeyboard(e: KeyboardEvent, session: MathSession) {
 }
 
 function handleFlashcardKeyboard(e: KeyboardEvent, session: FlashView) {
+  if (e.key === 'r' || e.key === 'R') {
+    e.preventDefault();
+    const text = session.flashFlipped()
+      ? session.flashFront() + '\n\n' + session.flashBack()
+      : session.flashFront();
+    copyToClipboard(text);
+    return;
+  }
+
   const isFlipped = session.flashFlipped();
 
   // Space / flipCard: always toggle flip, never auto-rate
@@ -174,6 +193,15 @@ function handleForwardKey(e: KeyboardEvent, session: McqView, st: string) {
 
 function handleMcqKeyboard(e: KeyboardEvent, session: McqView) {
   const st = session.state();
+  if (e.key === 'r' || e.key === 'R') {
+    e.preventDefault();
+    const q = session.question();
+    if (q) {
+      const passage = session.passage();
+      copyToClipboard(passage ? passage + '\n\n' + q.q : q.q);
+    }
+    return;
+  }
   if (matchesKey(e, 'answer1') || matchesKey(e, 'answer2') || matchesKey(e, 'answer3') || matchesKey(e, 'answer4')) { handleAnswerKey(e, session, st); return; }
   if (matchesKey(e, 'skip')) { handleSpaceKey(e, session, st); return; }
   if (matchesKey(e, 'undo')) { e.preventDefault(); session.undo().catch(() => {}); return; }

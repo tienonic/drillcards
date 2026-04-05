@@ -2,7 +2,7 @@ import { batch } from 'solid-js';
 import { setQuestionContext } from '../glossary/store.ts';
 import { pushChartEntry } from '../activity/store.ts';
 import { autoSave } from '../backup/backup.ts';
-import { resolveFlashCard } from './helpers.ts';
+import { resolveFlashCard, resolveFlashCardAcross, findOwnerSection } from './helpers.ts';
 import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 import type { Guard } from './guard.ts';
 import type { Section } from '../../projects/types.ts';
@@ -26,6 +26,7 @@ export interface FlashSignals {
 
 export interface FlashDeps {
   section: Section;
+  sourceSections?: Section[];
   project: () => { slug: string; config: { new_per_session: number } } | null;
   guard: Guard;
   cramMode: () => boolean;
@@ -37,6 +38,20 @@ export interface FlashDeps {
 }
 
 export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
+  const merged = !!d.sourceSections;
+  const allSections = d.sourceSections ?? [d.section];
+  const allSectionIds = allSections.map(sec => sec.id);
+  const allFlashCardIds = allSections.flatMap(sec => sec.flashCardIds);
+  const allFlashcards = allSections.flatMap(sec => sec.flashcards ?? []);
+
+  function resolve(cardId: string) {
+    return merged ? resolveFlashCardAcross(allSections, cardId) : resolveFlashCard(d.section, cardId);
+  }
+  function ownerSectionId(cardId: string): string {
+    if (!merged) return d.section.id;
+    return (findOwnerSection(allSections, cardId) ?? d.section).id;
+  }
+
   function setFlashError(msg = 'Card data mismatch') {
     batch(() => { s.setFlashCardId(null); s.setFlashFront(msg); s.setFlashBack(''); s.setFlashFlipped(false); });
   }
@@ -57,9 +72,9 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
   async function pickNextFlash() {
     if (d.cramMode()) { await d.cramPickNext(); return; }
     const p = d.project();
-    if (!p || !d.section.flashcards || d.section.flashCardIds.length === 0) return;
+    if (!p || allFlashcards.length === 0 || allFlashCardIds.length === 0) return;
 
-    const result = await d.api.pickNext([d.section.id], p.config.new_per_session, 'flashcard');
+    const result = await d.api.pickNext(allSectionIds, p.config.new_per_session, 'flashcard');
     if (!s.state()) return; // component unmounted
 
     if (!result.cardId) {
@@ -74,7 +89,7 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
       return;
     }
 
-    const resolved = resolveFlashCard(d.section, result.cardId);
+    const resolved = resolve(result.cardId);
     if (!resolved) {
       setFlashError();
       return;
@@ -108,8 +123,8 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
         return;
       }
 
-      await d.api.reviewCard(fId, d.section.id, rating);
-      d.api.addActivity(d.section.id, rating, rating !== 1).catch(() => {});
+      await d.api.reviewCard(fId, ownerSectionId(fId), rating);
+      d.api.addActivity(ownerSectionId(fId), rating, rating !== 1).catch(() => {});
       pushChartEntry(rating, rating !== 1);
       autoSave(p.slug);
       await pickNextFlash();
@@ -117,10 +132,10 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
   }
 
   async function shuffleFlashAction() {
-    if (!d.section.flashcards || d.section.flashCardIds.length === 0) return;
-    const idx = Math.floor(Math.random() * d.section.flashcards.length);
-    const card = d.section.flashcards[idx];
-    const fId = d.section.flashCardIds[idx];
+    if (allFlashcards.length === 0 || allFlashCardIds.length === 0) return;
+    const idx = Math.floor(Math.random() * allFlashcards.length);
+    const card = allFlashcards[idx];
+    const fId = allFlashCardIds[idx];
     if (!card || !fId) return;
     await d.guard.withActing(async () => {
       applyFlashCard(fId, { card });

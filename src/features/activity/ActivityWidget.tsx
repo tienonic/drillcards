@@ -4,6 +4,7 @@ import {
   activityScore, reviewStats, sidebarScore,
   setCanvasRef, loadActivity, clearActivity,
 } from './store.ts';
+import { copiedFlash } from '../../core/store/app.ts';
 
 import type { SessionEntry } from '../../core/store/sections.ts';
 
@@ -29,7 +30,7 @@ export function ActivityWidget(props: { isFlashMode: () => boolean; activeEntry:
     <>
       <div class="activity-widget">
         <div class="activity-score-row"><Show when={isAnswering()}><span class={timerCls()} onClick={() => togglePause()} title={paused() ? 'Resume timer' : 'Pause timer'}>{timerContent()}</span></Show><div class="activity-score-label">{activityScore()}</div></div>
-        <div class="activity-chart-wrap"><canvas ref={el => setCanvasRef(el)} width="210" height="120" /></div>
+        <div class="activity-chart-wrap"><canvas ref={el => setCanvasRef(el)} width="210" height="120" /><Show when={copiedFlash()}><span class="copied-flash">Copied</span></Show></div>
         <div class="activity-widget-stats">
           <div class="activity-stats"><span class="stat-item">review: <strong>{reviewStats().reviews}</strong></span><span class="stat-item">retention: <strong>{reviewStats().retention}</strong></span></div>
           <div class="activity-stats"><span class="stat-item">score: <strong>{sidebarScore().correct} / {sidebarScore().attempted}</strong></span><span class="stat-item">due: <strong>{sidebarScore().due} / {sidebarScore().total}</strong></span></div>

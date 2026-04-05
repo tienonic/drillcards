@@ -6,8 +6,11 @@ import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 export interface CramDeps {
   projectSlug: () => string | undefined;
   sectionId: string;
+  sectionIds?: string[];
   flashMode: () => boolean;
   sectionType: 'mc-quiz' | 'passage-quiz' | 'math-gen';
+  merged?: boolean;
+  ownerSectionId?: (cardId: string) => string;
   onPickMcq: (cardId: string) => void;
   onPickFlash: (cardId: string) => void;
   onDone: () => void;
@@ -15,6 +18,7 @@ export interface CramDeps {
 }
 
 export function createCramSession(deps: CramDeps) {
+  const allSectionIds = deps.sectionIds ?? [deps.sectionId];
   const [cramMode, setCramMode] = createSignal(false);
   const [cramCount, setCramCount] = createSignal(0);
   const cramSeen = new Set<string>();
@@ -23,8 +27,10 @@ export function createCramSession(deps: CramDeps) {
     const slug = deps.projectSlug();
     if (!slug) { deps.onDone(); return; }
 
-    const cardType = getCardType(deps.sectionType, deps.flashMode());
-    const result = await deps.api.pickNextOverride([deps.sectionId], cardType, [...cramSeen]);
+    const cardType = deps.flashMode() ? 'flashcard' as const
+      : deps.merged ? undefined
+      : getCardType(deps.sectionType, false);
+    const result = await deps.api.pickNextOverride(allSectionIds, cardType, [...cramSeen]);
 
     if (!result.cardId) {
       deps.onDone();
@@ -55,7 +61,8 @@ export function createCramSession(deps: CramDeps) {
   }
 
   function rateCram(cardId: string, rating: number) {
-    deps.api.addActivity(deps.sectionId, rating, rating !== 1).catch(() => {});
+    const secId = deps.ownerSectionId ? deps.ownerSectionId(cardId) : deps.sectionId;
+    deps.api.addActivity(secId, rating, rating !== 1).catch(() => {});
     pushChartEntry(rating, rating !== 1);
     markSeen(cardId);
   }
