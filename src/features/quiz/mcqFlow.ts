@@ -2,7 +2,7 @@ import { batch } from 'solid-js';
 import { shuffle } from '../../utils/shuffle.ts';
 import { easyMode, sessionSummary, setSessionSummary } from '../../core/store/app.ts';
 import { setQuestionContext } from '../glossary/store.ts';
-import { timeToRating, lookupQuestion, getCardType } from './helpers.ts';
+import { timeToRating, lookupQuestion, lookupQuestionAcross, findOwnerSection, getCardType } from './helpers.ts';
 import { createHistoryNav, type HistoryEntry } from './historyNav.ts';
 import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 import type { Guard } from './guard.ts';
@@ -37,6 +37,7 @@ export interface McqSignals {
 
 export interface McqDeps {
   section: Section;
+  sourceSections?: Section[];
   project: () => { slug: string; config: { new_per_session: number; imageSearchSuffix: string } } | null;
   guard: Guard;
   timer: { start: () => void; stop: () => number };
@@ -48,6 +49,19 @@ export interface McqDeps {
 }
 
 export function createMcqFlow(s: McqSignals, d: McqDeps) {
+  const merged = !!d.sourceSections;
+  const allSections = d.sourceSections ?? [d.section];
+  const allSectionIds = allSections.map(sec => sec.id);
+  const allCardIds = allSections.flatMap(sec => sec.cardIds);
+
+  function lookup(cardId: string) {
+    return merged ? lookupQuestionAcross(allSections, cardId) : lookupQuestion(d.section, cardId);
+  }
+  function ownerSectionId(cardId: string): string {
+    if (!merged) return d.section.id;
+    return (findOwnerSection(allSections, cardId) ?? d.section).id;
+  }
+
   const histNav = createHistoryNav();
 
   function buildQuestionContext(q: Question): string {
@@ -91,22 +105,21 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
     batch(() => { s.setLeechWarning(false); s.setSkipped(false); });
     histNav.clearReview();
 
-    const ids = d.section.cardIds;
-    if (ids.length === 0) { s.setState('done'); return; }
+    if (allCardIds.length === 0) { s.setState('done'); return; }
 
-    const cardType = getCardType(d.section.type, false);
-    const result = await d.api.pickNext([d.section.id], p.config.new_per_session, cardType);
+    const cardType = merged ? undefined : getCardType(d.section.type, false);
+    const result = await d.api.pickNext(allSectionIds, p.config.new_per_session, cardType);
     if (s.flashMode()) return; // Stale: flash mode toggled during pick — flash path handles it
     if (!result.cardId) { s.setState('done'); return; }
 
-    const lookup = lookupQuestion(d.section, result.cardId);
-    if (!lookup) { s.setState('done'); return; }
+    const found = lookup(result.cardId);
+    if (!found) { s.setState('done'); return; }
 
-    const shuffled = shuffle([lookup.question.correct, ...lookup.question.wrong]);
-    const passageText = lookup.passage ?? '';
+    const shuffled = shuffle([found.question.correct, ...found.question.wrong]);
+    const passageText = found.passage ?? '';
 
-    applyMcqCard(result.cardId, lookup, shuffled, passageText);
-    pushHistoryEntry(result.cardId, lookup, shuffled, passageText);
+    applyMcqCard(result.cardId, found, shuffled, passageText);
+    pushHistoryEntry(result.cardId, found, shuffled, passageText);
 
     await d.refreshDue();
   }
@@ -140,7 +153,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
         s.setSkipped(false);
       });
 
-      const sc = await d.api.updateScore(d.section.id, correct);
+      const sc = await d.api.updateScore(ownerSectionId(cId), correct);
       s.setScore({ correct: sc.correct, attempted: sc.attempted });
       updateHistoryEntry(cId, q, { selected: option, isCorrect: correct, skipped: false });
 
@@ -166,7 +179,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
         s.setSkipped(true);
       });
 
-      const sc = await d.api.updateScore(d.section.id, false);
+      const sc = await d.api.updateScore(ownerSectionId(cId), false);
       s.setScore({ correct: sc.correct, attempted: sc.attempted });
       updateHistoryEntry(cId, q, { selected: null, isCorrect: false, skipped: true });
 
@@ -205,9 +218,9 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
       const result = await d.api.undoReview();
       if (result.undone && result.cardId) {
         const restoredId = result.cardId;
-        const lookup = lookupQuestion(d.section, restoredId);
-        if (lookup) {
-          const newOptions = shuffle([lookup.question.correct, ...lookup.question.wrong]);
+        const found = lookup(restoredId);
+        if (found) {
+          const newOptions = shuffle([found.question.correct, ...found.question.wrong]);
           const entry = histNav.getEntry(histNav.getPos());
           if (entry && entry.cardId === restoredId) {
             entry.selected = null;
@@ -215,7 +228,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
             entry.skipped = false;
             entry.optionOrder = newOptions;
           }
-          applyMcqCard(restoredId, lookup, newOptions, lookup.passage ?? '');
+          applyMcqCard(restoredId, found, newOptions, found.passage ?? '');
           await d.refreshDue();
         }
       }
@@ -243,14 +256,14 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
   }
 
   function restoreHistoryEntry(entry: HistoryEntry) {
-    const lookup = lookupQuestion(d.section, entry.cardId);
-    if (!lookup) return;
+    const found = lookup(entry.cardId);
+    if (!found) return;
 
     const unanswered = entry.selected === null && !entry.skipped;
     batch(() => {
       s.setLeechWarning(false);
       s.setCardId(entry.cardId);
-      s.setQuestion(lookup.question);
+      s.setQuestion(found.question);
       s.setOptions(entry.optionOrder);
       s.setSelected(unanswered ? null : entry.selected);
       s.setIsCorrect(unanswered ? false : entry.isCorrect);
@@ -276,16 +289,15 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
   async function shuffleMcq() {
     const p = d.project();
     if (!p) return;
-    const ids = d.section.cardIds;
-    if (ids.length === 0) return;
+    if (allCardIds.length === 0) return;
     await d.guard.withActing(async () => {
-      const randomId = ids[Math.floor(Math.random() * ids.length)];
-      const lookup = lookupQuestion(d.section, randomId);
-      if (!lookup) return;
-      const shuffled = shuffle([lookup.question.correct, ...lookup.question.wrong]);
-      const passageText = lookup.passage ?? '';
-      applyMcqCard(randomId, lookup, shuffled, passageText);
-      pushHistoryEntry(randomId, lookup, shuffled, passageText);
+      const randomId = allCardIds[Math.floor(Math.random() * allCardIds.length)];
+      const found = lookup(randomId);
+      if (!found) return;
+      const shuffled = shuffle([found.question.correct, ...found.question.wrong]);
+      const passageText = found.passage ?? '';
+      applyMcqCard(randomId, found, shuffled, passageText);
+      pushHistoryEntry(randomId, found, shuffled, passageText);
       await d.refreshDue();
     });
   }

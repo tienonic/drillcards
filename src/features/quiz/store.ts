@@ -4,7 +4,7 @@ import { shuffle } from '../../utils/shuffle.ts';
 import { activeProject, setActiveProject, easyMode } from '../../core/store/app.ts';
 import { autoSave } from '../backup/backup.ts';
 import { pushChartEntry } from '../activity/store.ts';
-import { getCardType, sectionToCardType, lookupQuestion, resolveFlashCard } from './helpers.ts';
+import { getCardType, sectionToCardType, lookupQuestion, lookupQuestionAcross, resolveFlashCard, resolveFlashCardAcross, findOwnerSection } from './helpers.ts';
 import { createGuard } from './guard.ts';
 import { createCramSession } from './cramSession.ts';
 import { createMcqFlow } from './mcqFlow.ts';
@@ -15,7 +15,24 @@ import type { Section } from '../../projects/types.ts';
 import type { QuizState, QuizSession } from './types.ts';
 export type { QuizSession } from './types.ts';
 
-export function createQuizSession(section: Section, api: ProjectApi): QuizSession {
+export function createQuizSession(section: Section, api: ProjectApi, sourceSections?: Section[]): QuizSession {
+  const merged = !!sourceSections;
+  const allSections = sourceSections ?? [section];
+  const allSectionIds = allSections.map(s => s.id);
+
+  function ownerSection(cardId: string): Section {
+    if (!merged) return section;
+    return findOwnerSection(allSections, cardId) ?? allSections[0];
+  }
+
+  function lookup(cardId: string) {
+    return merged ? lookupQuestionAcross(allSections, cardId) : lookupQuestion(section, cardId);
+  }
+
+  function resolveFlash(cardId: string) {
+    return merged ? resolveFlashCardAcross(allSections, cardId) : resolveFlashCard(section, cardId);
+  }
+
   const project = () => activeProject();
 
   // --- Shared signals ---
@@ -41,8 +58,10 @@ export function createQuizSession(section: Section, api: ProjectApi): QuizSessio
   const guard = createGuard();
 
   // --- Shared helpers ---
-  function sectionCardType(): 'mcq' | 'passage' | 'flashcard' {
-    return getCardType(section.type, flashMode());
+  function sectionCardType(): 'mcq' | 'passage' | 'flashcard' | undefined {
+    if (flashMode()) return 'flashcard';
+    if (merged) return undefined; // pick across all card types
+    return getCardType(section.type, false);
   }
 
   async function refreshDue() {
@@ -50,9 +69,11 @@ export function createQuizSession(section: Section, api: ProjectApi): QuizSessio
     if (!p) return;
     const slug = p.slug;
     const cardType = sectionCardType();
-    const ids = cardType === 'flashcard' ? section.flashCardIds : section.cardIds;
+    const ids = cardType === 'flashcard'
+      ? allSections.flatMap(s => s.flashCardIds)
+      : allSections.flatMap(s => s.cardIds);
     if (ids.length === 0) return;
-    const result = await api.countDue([section.id], cardType);
+    const result = await api.countDue(allSectionIds, cardType);
     if (project()?.slug !== slug) return;
     if (sectionCardType() !== cardType) return;
     setDueCount(result);
@@ -68,8 +89,9 @@ export function createQuizSession(section: Section, api: ProjectApi): QuizSessio
       return;
     }
 
-    const result = await api.reviewCard(cId, section.id, rating);
-    api.addActivity(section.id, rating, rating !== 1).catch(() => {});
+    const owner = ownerSection(cId);
+    const result = await api.reviewCard(cId, owner.id, rating);
+    api.addActivity(owner.id, rating, rating !== 1).catch(() => {});
     pushChartEntry(rating, rating !== 1);
     autoSave(p.slug);
 
@@ -81,17 +103,20 @@ export function createQuizSession(section: Section, api: ProjectApi): QuizSessio
   const cram = createCramSession({
     projectSlug: () => project()?.slug,
     sectionId: section.id,
+    sectionIds: allSectionIds,
     flashMode,
     sectionType: section.type,
+    merged,
+    ownerSectionId: (cardId: string) => ownerSection(cardId).id,
     api,
     onPickMcq: (id) => {
-      const lookup = lookupQuestion(section, id);
-      if (!lookup) { batch(() => { cram.endCram(); setState('done'); }); return; }
-      const shuffled = shuffle([lookup.question.correct, ...lookup.question.wrong]);
-      mcq.applyMcqCard(id, lookup, shuffled, lookup.passage ?? '');
+      const found = lookup(id);
+      if (!found) { batch(() => { cram.endCram(); setState('done'); }); return; }
+      const shuffled = shuffle([found.question.correct, ...found.question.wrong]);
+      mcq.applyMcqCard(id, found, shuffled, found.passage ?? '');
     },
     onPickFlash: (id) => {
-      const resolved = resolveFlashCard(section, id);
+      const resolved = resolveFlash(id);
       if (!resolved) { batch(() => { cram.endCram(); setState('done'); }); return; }
       flash.applyFlashCard(id, resolved);
     },
@@ -106,7 +131,7 @@ export function createQuizSession(section: Section, api: ProjectApi): QuizSessio
       selected, setSelected, isCorrect, setIsCorrect, passage, setPassage,
       ratingLabels, setRatingLabels, score, setScore, leechWarning, setLeechWarning,
       skipped, setSkipped, flashMode },
-    { section, project, guard, timer, doRate, refreshDue,
+    { section, sourceSections, project, guard, timer, doRate, refreshDue,
       cramMode: cram.cramMode, pickNextCram: cram.pickNextCram, api },
   );
 
@@ -115,7 +140,7 @@ export function createQuizSession(section: Section, api: ProjectApi): QuizSessio
     { state, setState, flashCardId, setFlashCardId, flashFlipped, setFlashFlipped,
       flashFront, setFlashFront, flashBack, setFlashBack, flashDefFirst,
       ratingLabels, setRatingLabels },
-    { section, project, guard, refreshDue,
+    { section, sourceSections, project, guard, refreshDue,
       cramMode: cram.cramMode, cramMarkSeen: cram.markSeen, cramPickNext: cram.pickNextCram, cramRate: cram.rateCram, api },
   );
 
@@ -162,30 +187,32 @@ export function createQuizSession(section: Section, api: ProjectApi): QuizSessio
       if (state() !== 'done') return;
 
       const cardType = sectionCardType();
-      const result = await api.pickNextOverride([section.id], cardType);
+      const result = await api.pickNextOverride(allSectionIds, cardType);
       if (result.cardId) {
         if (flashMode()) {
-          const resolved = resolveFlashCard(section, result.cardId);
+          const resolved = resolveFlash(result.cardId);
           if (!resolved) return;
           flash.applyFlashCard(result.cardId, resolved);
         } else {
-          const lookup = lookupQuestion(section, result.cardId);
-          if (!lookup) return;
-          const shuffled = shuffle([lookup.question.correct, ...lookup.question.wrong]);
-          const passageText = lookup.passage ?? '';
-          mcq.applyMcqCard(result.cardId, lookup, shuffled, passageText);
-          mcq.pushHistoryEntry(result.cardId, lookup, shuffled, passageText);
+          const found = lookup(result.cardId);
+          if (!found) return;
+          const shuffled = shuffle([found.question.correct, ...found.question.wrong]);
+          const passageText = found.passage ?? '';
+          mcq.applyMcqCard(result.cardId, found, shuffled, passageText);
+          mcq.pushHistoryEntry(result.cardId, found, shuffled, passageText);
         }
         await refreshDue();
         return;
       }
 
-      for (const sec of p.sections) {
-        if (sec.id === section.id) continue;
-        const due = await api.countDue([sec.id]);
-        if (due.due > 0 || due.newCount > 0) {
-          await switchToSection(sec.id);
-          return;
+      if (!merged) {
+        for (const sec of p.sections) {
+          if (sec.id === section.id) continue;
+          const due = await api.countDue([sec.id]);
+          if (due.due > 0 || due.newCount > 0) {
+            await switchToSection(sec.id);
+            return;
+          }
         }
       }
     });
@@ -268,7 +295,7 @@ export function createQuizSession(section: Section, api: ProjectApi): QuizSessio
       setFlashDefFirst(v);
       const fId = flashCardId();
       if (!fId) return;
-      const resolved = resolveFlashCard(section, fId);
+      const resolved = resolveFlash(fId);
       if (!resolved) return;
       batch(() => {
         setFlashFront(v ? resolved.card.back : resolved.card.front);

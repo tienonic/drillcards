@@ -44,6 +44,27 @@ export function sectionToCardType(sectionType: Section['type']): 'mcq' | 'passag
   }
 }
 
+/** Find which source section owns a card ID by matching the section.id prefix */
+export function findOwnerSection(sections: Section[], cardId: string): Section | undefined {
+  return sections.find(s => cardId === s.id || cardId.startsWith(s.id + '-'));
+}
+
+export function lookupQuestionAcross(
+  sections: Section[],
+  cardId: string,
+): { question: Question; scenarioIdx?: number; questionIdx?: number; passage?: string } | null {
+  const owner = findOwnerSection(sections, cardId);
+  return owner ? lookupQuestion(owner, cardId) : null;
+}
+
+export function resolveFlashCardAcross(
+  sections: Section[],
+  cardId: string,
+): { idx: number; card: Flashcard } | null {
+  const owner = findOwnerSection(sections, cardId);
+  return owner ? resolveFlashCard(owner, cardId) : null;
+}
+
 export function resolveFlashCard(
   section: Section,
   cardId: string,
