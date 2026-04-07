@@ -98,7 +98,7 @@ export function buildDefaultProject(): ProjectData {
 
   return {
     name: 'Example Botany Project', version: 1,
-    config: { desired_retention: 0.9, new_per_session: 20, leech_threshold: 8, imageSearchSuffix: 'plant identification' },
+    config: { desired_retention: 0.9, new_per_session: 20, leech_threshold: 8, imageSearchSuffix: 'plant identification', timerConfigs: { math: { warnAt: 60, failAt: 180 } } },
     sections: [
       { id: 'crop', name: 'Crop & Tree ID', type: 'mc-quiz', hasFlashcards: true, hasImages: true, questions: cropQuestions, flashcards: cropFlashcards },
       { id: 'map', name: 'Map Drawing', type: 'passage-quiz', instruction: 'Map Drawing Quiz', hasFlashcards: false, hasImages: false, scenarios: mapScenariosFormatted, tips: MAP_TIPS },

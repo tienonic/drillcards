@@ -45,7 +45,10 @@ export function McqCard(props: { session: McqView; isPassage?: boolean }) {
         <button type="button" class="card-flag-btn" title="Mark as wrong for extra practice" onClick={() => s.flagWrong().catch(() => {})}>&times;</button>
       </Show>
       <Show when={props.isPassage && s.passage()}><div class="passage" innerHTML={s.passage()} /></Show>
-      <Show when={s.question()}>{(q) => <div class="question-header"><LatexText text={q().q} class="question-text" /></div>}</Show>
+      <Show when={s.question()}>{(q) => <>
+        <Show when={q().image}><img src={q().image} alt="" class="card-image" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></Show>
+        <div class="question-header"><LatexText text={q().q} class="question-text" /></div>
+      </>}</Show>
 
       <div class="options">
         <For each={s.options()}>

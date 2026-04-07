@@ -88,7 +88,8 @@ function lookupPassage(section: Section, cardId: string): LookupResult | null {
     question: q,
     scenarioIdx: si,
     questionIdx: qi,
-    passage: scenario.passage + (scenario.source
+    passage: (scenario.image ? `<img src="${scenario.image.replace(/"/g, '&quot;')}" alt="" class="card-image" loading="lazy" />` : '')
+      + scenario.passage + (scenario.source
       ? `<span class="source">${scenario.source.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`
       : ''),
   };

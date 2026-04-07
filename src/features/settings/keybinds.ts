@@ -4,7 +4,7 @@ import { workerApi } from '../../core/hooks/useWorker.ts';
 export type KeyAction =
   | 'answer1' | 'answer2' | 'answer3' | 'answer4'
   | 'skip' | 'undo' | 'suspend' | 'bury'
-  | 'viewImage' | 'goBack' | 'forward'
+  | 'viewImage' | 'copyCard' | 'goBack' | 'forward'
   | 'flipCard' | 'flipAlt' | 'note' | 'mathSubmit';
 
 export interface Binding {
@@ -27,6 +27,7 @@ export const ACTION_META: Record<KeyAction, { name: string; context: KeyContext 
   suspend:   { name: 'Suspend',       context: 'mcq' },
   bury:      { name: 'Bury',          context: 'mcq' },
   viewImage: { name: 'View Image',    context: 'mcq' },
+  copyCard:  { name: 'Copy Card',     context: 'global' },
   goBack:    { name: 'Go Back',       context: 'mcq' },
   forward:   { name: 'Forward',       context: 'mcq' },
   flipCard:  { name: 'Flip Card',     context: 'flashcard' },
@@ -45,6 +46,7 @@ export const DEFAULT_KEYBINDS: KeybindMap = {
   suspend:    { key: 's', label: 'S' },
   bury:       { key: 'b', label: 'B' },
   viewImage:  { key: 'r', label: 'R' },
+  copyCard:   { key: 'c', label: 'C' },
   goBack:     { key: 'a', label: 'A' },
   forward:    { key: 'd', label: 'D' },
   flipCard:   { key: 'Space', code: 'Space', label: 'Space' },

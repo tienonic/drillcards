@@ -41,6 +41,8 @@ export interface FlashView {
   flashFlipped: () => boolean;
   flashFront: () => string;
   flashBack: () => string;
+  flashFrontImage: () => string;
+  flashBackImage: () => string;
   flashCardId: () => string | null;
   dueCount: () => { due: number; newCount: number; total: number };
   ratingLabels: () => Record<number, string>;

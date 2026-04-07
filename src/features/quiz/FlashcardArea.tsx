@@ -14,9 +14,15 @@ export function FlashcardArea(props: { session: FlashView }) {
     <div>
       <Show when={s.state() !== 'done'}>
         <div class="flashcard-container" onClick={() => s.flipFlash()}>
-          <div class={`flashcard ${s.flashFlipped() ? 'flipped' : ''}`}>
-            <div class="flashcard-face flashcard-front"><LatexHtml html={s.flashFront()} /></div>
-            <div class="flashcard-face flashcard-back"><LatexHtml html={s.flashBack()} /></div>
+          <div class={`flashcard ${s.flashFlipped() ? 'flipped' : ''}${s.flashFrontImage() || s.flashBackImage() ? ' has-image' : ''}`}>
+            <div class="flashcard-face flashcard-front">
+              <Show when={s.flashFrontImage()}><img src={s.flashFrontImage()} alt="" class="flashcard-image" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></Show>
+              <Show when={s.flashFront()}><LatexHtml html={s.flashFront()} /></Show>
+            </div>
+            <div class="flashcard-face flashcard-back">
+              <Show when={s.flashBackImage()}><img src={s.flashBackImage()} alt="" class="flashcard-image" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></Show>
+              <Show when={s.flashBack()}><LatexHtml html={s.flashBack()} /></Show>
+            </div>
           </div>
         </div>
 
