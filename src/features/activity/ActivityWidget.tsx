@@ -4,7 +4,8 @@ import {
   activityScore, reviewStats, sidebarScore,
   setCanvasRef, loadActivity, clearActivity,
 } from './store.ts';
-import { copiedFlash } from '../../core/store/app.ts';
+import { copiedFlash, activeProject, activeTab } from '../../core/store/app.ts';
+import { getTimerConfig } from '../../core/timerConfig.ts';
 
 import type { SessionEntry } from '../../core/store/sections.ts';
 
@@ -15,8 +16,16 @@ export function ActivityWidget(props: { isFlashMode: () => boolean; activeEntry:
   const isAnswering = () => session()?.state() === 'answering';
   const paused = () => session()?.paused() ?? false;
   const togglePause = () => session()?.togglePause();
-  const timerCls = () => { const s = seconds(); return `sidebar-timer${paused() ? ' paused' : ''}${s >= 59 ? ' skull' : s >= 15 ? ' red' : ''}`; };
-  const timerContent = () => { const s = seconds(); return paused() ? '\u23F8' : s >= 59 ? '\u{1F480}' : s + 's'; };
+
+  const tc = () => {
+    const project = activeProject();
+    const tab = activeTab();
+    if (!project || !tab) return { warnAt: 15, failAt: 60 };
+    const sec = project.sections.find(s => s.id === tab);
+    return getTimerConfig(project.config, tab, sec?.type ?? 'mc-quiz');
+  };
+  const timerCls = () => { const s = seconds(); const t = tc(); return `sidebar-timer${paused() ? ' paused' : ''}${s >= t.failAt ? ' skull' : s >= t.warnAt ? ' red' : ''}`; };
+  const timerContent = () => { const s = seconds(); return paused() ? '\u23F8' : s >= tc().failAt ? '\u{1F480}' : s + 's'; };
 
   const [resetMenuOpen, setResetMenuOpen] = createSignal(false);
   const [confirmAction, setConfirmAction] = createSignal<(() => void) | null>(null);

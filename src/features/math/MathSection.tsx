@@ -7,9 +7,11 @@ import { forProject } from '../../core/hooks/useWorker.ts';
 import { CATEGORY_LABELS } from '../../data/math.ts';
 import { renderLatex } from '../../core/hooks/useLatex.ts';
 import { activeProject, activeTab } from '../../core/store/app.ts';
+import { getTimerConfig } from '../../core/timerConfig.ts';
 
 export function MathSection(props: { section: Section }) {
   const session = createMathSession(props.section, forProject(activeProject()!.slug));
+  const tc = () => getTimerConfig(activeProject()?.config, props.section.id, props.section.type);
 
   let inputRef: HTMLInputElement | undefined;
   let questionRef: HTMLSpanElement | undefined;
@@ -51,8 +53,8 @@ export function MathSection(props: { section: Section }) {
 
   const submitAnswer = () => inputRef && session.checkAnswer(inputRef.value);
 
-  const timerCls = () => { const s = session.timer.seconds(); return `timer${s >= 59 ? ' skull' : s >= 15 ? ' red' : ''}`; };
-  const timerContent = () => { const s = session.timer.seconds(); return s >= 59 ? '\u{1F480}' : s + 's'; };
+  const timerCls = () => { const s = session.timer.seconds(); const t = tc(); return `timer${s >= t.failAt ? ' skull' : s >= t.warnAt ? ' red' : ''}`; };
+  const timerContent = () => { const s = session.timer.seconds(); return s >= tc().failAt ? '\u{1F480}' : s + 's'; };
 
   const feedbackCls = () => {
     const fb = session.feedback();

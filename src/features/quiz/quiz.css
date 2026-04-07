@@ -102,6 +102,16 @@
 
 .mode-toggle-actions-only { display: flex; margin-bottom: 12px; border: none; }
 
+/* === Card Image === */
+.card-image {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  border-radius: 4px;
+  margin: 0 0 12px;
+}
+
 /* === Quiz Elements === */
 .question-header {
   display: flex;
@@ -411,6 +421,8 @@
   transition: transform 0.15s;
 }
 
+.flashcard-container:has(.has-image) { max-width: 520px; }
+
 .flashcard.flipped { transform: rotateY(180deg); }
 
 .flashcard-face {
@@ -426,6 +438,15 @@
   text-align: center;
   word-break: break-word;
   box-shadow: 0 2px 8px rgba(45, 42, 38, 0.07);
+}
+
+.flashcard-image {
+  display: block;
+  max-width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+  border-radius: 4px;
+  margin-bottom: 8px;
 }
 
 .flashcard-front {

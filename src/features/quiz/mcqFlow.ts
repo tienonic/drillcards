@@ -41,6 +41,7 @@ export interface McqDeps {
   project: () => { slug: string; config: { new_per_session: number; imageSearchSuffix: string } } | null;
   guard: Guard;
   timer: { start: () => void; stop: () => number };
+  failAt: () => number;
   doRate: (cId: string, rating: number) => Promise<void>;
   refreshDue: () => Promise<void>;
   cramMode: () => boolean;
@@ -158,7 +159,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
       updateHistoryEntry(cId, q, { selected: option, isCorrect: correct, skipped: false });
 
       if (easyMode()) {
-        const autoRating = correct ? timeToRating(elapsed) : 1;
+        const autoRating = correct ? timeToRating(elapsed, d.failAt()) : 1;
         await d.doRate(cId, autoRating);
       }
     });

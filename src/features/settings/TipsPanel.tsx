@@ -30,6 +30,7 @@ const TIPS: Record<KeyContext, { action: string; keys: (map: Record<KeyAction, {
   ],
   global: [
     { action: 'Open Note', keys: (m) => m.note.label },
+    { action: 'Copy Card', keys: (m) => m.copyCard.label },
   ],
 };
 

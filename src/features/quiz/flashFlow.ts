@@ -19,6 +19,10 @@ export interface FlashSignals {
   setFlashFront: (v: string) => void;
   flashBack: () => string;
   setFlashBack: (v: string) => void;
+  flashFrontImage: () => string;
+  setFlashFrontImage: (v: string) => void;
+  flashBackImage: () => string;
+  setFlashBackImage: (v: string) => void;
   flashDefFirst: () => boolean;
   ratingLabels: () => Record<number, string>;
   setRatingLabels: (v: Record<number, string>) => void;
@@ -53,15 +57,17 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
   }
 
   function setFlashError(msg = 'Card data mismatch') {
-    batch(() => { s.setFlashCardId(null); s.setFlashFront(msg); s.setFlashBack(''); s.setFlashFlipped(false); });
+    batch(() => { s.setFlashCardId(null); s.setFlashFront(msg); s.setFlashBack(''); s.setFlashFrontImage(''); s.setFlashBackImage(''); s.setFlashFlipped(false); });
   }
 
-  function applyFlashCard(cardId: string, resolved: { card: { front: string; back: string } }) {
+  function applyFlashCard(cardId: string, resolved: { card: { front: string; back: string; frontImage?: string; backImage?: string } }) {
     const defFirst = s.flashDefFirst();
     batch(() => {
       s.setFlashCardId(cardId);
       s.setFlashFront(defFirst ? resolved.card.back : resolved.card.front);
       s.setFlashBack(defFirst ? resolved.card.front : resolved.card.back);
+      s.setFlashFrontImage(defFirst ? resolved.card.backImage ?? '' : resolved.card.frontImage ?? '');
+      s.setFlashBackImage(defFirst ? resolved.card.frontImage ?? '' : resolved.card.backImage ?? '');
       s.setFlashFlipped(false);
       s.setRatingLabels({});
       s.setState('answering');
@@ -82,6 +88,8 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
         s.setFlashCardId(null);
         s.setFlashFront('');
         s.setFlashBack('');
+        s.setFlashFrontImage('');
+        s.setFlashBackImage('');
         s.setFlashFlipped(false);
         s.setState('done');
       });

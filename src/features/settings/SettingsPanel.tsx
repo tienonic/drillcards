@@ -1,10 +1,12 @@
 import './settings.css';
-import { Show, onMount, onCleanup, createSignal, batch } from 'solid-js';
+import { Show, For, onMount, onCleanup, createSignal, batch } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { activeProject, setActiveProject, activePanel, setActivePanel, setHeaderLocked, graphVisible, toggleGraphVisible, syncActivity, toggleSyncActivity, termsVisible, toggleTermsVisible } from '../../core/store/app.ts';
+import { getTimerConfig, TIMER_DEFAULTS } from '../../core/timerConfig.ts';
 import { exportProjectData } from '../export/export.ts';
 import { workerApi } from '../../core/hooks/useWorker.ts';
 import { saveProjectConfig, openRecentProject } from '../launcher/store.ts';
+import type { TimerConfig } from '../../projects/types.ts';
 
 const PRESETS = [
   { label: 'Relaxed', retention: 0.80, maxInterval: 180 },
@@ -25,6 +27,12 @@ export function SettingsPanel() {
   let backupTimer: ReturnType<typeof setTimeout> | undefined;
   let backupInput!: HTMLInputElement;
 
+  // Timer config per section
+  const [selectedTimerSection, setSelectedTimerSection] = createSignal<string | null>(null);
+  const [timerWarnAt, setTimerWarnAt] = createSignal(15);
+  const [timerFailAt, setTimerFailAt] = createSignal(60);
+  const [timerOverrides, setTimerOverrides] = createSignal<Record<string, TimerConfig>>({});
+
   function activePreset(): string | null {
     const ret = retention();
     const mi = maxInterval();
@@ -42,7 +50,52 @@ export function SettingsPanel() {
       setNewPerSession(project.config.new_per_session);
       setLeechThreshold(project.config.leech_threshold);
       setMaxInterval(project.config.max_interval);
+      setTimerOverrides(project.config.timerConfigs ? { ...project.config.timerConfigs } : {});
+      setSelectedTimerSection(null);
     });
+  }
+
+  function selectTimerSection(sectionId: string) {
+    const project = activeProject();
+    if (!project) return;
+    setSelectedTimerSection(sectionId);
+    const sec = project.sections.find(s => s.id === sectionId);
+    const overrides = timerOverrides();
+    const tc = overrides[sectionId] ?? getTimerConfig(project.config, sectionId, sec?.type ?? 'mc-quiz');
+    batch(() => { setTimerWarnAt(tc.warnAt); setTimerFailAt(tc.failAt); });
+  }
+
+  function updateTimerField(field: 'warnAt' | 'failAt', value: number) {
+    const secId = selectedTimerSection();
+    if (!secId) return;
+    const overrides = { ...timerOverrides() };
+    const existing = overrides[secId] ?? { warnAt: timerWarnAt(), failAt: timerFailAt() };
+    overrides[secId] = { ...existing, [field]: value };
+    setTimerOverrides(overrides);
+    if (field === 'warnAt') setTimerWarnAt(value);
+    else setTimerFailAt(value);
+  }
+
+  function isTimerDefault() {
+    const secId = selectedTimerSection();
+    if (!secId) return true;
+    const project = activeProject();
+    if (!project) return true;
+    const sec = project.sections.find(s => s.id === secId);
+    const defaults = TIMER_DEFAULTS[sec?.type ?? 'mc-quiz'];
+    return timerWarnAt() === defaults.warnAt && timerFailAt() === defaults.failAt;
+  }
+
+  function resetTimerToDefault() {
+    const secId = selectedTimerSection();
+    if (!secId) return;
+    const project = activeProject();
+    if (!project) return;
+    const sec = project.sections.find(s => s.id === secId);
+    const defaults = TIMER_DEFAULTS[sec?.type ?? 'mc-quiz'];
+    const overrides = { ...timerOverrides() };
+    delete overrides[secId];
+    batch(() => { setTimerOverrides(overrides); setTimerWarnAt(defaults.warnAt); setTimerFailAt(defaults.failAt); });
   }
 
   function handleOpen() {
@@ -77,11 +130,12 @@ export function SettingsPanel() {
     const lt = Math.max(2, Math.min(30, Math.round(leechThreshold())));
     const mi = Math.max(7, Math.min(365, Math.round(maxInterval())));
 
-    setActiveProject({ ...project, config: { ...project.config, desired_retention: ret, new_per_session: nps, leech_threshold: lt, max_interval: mi } });
+    const tc = Object.keys(timerOverrides()).length > 0 ? timerOverrides() : undefined;
+    setActiveProject({ ...project, config: { ...project.config, desired_retention: ret, new_per_session: nps, leech_threshold: lt, max_interval: mi, timerConfigs: tc } });
 
     try {
       await workerApi.setFSRSParams(ret, lt, mi);
-      saveProjectConfig(project.slug, { desired_retention: ret, new_per_session: nps, leech_threshold: lt, max_interval: mi });
+      saveProjectConfig(project.slug, { desired_retention: ret, new_per_session: nps, leech_threshold: lt, max_interval: mi, timerConfigs: tc });
       batch(() => { setRetention(ret); setNewPerSession(nps); setLeechThreshold(lt); setMaxInterval(mi); setSaved(true); });
       if (saveTimer) clearTimeout(saveTimer);
       saveTimer = setTimeout(() => { setSaved(false); saveTimer = undefined; }, 1500);
@@ -166,6 +220,18 @@ export function SettingsPanel() {
               <label class="settings-field"><span>New cards / session</span><input type="number" min="1" max="100" step="1" value={newPerSession()} onInput={e => { const v = parseInt(e.currentTarget.value, 10); setNewPerSession(isNaN(v) ? 20 : v); }} /></label>
               <label class="settings-field"><span>Leech threshold</span><input type="number" min="2" max="30" step="1" value={leechThreshold()} onInput={e => { const v = parseInt(e.currentTarget.value, 10); setLeechThreshold(isNaN(v) ? 8 : v); }} /></label>
               <button type="button" class="settings-save-btn" onClick={handleSave}>{saved() ? 'Saved' : 'Save'}</button>
+              <div class="settings-backup-divider" />
+              <div class="settings-hint" style={{ "margin-bottom": "4px" }}>Timer per section</div>
+              <div class="preset-row">
+                <For each={activeProject()?.sections ?? []}>
+                  {(sec) => <button type="button" class={`preset-btn${selectedTimerSection() === sec.id ? ' active' : ''}`} onClick={() => selectTimerSection(sec.id)}>{sec.name}</button>}
+                </For>
+              </div>
+              <Show when={selectedTimerSection()}>
+                <label class="settings-field"><span>Warn at (s)</span><input type="number" min="5" max="600" step="5" value={timerWarnAt()} onInput={e => { const v = parseInt(e.currentTarget.value, 10); if (!isNaN(v)) updateTimerField('warnAt', v); }} /></label>
+                <label class="settings-field"><span>Fail at (s)</span><input type="number" min="10" max="600" step="5" value={timerFailAt()} onInput={e => { const v = parseInt(e.currentTarget.value, 10); if (!isNaN(v)) updateTimerField('failAt', v); }} /></label>
+                <Show when={!isTimerDefault()}><button type="button" class="settings-backup-btn" onClick={resetTimerToDefault}>Reset to default</button></Show>
+              </Show>
               <div class="settings-backup-divider" />
               <button type="button" class="settings-backup-btn" onClick={handleExport}>Export Backup</button>
               <button type="button" class="settings-backup-btn" onClick={() => backupInput.click()}>Import Backup</button>

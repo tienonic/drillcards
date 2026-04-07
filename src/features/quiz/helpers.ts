@@ -6,11 +6,11 @@ export function assertNever(value: never, msg = 'Unhandled type'): never {
   throw new Error(`${msg}: ${value}`);
 }
 
-export function timeToRating(seconds: number): number {
-  if (seconds >= 59) return 1; // Again
-  if (seconds >= 40) return 2; // Hard
-  if (seconds >= 8) return 3;  // Good
-  return 4; // Easy
+export function timeToRating(seconds: number, failAt = 60): number {
+  if (seconds >= failAt) return 1;                // Again
+  if (seconds >= Math.round(failAt * 2 / 3)) return 2; // Hard
+  if (seconds >= Math.round(failAt / 8)) return 3;     // Good
+  return 4;                                        // Easy
 }
 
 export function lookupQuestion(

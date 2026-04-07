@@ -2,6 +2,7 @@ import { createSignal, createEffect, batch } from 'solid-js';
 import { useTimer } from '../../core/hooks/useTimer.ts';
 import { shuffle } from '../../utils/shuffle.ts';
 import { activeProject, setActiveProject, easyMode } from '../../core/store/app.ts';
+import { getTimerConfig, TIMER_DEFAULTS } from '../../core/timerConfig.ts';
 import { autoSave } from '../backup/backup.ts';
 import { pushChartEntry } from '../activity/store.ts';
 import { getCardType, sectionToCardType, lookupQuestion, lookupQuestionAcross, resolveFlashCard, resolveFlashCardAcross, findOwnerSection } from './helpers.ts';
@@ -50,6 +51,8 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
   const [flashFlipped, setFlashFlipped] = createSignal(false);
   const [flashFront, setFlashFront] = createSignal('');
   const [flashBack, setFlashBack] = createSignal('');
+  const [flashFrontImage, setFlashFrontImage] = createSignal('');
+  const [flashBackImage, setFlashBackImage] = createSignal('');
   const [flashDefFirst, setFlashDefFirst] = createSignal(false);
   const [passage, setPassage] = createSignal('');
   const [leechWarning, setLeechWarning] = createSignal(false);
@@ -131,15 +134,18 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
       selected, setSelected, isCorrect, setIsCorrect, passage, setPassage,
       ratingLabels, setRatingLabels, score, setScore, leechWarning, setLeechWarning,
       skipped, setSkipped, flashMode },
-    { section, sourceSections, project, guard, timer, doRate, refreshDue,
+    { section, sourceSections, project, guard, timer,
+      failAt: () => getTimerConfig(project()?.config, section.id, section.type).failAt,
+      doRate, refreshDue,
       cramMode: cram.cramMode, pickNextCram: cram.pickNextCram, api },
   );
 
   // --- Flash flow ---
   const flash = createFlashFlow(
     { state, setState, flashCardId, setFlashCardId, flashFlipped, setFlashFlipped,
-      flashFront, setFlashFront, flashBack, setFlashBack, flashDefFirst,
-      ratingLabels, setRatingLabels },
+      flashFront, setFlashFront, flashBack, setFlashBack,
+      flashFrontImage, setFlashFrontImage, flashBackImage, setFlashBackImage,
+      flashDefFirst, ratingLabels, setRatingLabels },
     { section, sourceSections, project, guard, refreshDue,
       cramMode: cram.cramMode, cramMarkSeen: cram.markSeen, cramPickNext: cram.pickNextCram, cramRate: cram.rateCram, api },
   );
@@ -277,6 +283,7 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
   return {
     state, cardId, question, options, selected, isCorrect, ratingLabels,
     score, dueCount, flashMode, flashCardId, flashFlipped, flashFront, flashBack,
+    flashFrontImage, flashBackImage,
     flashDefFirst, passage, historyReview: mcq.histNav.historyReview,
     leechWarning, skipped, currentImageLink: mcq.currentImageLink,
     cramMode: cram.cramMode, cramCount: cram.cramCount,
@@ -300,6 +307,8 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
       batch(() => {
         setFlashFront(v ? resolved.card.back : resolved.card.front);
         setFlashBack(v ? resolved.card.front : resolved.card.back);
+        setFlashFrontImage(v ? resolved.card.backImage ?? '' : resolved.card.frontImage ?? '');
+        setFlashBackImage(v ? resolved.card.frontImage ?? '' : resolved.card.backImage ?? '');
         setFlashFlipped(false);
       });
     },

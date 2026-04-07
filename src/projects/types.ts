@@ -5,17 +5,21 @@ export interface Question {
   imageName?: string;
   cropName?: string;
   explanation?: string;
+  image?: string;
 }
 
 export interface Scenario {
   passage: string;
   source?: string;
+  image?: string;
   questions: Question[];
 }
 
 export interface Flashcard {
   front: string;
   back: string;
+  frontImage?: string;
+  backImage?: string;
 }
 
 export interface Section {
@@ -34,12 +38,18 @@ export interface Section {
   flashCardIds: string[];
 }
 
+export interface TimerConfig {
+  warnAt: number;   // seconds: timer turns red
+  failAt: number;   // seconds: skull icon / auto-rates Again
+}
+
 export interface ProjectConfig {
   desired_retention: number;
   new_per_session: number;
   leech_threshold: number;
   max_interval: number;
   imageSearchSuffix: string;
+  timerConfigs?: Record<string, TimerConfig>;
 }
 
 export interface ProjectData {

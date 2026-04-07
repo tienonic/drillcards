@@ -103,7 +103,7 @@ function copyToClipboard(text: string) {
 }
 
 function handleMathKeyboard(e: KeyboardEvent, session: MathSession) {
-  if (e.key === 'r' || e.key === 'R') {
+  if (matchesKey(e, 'copyCard')) {
     e.preventDefault();
     const p = session.problem();
     if (p) copyToClipboard(p.q);
@@ -120,12 +120,16 @@ function handleMathKeyboard(e: KeyboardEvent, session: MathSession) {
 }
 
 function handleFlashcardKeyboard(e: KeyboardEvent, session: FlashView) {
-  if (e.key === 'r' || e.key === 'R') {
+  if (matchesKey(e, 'copyCard')) {
     e.preventDefault();
-    const text = session.flashFlipped()
-      ? session.flashFront() + '\n\n' + session.flashBack()
-      : session.flashFront();
-    copyToClipboard(text);
+    const parts: string[] = [];
+    if (session.flashFrontImage()) parts.push(session.flashFrontImage());
+    parts.push(session.flashFront());
+    if (session.flashFlipped()) {
+      if (session.flashBackImage()) parts.push(session.flashBackImage());
+      parts.push(session.flashBack());
+    }
+    copyToClipboard(parts.filter(Boolean).join('\n\n'));
     return;
   }
 
@@ -193,12 +197,15 @@ function handleForwardKey(e: KeyboardEvent, session: McqView, st: string) {
 
 function handleMcqKeyboard(e: KeyboardEvent, session: McqView) {
   const st = session.state();
-  if (e.key === 'r' || e.key === 'R') {
+  if (matchesKey(e, 'copyCard')) {
     e.preventDefault();
     const q = session.question();
     if (q) {
-      const passage = session.passage();
-      copyToClipboard(passage ? passage + '\n\n' + q.q : q.q);
+      const parts: string[] = [];
+      if (session.passage()) parts.push(session.passage());
+      if (q.image) parts.push(q.image);
+      parts.push(q.q);
+      copyToClipboard(parts.join('\n\n'));
     }
     return;
   }
