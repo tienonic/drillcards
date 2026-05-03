@@ -1,7 +1,8 @@
 import { createSignal, For, Show } from 'solid-js';
 import type { ProjectRowData } from './types.ts';
 import { ProjectBrowserModal } from './ProjectBrowserModal.tsx';
-import { validateAndOpenFile, loadError, failedSlug } from '../launcher/store.ts';
+import { ProjectFilePickerModal } from './ProjectFilePickerModal.tsx';
+import { loadError, failedSlug } from '../launcher/store.ts';
 
 interface ReviewTabProps {
   projects: ProjectRowData[];
@@ -11,19 +12,7 @@ interface ReviewTabProps {
 
 export function ReviewTab(props: ReviewTabProps) {
   const [browserOpen, setBrowserOpen] = createSignal(false);
-  let fileInputRef: HTMLInputElement | undefined;
-
-  function handleFileSelect(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') validateAndOpenFile(reader.result);
-    };
-    reader.readAsText(file);
-    input.value = '';
-  }
+  const [filePickerOpen, setFilePickerOpen] = createSignal(false);
 
   return (
     <div class="db-review">
@@ -31,7 +20,7 @@ export function ReviewTab(props: ReviewTabProps) {
         <span class="db-review-title">Your Decks</span>
         <div class="db-review-header-actions">
           <button type="button" class="db-review-browse" onClick={() => setBrowserOpen(true)}>Browse Decks</button>
-          <button type="button" class="db-review-browse" onClick={() => { fetch('/__open-folder?path=projects').catch(() => {}); fileInputRef?.click(); }}>Open File</button>
+          <button type="button" class="db-review-browse" onClick={() => setFilePickerOpen(true)}>Open File</button>
         </div>
       </div>
 
@@ -65,8 +54,8 @@ export function ReviewTab(props: ReviewTabProps) {
         </div>
       </Show>
 
-      <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleFileSelect} />
       <ProjectBrowserModal open={browserOpen()} onClose={() => setBrowserOpen(false)} />
+      <ProjectFilePickerModal open={filePickerOpen()} onClose={() => setFilePickerOpen(false)} />
     </div>
   );
 }

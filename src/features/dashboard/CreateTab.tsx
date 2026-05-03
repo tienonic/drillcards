@@ -1,39 +1,25 @@
 import { createSignal } from 'solid-js';
 import { createHoverMenu } from './createHoverMenu.ts';
 import { ProjectBrowserModal } from './ProjectBrowserModal.tsx';
+import { ProjectFilePickerModal } from './ProjectFilePickerModal.tsx';
 import { CreateFlowModal } from './CreateFlowModal.tsx';
 import { SourceMaterialModal } from './SourceMaterialModal.tsx';
 import { DiyEditorModal } from './DiyEditorModal.tsx';
-import { validateAndOpenFile } from '../launcher/store.ts';
 import { flowConfigs, type FlowConfig } from './flowConfigs.ts';
 import { getGeminiKey, setGeminiKey } from './gemini.ts';
 
 export function CreateTab() {
   const menu = createHoverMenu();
   const [browserOpen, setBrowserOpen] = createSignal(false);
+  const [filePickerOpen, setFilePickerOpen] = createSignal(false);
   const [sourceOpen, setSourceOpen] = createSignal(false);
   const [activeFlow, setActiveFlow] = createSignal<FlowConfig | null>(null);
   const [diyOpen, setDiyOpen] = createSignal(false);
   const [apiKey, setApiKey] = createSignal(getGeminiKey() ?? '');
-  let fileInputRef: HTMLInputElement | undefined;
 
   function openFlow(id: string) {
     menu.closeAll();
     setActiveFlow(flowConfigs[id] ?? null);
-  }
-
-  function handleFileSelect(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        validateAndOpenFile(reader.result);
-      }
-    };
-    reader.readAsText(file);
-    input.value = '';
   }
 
   function handleKeyChange(e: Event) {
@@ -58,7 +44,7 @@ export function CreateTab() {
               <span>Browse Decks</span>
               <span class="db-submenu-action-sub">Select from your deck library</span>
             </button>
-            <button type="button" class="db-submenu-action" onClick={() => { fetch('/__open-folder?path=projects').catch(() => {}); fileInputRef?.click(); menu.closeAll(); }}>
+            <button type="button" class="db-submenu-action" onClick={() => { menu.closeAll(); setFilePickerOpen(true); }}>
               <span>Open File (.json)</span>
               <span class="db-submenu-action-sub">Import a project file</span>
             </button>
@@ -142,8 +128,8 @@ export function CreateTab() {
         </div>
       </div>
 
-      <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleFileSelect} />
       <ProjectBrowserModal open={browserOpen()} onClose={() => setBrowserOpen(false)} />
+      <ProjectFilePickerModal open={filePickerOpen()} onClose={() => setFilePickerOpen(false)} />
       <CreateFlowModal config={activeFlow()} onClose={() => setActiveFlow(null)} />
       <SourceMaterialModal open={sourceOpen()} onClose={() => setSourceOpen(false)} />
       <DiyEditorModal open={diyOpen()} onClose={() => setDiyOpen(false)} />

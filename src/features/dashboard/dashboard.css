@@ -685,6 +685,10 @@
   box-shadow: 0 8px 32px var(--shadow-medium);
 }
 
+.db-project-file-panel {
+  max-width: 520px;
+}
+
 .db-modal-header {
   display: flex;
   align-items: center;
@@ -693,6 +697,27 @@
   font-weight: 500;
   font-size: 1.05rem;
   border-bottom: 1px solid var(--color-border);
+}
+
+.db-modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.db-modal-tool {
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.78rem;
+}
+
+.db-modal-tool:hover {
+  background: var(--color-warm-bg);
 }
 
 .db-modal-close {
@@ -710,8 +735,14 @@
   background: var(--color-warm-bg);
 }
 
+.db-modal-controls {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
 .db-modal-search {
-  margin: 0.5rem 0.75rem;
+  width: 100%;
+  margin: 0;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: 8px;
@@ -724,6 +755,47 @@
   border-color: var(--color-primary);
 }
 
+.db-modal-sortbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+
+.db-modal-sort-select {
+  flex: 1;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-card);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.8rem;
+}
+
+.db-modal-sort-dir {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.95rem;
+}
+
+.db-modal-sort-dir:hover {
+  background: var(--color-warm-bg);
+}
+
+.db-modal-count {
+  min-width: 3.8rem;
+  color: var(--color-text-light);
+  font-size: 0.75rem;
+  text-align: right;
+}
+
 .db-modal-list {
   flex: 1;
   overflow-y: auto;
@@ -731,7 +803,9 @@
 }
 
 .db-modal-item {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
   width: 100%;
   padding: 0.5rem 0.75rem;
   background: transparent;
@@ -747,6 +821,16 @@
 
 .db-modal-item:hover {
   background: var(--color-warm-bg);
+}
+
+.db-modal-item-title {
+  font-size: 0.92rem;
+}
+
+.db-modal-item-file,
+.db-modal-item-date {
+  color: var(--color-text-light);
+  font-size: 0.72rem;
 }
 
 .db-modal-empty {
