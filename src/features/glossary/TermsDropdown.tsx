@@ -9,7 +9,7 @@ import {
 import { termsOpen, setTermsOpen } from '../../core/store/app.ts';
 
 function googleUrl(term: string): string {
-  return 'https://www.google.com/search?q=' + encodeURIComponent(term + ' definition');
+  return 'https://duckduckgo.com/?q=' + encodeURIComponent(term + ' definition');
 }
 
 function googleImgUrl(term: string): string {
