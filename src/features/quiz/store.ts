@@ -1,6 +1,5 @@
 import { createSignal, createEffect, batch } from 'solid-js';
 import { useTimer } from '../../core/hooks/useTimer.ts';
-import { shuffle } from '../../utils/shuffle.ts';
 import { activeProject, setActiveProject, easyMode } from '../../core/store/app.ts';
 import { getTimerConfig, TIMER_DEFAULTS } from '../../core/timerConfig.ts';
 import { autoSave } from '../backup/backup.ts';
@@ -12,6 +11,7 @@ import { createMcqFlow } from './mcqFlow.ts';
 import { createFlashFlow } from './flashFlow.ts';
 import { bumpHandlerVersion, switchToSection } from '../../core/store/sections.ts';
 import type { ProjectApi } from '../../core/hooks/useWorker.ts';
+import type { PickCardType } from '../../core/workers/protocol.ts';
 import type { Section } from '../../projects/types.ts';
 import type { QuizState, QuizSession } from './types.ts';
 export type { QuizSession } from './types.ts';
@@ -61,9 +61,9 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
   const guard = createGuard();
 
   // --- Shared helpers ---
-  function sectionCardType(): 'mcq' | 'passage' | 'flashcard' | undefined {
+  function sectionCardType(): PickCardType {
     if (flashMode()) return 'flashcard';
-    if (merged) return undefined; // pick across all card types
+    if (merged) return 'quiz'; // pick across quiz cards, not flashcards
     return getCardType(section.type, false);
   }
 
@@ -115,7 +115,7 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
     onPickMcq: (id) => {
       const found = lookup(id);
       if (!found) { batch(() => { cram.endCram(); setState('done'); }); return; }
-      const shuffled = shuffle([found.question.correct, ...found.question.wrong]);
+      const shuffled = mcq.shuffleOptionsForCard(id, found.question);
       mcq.applyMcqCard(id, found, shuffled, found.passage ?? '');
     },
     onPickFlash: (id) => {
@@ -202,7 +202,7 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
         } else {
           const found = lookup(result.cardId);
           if (!found) return;
-          const shuffled = shuffle([found.question.correct, ...found.question.wrong]);
+          const shuffled = mcq.shuffleOptionsForCard(result.cardId, found.question);
           const passageText = found.passage ?? '';
           mcq.applyMcqCard(result.cardId, found, shuffled, passageText);
           mcq.pushHistoryEntry(result.cardId, found, shuffled, passageText);
@@ -285,7 +285,7 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
     score, dueCount, flashMode, flashCardId, flashFlipped, flashFront, flashBack,
     flashFrontImage, flashBackImage,
     flashDefFirst, passage, historyReview: mcq.histNav.historyReview,
-    leechWarning, skipped, currentImageLink: mcq.currentImageLink,
+    leechWarning, skipped, currentImageLink: mcq.currentImageLink, currentImageLinks: mcq.currentImageLinks,
     cramMode: cram.cramMode, cramCount: cram.cramCount,
 
     pickNextCard,

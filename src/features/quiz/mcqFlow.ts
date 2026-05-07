@@ -1,10 +1,11 @@
 import { batch } from 'solid-js';
-import { shuffle } from '../../utils/shuffle.ts';
+import { shuffleAvoidingPrevious } from '../../utils/shuffle.ts';
 import { easyMode, sessionSummary, setSessionSummary } from '../../core/store/app.ts';
 import { setQuestionContext } from '../glossary/store.ts';
 import { timeToRating, lookupQuestion, lookupQuestionAcross, findOwnerSection, getCardType } from './helpers.ts';
 import { createHistoryNav, type HistoryEntry } from './historyNav.ts';
 import type { ProjectApi } from '../../core/hooks/useWorker.ts';
+import type { PickCardType } from '../../core/workers/protocol.ts';
 import type { Guard } from './guard.ts';
 import type { Section, Question } from '../../projects/types.ts';
 import type { QuizState } from './types.ts';
@@ -54,6 +55,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
   const allSections = d.sourceSections ?? [d.section];
   const allSectionIds = allSections.map(sec => sec.id);
   const allCardIds = allSections.flatMap(sec => sec.cardIds);
+  const lastOptionOrderByCard = new Map<string, string[]>();
 
   function lookup(cardId: string) {
     return merged ? lookupQuestionAcross(allSections, cardId) : lookupQuestion(d.section, cardId);
@@ -67,6 +69,12 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
 
   function buildQuestionContext(q: Question): string {
     return [q.q, q.correct, q.imageName || q.cropName || '', q.explanation || ''].join(' ');
+  }
+
+  function shuffleOptionsForCard(cId: string, q: Question): string[] {
+    const options = shuffleAvoidingPrevious([q.correct, ...q.wrong], lastOptionOrderByCard.get(cId));
+    lastOptionOrderByCard.set(cId, options);
+    return options;
   }
 
   function applyMcqCard(cId: string, lookup: { question: Question; passage?: string }, shuffledOptions: string[], passageText: string) {
@@ -108,7 +116,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
 
     if (allCardIds.length === 0) { s.setState('done'); return; }
 
-    const cardType = merged ? undefined : getCardType(d.section.type, false);
+    const cardType: PickCardType = merged ? 'quiz' : getCardType(d.section.type, false);
     const result = await d.api.pickNext(allSectionIds, p.config.new_per_session, cardType);
     if (s.flashMode()) return; // Stale: flash mode toggled during pick — flash path handles it
     if (!result.cardId) { s.setState('done'); return; }
@@ -116,7 +124,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
     const found = lookup(result.cardId);
     if (!found) { s.setState('done'); return; }
 
-    const shuffled = shuffle([found.question.correct, ...found.question.wrong]);
+    const shuffled = shuffleOptionsForCard(result.cardId, found.question);
     const passageText = found.passage ?? '';
 
     applyMcqCard(result.cardId, found, shuffled, passageText);
@@ -221,7 +229,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
         const restoredId = result.cardId;
         const found = lookup(restoredId);
         if (found) {
-          const newOptions = shuffle([found.question.correct, ...found.question.wrong]);
+          const newOptions = shuffleOptionsForCard(restoredId, found.question);
           const entry = histNav.getEntry(histNav.getPos());
           if (entry && entry.cardId === restoredId) {
             entry.selected = null;
@@ -295,7 +303,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
       const randomId = allCardIds[Math.floor(Math.random() * allCardIds.length)];
       const found = lookup(randomId);
       if (!found) return;
-      const shuffled = shuffle([found.question.correct, ...found.question.wrong]);
+      const shuffled = shuffleOptionsForCard(randomId, found.question);
       const passageText = found.passage ?? '';
       applyMcqCard(randomId, found, shuffled, passageText);
       pushHistoryEntry(randomId, found, shuffled, passageText);
@@ -303,18 +311,31 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
     });
   }
 
-  function currentImageLink(): string {
+  function currentImageLinks(): { wiki?: string; search?: string } {
     const q = s.question();
-    if (!q) return '';
+    if (!q) return {};
+    const result: { wiki?: string; search?: string } = {};
+    if (q.image && q.image.includes('upload.wikimedia.org')) {
+      const m = q.image.match(/\/(?:thumb\/)?[\da-f]\/[\da-f]{2}\/([^/]+?)(?:\/\d+px-[^/]+)?$/);
+      if (m) result.wiki = 'https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(decodeURIComponent(m[1]));
+    }
     const imgName = q.imageName || q.cropName;
-    if (!imgName) return '';
-    const suffix = d.project()?.config.imageSearchSuffix ?? '';
-    const query = suffix ? `${imgName} ${suffix}` : imgName;
-    return 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(query);
+    if (imgName) {
+      const suffix = d.project()?.config.imageSearchSuffix ?? '';
+      const query = suffix ? `${imgName} ${suffix}` : imgName;
+      result.search = 'https://duckduckgo.com/?iax=images&ia=images&q=' + encodeURIComponent(query);
+    }
+    return result;
+  }
+
+  function currentImageLink(): string {
+    const links = currentImageLinks();
+    return links.search || links.wiki || '';
   }
 
   return {
     histNav,
+    shuffleOptionsForCard,
     applyMcqCard,
     pushHistoryEntry,
     pickNextCardImpl,
@@ -329,5 +350,6 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
     advanceFromHistory,
     shuffleMcq,
     currentImageLink,
+    currentImageLinks,
   };
 }

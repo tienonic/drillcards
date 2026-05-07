@@ -1,6 +1,7 @@
 import type { Component } from 'solid-js';
 import type { Section, Question } from './types.ts';
 import { assertNever } from '../features/quiz/helpers.ts';
+import { imgSrc } from '../utils/imgSrc.ts';
 
 export interface LookupResult {
   question: Question;
@@ -88,7 +89,7 @@ function lookupPassage(section: Section, cardId: string): LookupResult | null {
     question: q,
     scenarioIdx: si,
     questionIdx: qi,
-    passage: (scenario.image ? `<img src="${scenario.image.replace(/"/g, '&quot;')}" alt="" class="card-image" loading="lazy" />` : '')
+    passage: (scenario.image ? `<img src="${(imgSrc(scenario.image) ?? '').replace(/"/g, '&quot;')}" alt="" class="card-image" loading="lazy" crossorigin="anonymous" />` : '')
       + scenario.passage + (scenario.source
       ? `<span class="source">${scenario.source.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`
       : ''),

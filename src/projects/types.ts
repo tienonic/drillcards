@@ -49,6 +49,8 @@ export interface ProjectConfig {
   leech_threshold: number;
   max_interval: number;
   imageSearchSuffix: string;
+  prefer_project_config?: boolean;
+  prefer_project_config_until?: string;
   timerConfigs?: Record<string, TimerConfig>;
 }
 

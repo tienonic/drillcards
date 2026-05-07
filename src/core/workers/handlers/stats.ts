@@ -88,7 +88,7 @@ export async function getPerformanceCards(
 ): Promise<Record<string, unknown>[]> {
   return ctx.queryAll(
     `SELECT card_id, section_id, card_type, fsrs_state, stability, difficulty, reps, lapses
-     FROM cards WHERE project_id = ? AND suspended = 0
+     FROM cards WHERE project_id = ? AND suspended = 0 AND buried = 0
      ORDER BY lapses DESC, stability ASC`,
     [projectId],
   );

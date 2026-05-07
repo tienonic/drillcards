@@ -1,14 +1,20 @@
 import { createSignal, batch } from 'solid-js';
 import { projectRegistry } from '../../projects/registry.ts';
 import { loadProject, validateProject } from '../../projects/loader.ts';
+import { normalizeProjectData } from '../../projects/textNormalization.ts';
 import { initWorker, workerApi } from '../../core/hooks/useWorker.ts';
-import { setAppPhase, setActiveProject, setActiveTab, setHeaderVisible, setActivePanel, setHeaderLocked, setSessionSummary, formatGap } from '../../core/store/app.ts';
+import { setAppPhase, setActiveProject, setActiveTab, setHeaderVisible, setActivePanel, setHeaderLocked, setSessionSummary, formatGap, mergedMode } from '../../core/store/app.ts';
 import { buildGlossary } from '../glossary/store.ts';
 import { loadKeybinds } from '../settings/keybinds.ts';
 import { fetchAutosave, restoreBackup } from '../backup/backup.ts';
-import { getGlobalFSRSDefaults } from '../../core/store/config.ts';
 import { sectionToCardType } from '../quiz/helpers.ts';
+import { resolveStudyTab } from '../quiz/merged.ts';
 import type { Project, ProjectData } from '../../projects/types.ts';
+
+interface OpenProjectOptions {
+  preferredSectionId?: string;
+  forceProjectConfig?: boolean;
+}
 
 interface RecentProject {
   name: string;
@@ -48,13 +54,13 @@ export function getLastProject(): string | null {
 }
 
 function saveProjectData(slug: string, data: ProjectData) {
-  try { localStorage.setItem(`proj-data-${slug}`, JSON.stringify(data)); } catch { /* */ }
+  try { localStorage.setItem(`proj-data-${slug}`, JSON.stringify(normalizeProjectData(data))); } catch { /* */ }
 }
 
 export function getProjectData(slug: string): ProjectData | null {
   try {
     const raw = localStorage.getItem(`proj-data-${slug}`);
-    return raw ? JSON.parse(raw) : null;
+    return raw ? normalizeProjectData(JSON.parse(raw)) : null;
   } catch { return null; }
 }
 
@@ -69,21 +75,27 @@ export function getProjectConfig(slug: string): Partial<Project['config']> | nul
   } catch { return null; }
 }
 
-export async function openProject(data: ProjectData, isDefault: boolean, registryFolder?: string) {
+function prefersProjectConfig(data: ProjectData) {
+  const config = data.config;
+  if (!config) return false;
+  if (config.prefer_project_config === true) return true;
+  if (typeof config.prefer_project_config_until === 'string') {
+    const until = Date.parse(config.prefer_project_config_until);
+    return Number.isFinite(until) && Date.now() <= until;
+  }
+  return false;
+}
+
+export async function openProject(data: ProjectData, isDefault: boolean, registryFolder?: string, options: OpenProjectOptions = {}) {
   if (isLoading()) return;
   batch(() => { setIsLoading(true); setLoadError(null); });
 
   try {
-    const project = loadProject(data);
+    const normalizedData = normalizeProjectData(data);
+    const project = loadProject(normalizedData);
     const savedConfig = getProjectConfig(project.slug);
-    if (savedConfig) {
+    if (savedConfig && !options.forceProjectConfig && !prefersProjectConfig(data)) {
       Object.assign(project.config, savedConfig);
-    } else {
-      const globalDefaults = getGlobalFSRSDefaults();
-      project.config.desired_retention = globalDefaults.desired_retention;
-      project.config.new_per_session = globalDefaults.new_per_session;
-      project.config.leech_threshold = globalDefaults.leech_threshold;
-      project.config.max_interval = globalDefaults.max_interval;
     }
     if (registryFolder) {
       project.sourceFolder = `src/projects/${registryFolder}`;
@@ -122,7 +134,7 @@ export async function openProject(data: ProjectData, isDefault: boolean, registr
 
     // Persist project data only after async loading succeeds — prevents failed projects
     // from appearing in recent list or being auto-loaded on next startup
-    if (!isDefault) saveProjectData(project.slug, data);
+    if (!isDefault) saveProjectData(project.slug, normalizedData);
     setLastProject(project.slug);
     addRecentProject(project.name, project.slug);
 
@@ -132,7 +144,10 @@ export async function openProject(data: ProjectData, isDefault: boolean, registr
       setHeaderLocked(false);
       setActiveProject(project);
       buildGlossary(project);
-      setActiveTab(project.sections[0]?.id ?? null);
+      const preferredSection = options.preferredSectionId && project.sections.some(s => s.id === options.preferredSectionId)
+        ? options.preferredSectionId
+        : null;
+      setActiveTab(resolveStudyTab(project, mergedMode(), preferredSection));
       setAppPhase('study');
       setIsLoading(false);
     });
@@ -172,6 +187,24 @@ export async function openRegistryProject(slug: string) {
   }
 }
 
+export async function openProjectFileFromProjects(file: string, options: OpenProjectOptions = {}) {
+  if (!file || file.includes('/') || file.includes('\\') || !file.toLowerCase().endsWith('.json')) {
+    setLoadError('Invalid project file');
+    return;
+  }
+  try {
+    const response = await fetch(`/__project-file?dir=projects&file=${encodeURIComponent(file)}`);
+    const payload = (await response.json()) as { contents?: string; error?: string };
+    if (!response.ok || typeof payload.contents !== 'string') {
+      setLoadError(payload.error ?? 'Failed to open project file');
+      return;
+    }
+    await validateAndOpenFile(payload.contents, options);
+  } catch (err) {
+    setLoadError(err instanceof Error ? err.message : 'Failed to open project file');
+  }
+}
+
 export function openRecentProject(slug: string) {
   batch(() => { setLoadError(null); setFailedSlug(null); });
   const entry = projectRegistry.find(p => p.slug === slug);
@@ -201,20 +234,21 @@ export function goToLauncher() {
   batch(() => { setAppPhase('launcher'); setActiveProject(null); setActiveTab(null); });
 }
 
-export async function validateAndOpenFile(jsonStr: string) {
+export async function validateAndOpenFile(jsonStr: string, options: OpenProjectOptions = {}) {
   try {
-    const data = JSON.parse(jsonStr);
+    const parsed: unknown = JSON.parse(jsonStr);
 
     // Detect backup files
-    if (data.version === 1 && data.backupType && typeof data.slug === 'string' && Array.isArray(data.cards)) {
+    const maybeBackup = parsed as Record<string, unknown>;
+    if (maybeBackup.version === 1 && maybeBackup.backupType && typeof maybeBackup.slug === 'string' && Array.isArray(maybeBackup.cards)) {
       batch(() => { setIsLoading(true); setLoadError(null); });
       try {
         const { validateBackupFile, restoreBackup } = await import('../backup/backup.ts');
-        if (!validateBackupFile(data)) {
+        if (!validateBackupFile(parsed)) {
           batch(() => { setLoadError('Invalid backup file'); setIsLoading(false); });
           return;
         }
-        const slug = await restoreBackup(data);
+        const slug = await restoreBackup(parsed);
         setIsLoading(false);
         openRecentProject(slug);
       } catch (err) {
@@ -226,12 +260,13 @@ export async function validateAndOpenFile(jsonStr: string) {
       return;
     }
 
+    const data = normalizeProjectData(parsed as ProjectData);
     const errors = validateProject(data);
     if (errors.length > 0) {
       setLoadError('Invalid project: ' + errors.join(', '));
       return;
     }
-    openProject(data, false);
+    await openProject(data, false, undefined, options);
   } catch (err) {
     setLoadError('Failed to parse JSON: ' + (err instanceof Error ? err.message : String(err)));
   }

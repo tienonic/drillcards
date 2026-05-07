@@ -1,28 +1,34 @@
 import type { WorkerContext } from '../workerContext.ts';
 import { Rating, State, type Card, type Grade, type IPreview, type RecordLogItem } from 'ts-fsrs';
 import { formatInterval, isLeech, newTodayKey } from '../helpers.ts';
+import type { PickCardType } from '../protocol.ts';
+
+function cardTypeFilter(cardType?: PickCardType): { sql: string; params: string[] } {
+  if (!cardType) return { sql: '', params: [] };
+  if (cardType === 'quiz') return { sql: ' AND card_type != ?', params: ['flashcard'] };
+  return { sql: ' AND card_type = ?', params: [cardType] };
+}
 
 export async function pickNext(
   ctx: WorkerContext,
   projectId: string,
   sectionIds: string[],
   newPerSession: number,
-  cardType?: string,
+  cardType?: PickCardType,
 ): Promise<{ cardId: string | null }> {
   await ctx.checkNewDay();
   const placeholders = sectionIds.map(() => '?').join(',');
   const now = new Date().toISOString();
-  const typeFilter = cardType ? ' AND card_type = ?' : '';
-  const typeParam = cardType ? [cardType] : [];
+  const typeFilter = cardTypeFilter(cardType);
 
   // 1. Learning/Relearning due (oldest)
   let row = await ctx.queryOne(
     `SELECT card_id FROM cards
      WHERE project_id = ? AND section_id IN (${placeholders})
      AND suspended = 0 AND buried = 0
-     AND fsrs_state IN (1, 3) AND due <= ?${typeFilter}
+     AND fsrs_state IN (1, 3) AND due <= ?${typeFilter.sql}
      ORDER BY due ASC LIMIT 1`,
-    [projectId, ...sectionIds, now, ...typeParam],
+    [projectId, ...sectionIds, now, ...typeFilter.params],
   );
   if (row) return { cardId: row.card_id as string };
 
@@ -31,9 +37,9 @@ export async function pickNext(
     `SELECT card_id FROM cards
      WHERE project_id = ? AND section_id IN (${placeholders})
      AND suspended = 0 AND buried = 0
-     AND fsrs_state = 2 AND due <= ?${typeFilter}
+     AND fsrs_state = 2 AND due <= ?${typeFilter.sql}
      ORDER BY due ASC LIMIT 1`,
-    [projectId, ...sectionIds, now, ...typeParam],
+    [projectId, ...sectionIds, now, ...typeFilter.params],
   );
   if (row) return { cardId: row.card_id as string };
 
@@ -45,9 +51,9 @@ export async function pickNext(
       `SELECT card_id FROM cards
        WHERE project_id = ? AND section_id IN (${placeholders})
        AND suspended = 0 AND buried = 0
-       AND fsrs_state = 0${typeFilter}
+       AND fsrs_state = 0${typeFilter.sql}
        ORDER BY RANDOM() LIMIT 1`,
-      [projectId, ...sectionIds, ...typeParam],
+      [projectId, ...sectionIds, ...typeFilter.params],
     );
     if (row) {
       await ctx.incrementNewToday(projectId, key);
@@ -63,13 +69,12 @@ export async function pickNextOverride(
   ctx: WorkerContext,
   projectId: string,
   sectionIds: string[],
-  cardType?: string,
+  cardType?: PickCardType,
   excludeIds?: string[],
 ): Promise<{ cardId: string | null }> {
   await ctx.checkNewDay();
   const placeholders = sectionIds.map(() => '?').join(',');
-  const typeFilter = cardType ? ' AND card_type = ?' : '';
-  const typeParam = cardType ? [cardType] : [];
+  const typeFilter = cardTypeFilter(cardType);
   const excludeFilter =
     excludeIds && excludeIds.length > 0
       ? ` AND card_id NOT IN (${excludeIds.map(() => '?').join(',')})`
@@ -80,9 +85,9 @@ export async function pickNextOverride(
   const row = await ctx.queryOne(
     `SELECT card_id FROM cards
      WHERE project_id = ? AND section_id IN (${placeholders})
-     AND suspended = 0 AND buried = 0${typeFilter}${excludeFilter}
+     AND suspended = 0 AND buried = 0${typeFilter.sql}${excludeFilter}
      ORDER BY stability ASC, RANDOM() LIMIT 1`,
-    [projectId, ...sectionIds, ...typeParam, ...excludeParam],
+    [projectId, ...sectionIds, ...typeFilter.params, ...excludeParam],
   );
   return row ? { cardId: row.card_id as string } : { cardId: null };
 }
@@ -258,31 +263,30 @@ export async function countDue(
   ctx: WorkerContext,
   projectId: string,
   sectionIds: string[],
-  cardType?: string,
+  cardType?: PickCardType,
 ): Promise<{ due: number; newCount: number; total: number }> {
   const placeholders = sectionIds.map(() => '?').join(',');
   const now = new Date().toISOString();
-  const typeFilter = cardType ? ' AND card_type = ?' : '';
-  const typeParam = cardType ? [cardType] : [];
+  const typeFilter = cardTypeFilter(cardType);
 
   const dueRow = await ctx.queryOne(
     `SELECT COUNT(*) as cnt FROM cards
      WHERE project_id = ? AND section_id IN (${placeholders})
      AND suspended = 0 AND buried = 0
-     AND fsrs_state IN (1,2,3) AND due <= ?${typeFilter}`,
-    [projectId, ...sectionIds, now, ...typeParam],
+     AND fsrs_state IN (1,2,3) AND due <= ?${typeFilter.sql}`,
+    [projectId, ...sectionIds, now, ...typeFilter.params],
   );
   const newRow = await ctx.queryOne(
     `SELECT COUNT(*) as cnt FROM cards
      WHERE project_id = ? AND section_id IN (${placeholders})
-     AND suspended = 0 AND buried = 0 AND fsrs_state = 0${typeFilter}`,
-    [projectId, ...sectionIds, ...typeParam],
+     AND suspended = 0 AND buried = 0 AND fsrs_state = 0${typeFilter.sql}`,
+    [projectId, ...sectionIds, ...typeFilter.params],
   );
   const totalRow = await ctx.queryOne(
     `SELECT COUNT(*) as cnt FROM cards
      WHERE project_id = ? AND section_id IN (${placeholders})
-     AND suspended = 0 AND buried = 0${typeFilter}`,
-    [projectId, ...sectionIds, ...typeParam],
+     AND suspended = 0 AND buried = 0${typeFilter.sql}`,
+    [projectId, ...sectionIds, ...typeFilter.params],
   );
 
   return {

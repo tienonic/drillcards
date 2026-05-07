@@ -13,7 +13,7 @@ function googleUrl(term: string): string {
 }
 
 function googleImgUrl(term: string): string {
-  return 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(term);
+  return 'https://duckduckgo.com/?iax=images&ia=images&q=' + encodeURIComponent(term);
 }
 
 export function TermsDropdown() {

@@ -78,6 +78,24 @@
 body { margin: 0; font-family: var(--font-body); color: var(--color-text); background: var(--color-bg); font-size: 1.125rem; line-height: 1.625; }
 button, input, textarea, select { font-family: inherit; }
 
+.startup-reminder {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  z-index: 1000;
+  max-width: min(520px, calc(100vw - 28px));
+  transform: translateX(-50%);
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-card);
+  box-shadow: 0 8px 24px var(--shadow-medium);
+  color: var(--color-text);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
 /* === Zen mode === */
 .zen .header-pull { opacity: 0; }
 .zen .header-pull:hover, .zen .header-pull-open { opacity: 0.5; }
@@ -119,6 +137,7 @@ button, input, textarea, select { font-family: inherit; }
 
 @media (max-width: 600px) {
   .card { padding: 16px; }
+  .option-btn { padding: 10px 14px; }
   .flashcard-front { font-size: 1rem; }
   .rating-btn { min-width: 60px; padding: 8px 4px; }
 }

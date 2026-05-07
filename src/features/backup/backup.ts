@@ -1,6 +1,7 @@
 import { initWorker, workerApi } from '../../core/hooks/useWorker.ts';
 import type { CardRow, ReviewLogRow, ScoreRow, ActivityRow, NoteRow, HotkeyRow } from '../../core/workers/protocol.ts';
 import type { ProjectData, ProjectConfig } from '../../projects/types.ts';
+import { normalizeProjectData } from '../../projects/textNormalization.ts';
 
 export interface BackupFile {
   version: 1;
@@ -54,7 +55,7 @@ async function doAutoSave(slug: string): Promise<void> {
 
   let projectData: ProjectData | null = null;
   let projectConfig: Partial<ProjectConfig> | null = null;
-  try { const raw = localStorage.getItem(`proj-data-${slug}`); if (raw) projectData = JSON.parse(raw); } catch { /* */ }
+  try { const raw = localStorage.getItem(`proj-data-${slug}`); if (raw) projectData = normalizeProjectData(JSON.parse(raw)); } catch { /* */ }
   try { const raw = localStorage.getItem(`proj-config-${slug}`); if (raw) projectConfig = JSON.parse(raw); } catch { /* */ }
 
   const backup: BackupFile = {
@@ -101,7 +102,7 @@ export async function downloadBackup(slug: string): Promise<void> {
   let projectConfig: Partial<ProjectConfig> | null = null;
   try {
     const raw = localStorage.getItem(`proj-data-${slug}`);
-    if (raw) projectData = JSON.parse(raw);
+    if (raw) projectData = normalizeProjectData(JSON.parse(raw));
   } catch { /* */ }
   try {
     const raw = localStorage.getItem(`proj-config-${slug}`);
@@ -138,7 +139,7 @@ export async function restoreBackup(data: BackupFile): Promise<string> {
   await initWorker();
 
   if (data.projectData) {
-    try { localStorage.setItem(`proj-data-${data.slug}`, JSON.stringify(data.projectData)); } catch { /* */ }
+    try { localStorage.setItem(`proj-data-${data.slug}`, JSON.stringify(normalizeProjectData(data.projectData))); } catch { /* */ }
   }
   if (data.projectConfig) {
     try { localStorage.setItem(`proj-config-${data.slug}`, JSON.stringify(data.projectConfig)); } catch { /* */ }

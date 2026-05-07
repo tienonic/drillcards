@@ -128,7 +128,7 @@ export function SettingsPanel() {
     const ret = Math.max(0.7, Math.min(0.99, retention()));
     const nps = Math.max(1, Math.min(100, Math.round(newPerSession())));
     const lt = Math.max(2, Math.min(30, Math.round(leechThreshold())));
-    const mi = Math.max(7, Math.min(365, Math.round(maxInterval())));
+    const mi = Math.max(1, Math.min(365, Math.round(maxInterval())));
 
     const tc = Object.keys(timerOverrides()).length > 0 ? timerOverrides() : undefined;
     setActiveProject({ ...project, config: { ...project.config, desired_retention: ret, new_per_session: nps, leech_threshold: lt, max_interval: mi, timerConfigs: tc } });
@@ -216,7 +216,7 @@ export function SettingsPanel() {
               </div>
               <div class="settings-hint">Higher retention = more frequent reviews. Max interval caps how far ahead cards are scheduled.</div>
               <label class="settings-field"><span>Retention</span><input type="number" min="0.7" max="0.99" step="0.01" value={retention()} onInput={e => { const v = parseFloat(e.currentTarget.value); setRetention(isNaN(v) ? 0.9 : v); }} /></label>
-              <label class="settings-field"><span>Max interval (days)</span><input type="number" min="7" max="365" step="1" value={maxInterval()} onInput={e => { const v = parseInt(e.currentTarget.value, 10); setMaxInterval(isNaN(v) ? 90 : v); }} /></label>
+              <label class="settings-field"><span>Max interval (days)</span><input type="number" min="1" max="365" step="1" value={maxInterval()} onInput={e => { const v = parseInt(e.currentTarget.value, 10); setMaxInterval(isNaN(v) ? 90 : v); }} /></label>
               <label class="settings-field"><span>New cards / session</span><input type="number" min="1" max="100" step="1" value={newPerSession()} onInput={e => { const v = parseInt(e.currentTarget.value, 10); setNewPerSession(isNaN(v) ? 20 : v); }} /></label>
               <label class="settings-field"><span>Leech threshold</span><input type="number" min="2" max="30" step="1" value={leechThreshold()} onInput={e => { const v = parseInt(e.currentTarget.value, 10); setLeechThreshold(isNaN(v) ? 8 : v); }} /></label>
               <button type="button" class="settings-save-btn" onClick={handleSave}>{saved() ? 'Saved' : 'Save'}</button>

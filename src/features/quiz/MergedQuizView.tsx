@@ -6,14 +6,11 @@ import { activeProject, activeTab } from '../../core/store/app.ts';
 import { McqCard } from './McqCard.tsx';
 import { FlashcardArea } from './FlashcardArea.tsx';
 import type { Section } from '../../projects/types.ts';
-
-export const MERGED_TAB_ID = '__merged__';
+import { MERGED_TAB_ID, getMergeableQuizSections } from './merged.ts';
 
 export function MergedQuizView() {
   const project = activeProject()!;
-  const quizSections = project.sections.filter(
-    (s): s is Section => s.type === 'mc-quiz' || s.type === 'passage-quiz',
-  );
+  const quizSections = getMergeableQuizSections(project);
 
   // Build a synthetic section for the merged session — its fields aren't used for lookups
   // (sourceSections handles that), but cardIds/flashCardIds are used for length checks

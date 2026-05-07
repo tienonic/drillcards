@@ -6,10 +6,11 @@ import { openFolderPlugin } from './vite-plugins/open-folder.ts';
 import { aiBridgePlugin } from './vite-plugins/ai-bridge.ts';
 import { debugLogPlugin } from './vite-plugins/debug-log.ts';
 import { exportPlugin } from './vite-plugins/export-data.ts';
+import { imgProxyPlugin } from './vite-plugins/img-proxy.ts';
 
 const coopCoepHeaders = {
   'Cross-Origin-Opener-Policy': 'same-origin',
-  'Cross-Origin-Embedder-Policy': 'require-corp',
+  'Cross-Origin-Embedder-Policy': 'credentialless',
 };
 
 export default defineConfig({
@@ -19,6 +20,7 @@ export default defineConfig({
     debugLogPlugin(),
     aiBridgePlugin(),
     exportPlugin(),
+    imgProxyPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {

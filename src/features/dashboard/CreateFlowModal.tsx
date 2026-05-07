@@ -2,6 +2,7 @@ import { createSignal, Show, For } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { callGemini, GEMINI_MODELS, getGeminiKey, setGeminiKey } from './gemini.ts';
 import { injectGeneratedCards, type GeneratedCard } from '../ai/injectCards.ts';
+import { normalizeProjectText } from '../../projects/textNormalization.ts';
 import type { FlowConfig } from './flowConfigs.ts';
 
 interface Props {
@@ -149,14 +150,14 @@ function parseCards(raw: string): GeneratedCard[] {
     if (!match) return [];
     const arr = JSON.parse(match[0]);
     if (!Array.isArray(arr)) return [];
-    return arr.filter(
+    return normalizeProjectText(arr.filter(
       (item: Record<string, unknown>) => item.q && item.correct && Array.isArray(item.wrong)
     ).map((item: Record<string, unknown>) => ({
       q: String(item.q),
       correct: String(item.correct),
       wrong: (item.wrong as string[]).map(String),
       explanation: item.explanation ? String(item.explanation) : undefined,
-    }));
+    })));
   } catch {
     return [];
   }

@@ -214,7 +214,23 @@ function handleMcqKeyboard(e: KeyboardEvent, session: McqView) {
   if (matchesKey(e, 'undo')) { e.preventDefault(); session.undo().catch(() => {}); return; }
   if (matchesKey(e, 'suspend')) { e.preventDefault(); session.suspend().catch(() => {}); return; }
   if (matchesKey(e, 'bury')) { e.preventDefault(); session.bury().catch(() => {}); return; }
-  if (matchesKey(e, 'viewImage')) { const link = session.currentImageLink(); if (link) window.open(link, '_blank', 'noopener,noreferrer'); return; }
+  if (matchesKey(e, 'viewImage')) {
+    const g = window as any;
+    const pop = g.__drillImagePopup;
+    let isOpen = false;
+    try { isOpen = pop && !pop.closed; } catch { isOpen = false; }
+    if (isOpen) {
+      try { pop.close(); } catch { /* cross-origin */ }
+      g.__drillImagePopup = null;
+      return;
+    }
+    const link = session.currentImageLink();
+    if (link) {
+      const w = window.open(link, 'drill-images', 'popup,width=900,height=700,left=100,top=100');
+      if (w) g.__drillImagePopup = w;
+    }
+    return;
+  }
   if (matchesKey(e, 'goBack') || e.key === 'ArrowLeft') { e.preventDefault(); session.goBackHistory(); return; }
   if (matchesKey(e, 'forward') || e.key === 'ArrowRight') { handleForwardKey(e, session, st); return; }
 }

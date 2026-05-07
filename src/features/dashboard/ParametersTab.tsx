@@ -44,7 +44,7 @@ export function ParametersTab(props: ParametersTabProps) {
                 <span class="db-params-label">Desired Retention</span>
                 <div class="db-params-row">
                   <input
-                    type="range" min="0.80" max="0.97" step="0.01"
+                    type="range" min="0.80" max="0.99" step="0.01"
                     value={retention()}
                     onInput={(e) => setRetention(parseFloat(e.currentTarget.value))}
                     class="db-params-slider"
@@ -66,8 +66,8 @@ export function ParametersTab(props: ParametersTabProps) {
               </label>
               <label class="db-params-field">
                 <span class="db-params-label">Max Interval (days)</span>
-                <input type="number" min="7" max="365" value={maxInterval()}
-                  onInput={(e) => setMaxInterval(Math.max(7, parseInt(e.currentTarget.value, 10) || 90))}
+                <input type="number" min="1" max="365" value={maxInterval()}
+                  onInput={(e) => setMaxInterval(Math.max(1, parseInt(e.currentTarget.value, 10) || 90))}
                   class="db-params-input" />
               </label>
               <button type="button" class="db-params-save" onClick={handleSave}>

@@ -15,6 +15,7 @@ export interface McqView {
   ratingLabels: () => Record<number, string>;
   leechWarning: () => boolean;
   currentImageLink: () => string;
+  currentImageLinks: () => { wiki?: string; search?: string };
   score: () => { correct: number; attempted: number };
   dueCount: () => { due: number; newCount: number; total: number };
   cramMode: () => boolean;

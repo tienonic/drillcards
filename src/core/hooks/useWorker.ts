@@ -1,4 +1,4 @@
-import type { WorkerRequest, WorkerResponse, WorkerMessage, CardRow, ReviewLogRow, ScoreRow, ActivityRow, NoteRow, HotkeyRow } from '../workers/protocol.ts';
+import type { WorkerRequest, WorkerResponse, WorkerMessage, CardRow, ReviewLogRow, ScoreRow, ActivityRow, NoteRow, HotkeyRow, PickCardType, StudyCardType } from '../workers/protocol.ts';
 
 let worker: Worker | null = null;
 let msgId = 0;
@@ -67,13 +67,13 @@ export function terminateWorker(): void {
 }
 
 export const workerApi = {
-  loadProject: (projectId: string, sectionIds: string[], cardIds: { sectionId: string; cardId: string; cardType: 'mcq' | 'passage' | 'flashcard' }[]) =>
+  loadProject: (projectId: string, sectionIds: string[], cardIds: { sectionId: string; cardId: string; cardType: StudyCardType }[]) =>
     sendWorkerMessage({ type: 'LOAD_PROJECT', projectId, sectionIds, cardIds }),
 
-  pickNext: (projectId: string, sectionIds: string[], newPerSession: number, cardType?: 'mcq' | 'passage' | 'flashcard') =>
+  pickNext: (projectId: string, sectionIds: string[], newPerSession: number, cardType?: PickCardType) =>
     sendWorkerMessage<{ cardId: string | null }>({ type: 'PICK_NEXT', projectId, sectionIds, newPerSession, cardType }),
 
-  pickNextOverride: (projectId: string, sectionIds: string[], cardType?: 'mcq' | 'passage' | 'flashcard', excludeIds?: string[]) =>
+  pickNextOverride: (projectId: string, sectionIds: string[], cardType?: PickCardType, excludeIds?: string[]) =>
     sendWorkerMessage<{ cardId: string | null }>({ type: 'PICK_NEXT_OVERRIDE', projectId, sectionIds, cardType, excludeIds }),
 
   resetNewCount: () =>
@@ -99,7 +99,7 @@ export const workerApi = {
   unburyAll: (projectId: string) =>
     sendWorkerMessage({ type: 'UNBURY_ALL', projectId }),
 
-  countDue: (projectId: string, sectionIds: string[], cardType?: 'mcq' | 'passage' | 'flashcard') =>
+  countDue: (projectId: string, sectionIds: string[], cardType?: PickCardType) =>
     sendWorkerMessage<{ due: number; newCount: number; total: number }>({ type: 'COUNT_DUE', projectId, sectionIds, cardType }),
 
   updateScore: (projectId: string, sectionId: string, correct: boolean) =>
@@ -175,11 +175,11 @@ export const workerApi = {
 
 /** Project-scoped API — pre-binds projectId to all project-scoped methods */
 export interface ProjectApi {
-  loadProject: (sectionIds: string[], cardIds: { sectionId: string; cardId: string; cardType: 'mcq' | 'passage' | 'flashcard' }[]) => Promise<unknown>;
-  pickNext: (sectionIds: string[], newPerSession: number, cardType?: 'mcq' | 'passage' | 'flashcard') => Promise<{ cardId: string | null }>;
-  pickNextOverride: (sectionIds: string[], cardType?: 'mcq' | 'passage' | 'flashcard', excludeIds?: string[]) => Promise<{ cardId: string | null }>;
+  loadProject: (sectionIds: string[], cardIds: { sectionId: string; cardId: string; cardType: StudyCardType }[]) => Promise<unknown>;
+  pickNext: (sectionIds: string[], newPerSession: number, cardType?: PickCardType) => Promise<{ cardId: string | null }>;
+  pickNextOverride: (sectionIds: string[], cardType?: PickCardType, excludeIds?: string[]) => Promise<{ cardId: string | null }>;
   unburyAll: () => Promise<unknown>;
-  countDue: (sectionIds: string[], cardType?: 'mcq' | 'passage' | 'flashcard') => Promise<{ due: number; newCount: number; total: number }>;
+  countDue: (sectionIds: string[], cardType?: PickCardType) => Promise<{ due: number; newCount: number; total: number }>;
   updateScore: (sectionId: string, correct: boolean) => Promise<{ correct: number; attempted: number }>;
   getScores: () => Promise<{ project_id: string; section_id: string; correct: number; attempted: number }[]>;
   resetSection: (sectionId: string) => Promise<unknown>;

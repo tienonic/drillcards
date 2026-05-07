@@ -3,6 +3,7 @@ import type { FlashView } from './types.ts';
 import { easyMode } from '../../core/store/app.ts';
 import { LatexHtml } from '../../components/LatexText.tsx';
 import { AddNewCards } from './McqCard.tsx';
+import { imgSrc } from '../../utils/imgSrc.ts';
 
 const RATING_CSS: Record<number, string> = { 1: 'rating-again', 2: 'rating-hard', 3: 'rating-good', 4: 'rating-easy' };
 const RATING_NAMES: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
@@ -16,11 +17,11 @@ export function FlashcardArea(props: { session: FlashView }) {
         <div class="flashcard-container" onClick={() => s.flipFlash()}>
           <div class={`flashcard ${s.flashFlipped() ? 'flipped' : ''}${s.flashFrontImage() || s.flashBackImage() ? ' has-image' : ''}`}>
             <div class="flashcard-face flashcard-front">
-              <Show when={s.flashFrontImage()}><img src={s.flashFrontImage()} alt="" class="flashcard-image" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></Show>
+              <Show when={s.flashFrontImage()}><img src={imgSrc(s.flashFrontImage())} alt="" class="flashcard-image" loading="lazy" crossorigin="anonymous" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></Show>
               <Show when={s.flashFront()}><LatexHtml html={s.flashFront()} /></Show>
             </div>
             <div class="flashcard-face flashcard-back">
-              <Show when={s.flashBackImage()}><img src={s.flashBackImage()} alt="" class="flashcard-image" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></Show>
+              <Show when={s.flashBackImage()}><img src={imgSrc(s.flashBackImage())} alt="" class="flashcard-image" loading="lazy" crossorigin="anonymous" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></Show>
               <Show when={s.flashBack()}><LatexHtml html={s.flashBack()} /></Show>
             </div>
           </div>

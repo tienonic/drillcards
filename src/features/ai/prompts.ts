@@ -1,5 +1,6 @@
 import type { PerformanceSummary, GeneratedQuestion } from './types.ts';
 import type { Section } from '../../projects/types.ts';
+import { normalizeProjectText } from '../../projects/textNormalization.ts';
 
 const INSIGHTS_SYSTEM = `You are a spaced-repetition study coach analyzing FSRS data. Cover:
 1. Overall summary (1-2 sentences)
@@ -56,7 +57,7 @@ export function parseGeneratedQuestions(raw: string): GeneratedQuestion[] {
   try {
     const parsed = JSON.parse(cleaned);
     if (Array.isArray(parsed)) {
-      return parsed.filter(validateQuestion);
+      return normalizeProjectText(parsed.filter(validateQuestion));
     }
   } catch {
     // Try regex extraction as fallback
@@ -67,7 +68,7 @@ export function parseGeneratedQuestions(raw: string): GeneratedQuestion[] {
     try {
       const parsed = JSON.parse(match[0]);
       if (Array.isArray(parsed)) {
-        return parsed.filter(validateQuestion);
+        return normalizeProjectText(parsed.filter(validateQuestion));
       }
     } catch {
       // Give up

@@ -2,7 +2,7 @@ import { For, Show, createSignal, onMount, onCleanup } from 'solid-js';
 import { activeProject, activeTab, setActiveTab, easyMode, toggleEasyMode, mergedMode, toggleMergedMode, headerVisible, setHeaderVisible, headerLocked } from '../../core/store/app.ts';
 import { goToLauncher } from '../../features/launcher/store.ts';
 import { sectionHandlers, handlerVersion } from '../../core/store/sections.ts';
-import { MERGED_TAB_ID } from '../../features/quiz/MergedQuizView.tsx';
+import { canUseMergedQuiz, resolveStudyTab } from '../../features/quiz/merged.ts';
 import { SettingsPanel } from '../../features/settings/SettingsPanel.tsx';
 import { KeybindsPanel } from '../../features/settings/KeybindsPanel.tsx';
 import { TipsPanel } from '../../features/settings/TipsPanel.tsx';
@@ -32,20 +32,15 @@ export function Header() {
   }
 
   const hasMultipleQuizSections = () => {
-    const p = project();
-    if (!p) return false;
-    return p.sections.filter(s => s.type === 'mc-quiz' || s.type === 'passage-quiz').length > 1;
+    return canUseMergedQuiz(project());
   };
 
   function handleMergeToggle() {
+    const nextMerged = !mergedMode();
     toggleMergedMode();
     const p = project();
     if (!p) return;
-    if (mergedMode()) {
-      setActiveTab(MERGED_TAB_ID);
-    } else {
-      setActiveTab(p.sections[0]?.id ?? null);
-    }
+    setActiveTab(resolveStudyTab(p, nextMerged));
   }
 
   const currentEntry = () => { handlerVersion(); const tab = activeTab(); return tab ? sectionHandlers.get(tab) : undefined; };

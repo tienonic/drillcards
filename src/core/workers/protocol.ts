@@ -1,8 +1,11 @@
+export type StudyCardType = 'mcq' | 'passage' | 'flashcard';
+export type PickCardType = StudyCardType | 'quiz';
+
 export type WorkerRequest =
   | { type: 'INIT' }
-  | { type: 'LOAD_PROJECT'; projectId: string; sectionIds: string[]; cardIds: { sectionId: string; cardId: string; cardType: 'mcq' | 'passage' | 'flashcard' }[] }
-  | { type: 'PICK_NEXT'; projectId: string; sectionIds: string[]; newPerSession: number; cardType?: 'mcq' | 'passage' | 'flashcard' }
-  | { type: 'PICK_NEXT_OVERRIDE'; projectId: string; sectionIds: string[]; cardType?: 'mcq' | 'passage' | 'flashcard'; excludeIds?: string[] }
+  | { type: 'LOAD_PROJECT'; projectId: string; sectionIds: string[]; cardIds: { sectionId: string; cardId: string; cardType: StudyCardType }[] }
+  | { type: 'PICK_NEXT'; projectId: string; sectionIds: string[]; newPerSession: number; cardType?: PickCardType }
+  | { type: 'PICK_NEXT_OVERRIDE'; projectId: string; sectionIds: string[]; cardType?: PickCardType; excludeIds?: string[] }
   | { type: 'RESET_NEW_COUNT' }
   | { type: 'PREVIEW_RATINGS'; cardId: string }
   | { type: 'REVIEW_CARD'; cardId: string; projectId: string; sectionId: string; rating: number }
@@ -10,7 +13,7 @@ export type WorkerRequest =
   | { type: 'SUSPEND_CARD'; cardId: string }
   | { type: 'BURY_CARD'; cardId: string }
   | { type: 'UNBURY_ALL'; projectId: string }
-  | { type: 'COUNT_DUE'; projectId: string; sectionIds: string[]; cardType?: 'mcq' | 'passage' | 'flashcard' }
+  | { type: 'COUNT_DUE'; projectId: string; sectionIds: string[]; cardType?: PickCardType }
   | { type: 'UPDATE_SCORE'; projectId: string; sectionId: string; correct: boolean }
   | { type: 'GET_SCORES'; projectId: string }
   | { type: 'RESET_SECTION'; projectId: string; sectionId: string }

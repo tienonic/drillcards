@@ -3,18 +3,22 @@ import type { McqView } from './types.ts';
 import { easyMode } from '../../core/store/app.ts';
 import { getLabel } from '../settings/keybinds.ts';
 import { LatexText } from '../../components/LatexText.tsx';
+import { imgSrc } from '../../utils/imgSrc.ts';
 
 const RATING_CSS: Record<number, string> = { 1: 'rating-again', 2: 'rating-hard', 3: 'rating-good', 4: 'rating-easy' };
 const RATING_NAMES: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
 
-export function AddNewCards(props: { session: Pick<McqView, 'increaseNewCards'> }) {
+export function AddNewCards(props: { session: Pick<McqView, 'increaseNewCards' | 'dueCount'> }) {
   const [count, setCount] = createSignal(5);
+  const addAllCount = () => props.session.dueCount().newCount;
   return (
     <div class="done-add-new">
       <input type="number" value={count()} min="1" class="new-cards-input"
         onInput={(e) => setCount(Math.max(1, parseInt(e.currentTarget.value, 10) || 1))} />
       <button type="button" class="action-sm"
         onClick={() => props.session.increaseNewCards(count()).catch(() => {})}>Add New</button>
+      <button type="button" class="action-sm" disabled={addAllCount() <= 0}
+        onClick={() => props.session.increaseNewCards(addAllCount()).catch(() => {})}>Add all</button>
     </div>
   );
 }
@@ -46,7 +50,7 @@ export function McqCard(props: { session: McqView; isPassage?: boolean }) {
       </Show>
       <Show when={props.isPassage && s.passage()}><div class="passage" innerHTML={s.passage()} /></Show>
       <Show when={s.question()}>{(q) => <>
-        <Show when={q().image}><img src={q().image} alt="" class="card-image" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></Show>
+        <Show when={q().image}><img src={imgSrc(q().image)} alt="" class="card-image" loading="lazy" crossorigin="anonymous" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></Show>
         <div class="question-header"><LatexText text={q().q} class="question-text" /></div>
       </>}</Show>
 

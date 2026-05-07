@@ -1,6 +1,7 @@
 import type { ProjectData, Project, ProjectConfig, Section } from './types.ts';
 import { getGlobalFSRSDefaults } from '../core/store/config.ts';
 import { getCardTypeEntry } from './cardTypeRegistry.ts';
+import { normalizeProjectData } from './textNormalization.ts';
 
 function buildDefaultConfig(): ProjectConfig {
   const fsrs = getGlobalFSRSDefaults();
@@ -22,20 +23,21 @@ function buildCardIds(section: Section): void {
 }
 
 export function loadProject(data: ProjectData): Project {
-  const config: ProjectConfig = { ...buildDefaultConfig(), ...data.config };
-  const sections: Section[] = data.sections.map(s => {
+  const normalizedData = normalizeProjectData(data);
+  const config: ProjectConfig = { ...buildDefaultConfig(), ...normalizedData.config };
+  const sections: Section[] = normalizedData.sections.map(s => {
     const section: Section = { ...s, cardIds: [], flashCardIds: [] };
     buildCardIds(section);
     return section;
   });
 
   return {
-    name: data.name,
-    slug: slugify(data.name),
-    version: data.version ?? 1,
+    name: normalizedData.name,
+    slug: slugify(normalizedData.name),
+    version: normalizedData.version ?? 1,
     config,
     sections,
-    glossary: data.glossary ?? [],
+    glossary: normalizedData.glossary ?? [],
   };
 }
 
