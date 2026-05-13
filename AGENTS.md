@@ -6,6 +6,7 @@
 - Codex, Hermes, and any delegated editor should preserve fast focused studying over decorative UI, broad knowledge capture, or feature creep.
 - Changes must keep due/review counts, merge behavior, card generation, and FSRS-style review mechanics aligned with the real deck state.
 - Generated questions should test the target knowledge without answer-length tells, obvious option imbalance, or extra detail that gives away the correct answer.
+- Real user/course project decks and generated course assets are local-only. Never force-add or push `projects/*.json`, course-specific public asset folders, exports, databases, or generated exam materials. Use tiny sanitized examples under `src/projects/` for GitHub-visible sample data.
 
 ## Dev Server
 

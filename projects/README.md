@@ -1,6 +1,6 @@
 # Project File Format
 
-Create a `.json` file, load it via "Open Project File" or drag & drop. See `example-chemistry.json` for a working reference.
+Create a local `.json` file, then load it via "Open Project File" or drag and drop. Real project JSON files are local-only and ignored by Git; the GitHub-visible sample lives in `src/projects/example-art-history.ts`.
 
 ## Structure
 

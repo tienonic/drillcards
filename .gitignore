@@ -13,7 +13,12 @@ Thumbs.db
 *.spec.tsx
 __tests__/
 research/
+# Local/private study decks and generated course assets.
 projects/*.json
+projects/*/
+projects/registry.js
+public/*exam*/
+public/ahi001c-exam-2/
 exports/
 ai-bridge.json
 *.tsbuildinfo

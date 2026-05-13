@@ -1,8 +1,8 @@
-import type { RegistryEntry, ProjectData } from './types.ts';
+import type { RegistryEntry } from './types.ts';
 import { slugify } from './loader.ts';
-import ahi001cExam2 from '../../projects/ahi001c-exam-2.json';
+import { buildExampleArtHistoryProject } from './example-art-history.ts';
 
-const defaultProject = ahi001cExam2 as ProjectData;
+const defaultProject = buildExampleArtHistoryProject();
 
 export const projectRegistry: RegistryEntry[] = [
   {
