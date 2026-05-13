@@ -1,7 +1,7 @@
 import { Show, onMount, onCleanup, createSignal } from 'solid-js';
 import { appPhase } from './core/store/app.ts';
 import { initWorker, terminateWorker } from './core/hooks/useWorker.ts';
-import { openProjectFileFromProjects } from './features/launcher/store.ts';
+import { openProjectFileFromProjects, openRegistryProject } from './features/launcher/store.ts';
 import { Dashboard } from './features/dashboard/Dashboard.tsx';
 import { StudyApp } from './components/layout/StudyApp.tsx';
 
@@ -26,6 +26,8 @@ export function App() {
         preferredSectionId: params.get('section') ?? undefined,
         forceProjectConfig: params.get('forceProjectConfig') === '1',
       });
+    } else {
+      await openRegistryProject('ahi-001c-exam-2-image-ids-and-context');
     }
   });
   onCleanup(() => terminateWorker());

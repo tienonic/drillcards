@@ -2,7 +2,7 @@ import { createSignal, Show, For } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { callGemini, GEMINI_MODELS, getGeminiKey, setGeminiKey } from './gemini.ts';
 import { injectGeneratedCards, type GeneratedCard } from '../ai/injectCards.ts';
-import { normalizeProjectText } from '../../projects/textNormalization.ts';
+import { parseGeneratedMcqCards } from '../ai/questionQuality.ts';
 import type { FlowConfig } from './flowConfigs.ts';
 
 interface Props {
@@ -144,21 +144,5 @@ export function CreateFlowModal(props: Props) {
 }
 
 function parseCards(raw: string): GeneratedCard[] {
-  try {
-    // Find JSON array in response
-    const match = raw.match(/\[[\s\S]*\]/);
-    if (!match) return [];
-    const arr = JSON.parse(match[0]);
-    if (!Array.isArray(arr)) return [];
-    return normalizeProjectText(arr.filter(
-      (item: Record<string, unknown>) => item.q && item.correct && Array.isArray(item.wrong)
-    ).map((item: Record<string, unknown>) => ({
-      q: String(item.q),
-      correct: String(item.correct),
-      wrong: (item.wrong as string[]).map(String),
-      explanation: item.explanation ? String(item.explanation) : undefined,
-    })));
-  } catch {
-    return [];
-  }
+  return parseGeneratedMcqCards(raw);
 }

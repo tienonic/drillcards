@@ -4,7 +4,10 @@ import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 import { forProject } from '../../core/hooks/useWorker.ts';
 import { sectionHandlers, handlerVersion } from '../../core/store/sections.ts';
 import { getCardType } from '../quiz/helpers.ts';
+import { MERGED_TAB_ID, getMergeableQuizSections } from '../quiz/merged.ts';
 import { computeCumScores, drawChartAxes, drawChartData } from './chartUtils.ts';
+import type { PickCardType } from '../../core/workers/protocol.ts';
+import type { Project } from '../../projects/types.ts';
 
 
 const [activityScore, setActivityScore] = createSignal(0);
@@ -27,6 +30,11 @@ export function setCanvasRef(el: HTMLCanvasElement) {
 }
 
 let currentRetention = '—';
+
+function sectionIdsForActivityScope(project: Project, tab: string): string[] {
+  if (tab === MERGED_TAB_ID) return getMergeableQuizSections(project).map(section => section.id);
+  return [tab];
+}
 
 async function fetchRetention() {
   const project = activeProject();
@@ -59,7 +67,10 @@ export async function loadActivity() {
     if (activeProject()?.slug !== slug) return; // Project changed while fetching
     if (!syncActivity()) {
       const tab = activeTab();
-      if (tab) entries = entries.filter((e) => e.section_id === tab);
+      if (tab) {
+        const sectionIds = new Set(sectionIdsForActivityScope(project, tab));
+        entries = entries.filter((e) => e.section_id != null && sectionIds.has(e.section_id));
+      }
     }
     chartEntries = entries.map((e) => ({ rating: e.rating, correct: !!e.correct })).reverse();
     updateScoreSignals();
@@ -70,27 +81,35 @@ export async function loadActivity() {
   }
 }
 
-async function loadSidebarScore() {
+export async function loadSidebarScore() {
   const project = activeProject();
   const tab = activeTab();
   if (!project || !tab || !activityApi) return;
   const slug = project.slug;
-  const section = project.sections.find(s => s.id === tab);
-  if (!section || section.type === 'math-gen') return;
+  const merged = tab === MERGED_TAB_ID;
+  const sections = merged ? getMergeableQuizSections(project) : project.sections.filter(s => s.id === tab);
+  if (sections.length === 0 || (!merged && sections[0].type === 'math-gen')) return;
 
   try {
     const entry = sectionHandlers.get(tab);
     const isFlash = entry?.kind === 'quiz' ? entry.session.flashMode() : false;
-    const cardType = getCardType(section.type, isFlash);
+    const cardType: PickCardType = merged ? (isFlash ? 'flashcard' : 'quiz') : getCardType(sections[0].type, isFlash);
+    const sectionIds = sections.map(section => section.id);
+    const sectionIdSet = new Set(sectionIds);
     const [scores, dueResult] = await Promise.all([
       activityApi.getScores(),
-      activityApi.countDue([tab], cardType),
+      activityApi.countDue(sectionIds, cardType),
     ]);
-    const s = scores.find((sc) => sc.section_id === tab);
+    const aggregate = scores
+      .filter((sc) => sectionIdSet.has(sc.section_id))
+      .reduce((acc, sc) => ({
+        correct: acc.correct + (sc.correct ?? 0),
+        attempted: acc.attempted + (sc.attempted ?? 0),
+      }), { correct: 0, attempted: 0 });
     if (activeTab() !== tab || activeProject()?.slug !== slug) return; // Stale result — tab or project changed
     setSidebarScore({
-      correct: s?.correct ?? 0,
-      attempted: s?.attempted ?? 0,
+      correct: aggregate.correct,
+      attempted: aggregate.attempted,
       due: dueResult.due + dueResult.newCount,
       total: dueResult.total,
     });

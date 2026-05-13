@@ -10,6 +10,125 @@ function psString(value: string) {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
+async function openWindowsExplorerForeground(absPath: string, select = false) {
+  const script = [
+    '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8',
+    `Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+
+public static class ForegroundWindow {
+  static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+  static readonly IntPtr HWND_NOTOPMOST = new IntPtr(-2);
+  const UInt32 SWP_NOSIZE = 0x0001;
+  const UInt32 SWP_NOMOVE = 0x0002;
+  const UInt32 SWP_SHOWWINDOW = 0x0040;
+
+  [DllImport("user32.dll")]
+  public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+
+  [DllImport("user32.dll")]
+  public static extern bool BringWindowToTop(IntPtr hWnd);
+
+  [DllImport("user32.dll")]
+  public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+  [DllImport("user32.dll")]
+  public static extern IntPtr GetForegroundWindow();
+
+  [DllImport("user32.dll")]
+  public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+  [DllImport("kernel32.dll")]
+  public static extern uint GetCurrentThreadId();
+
+  [DllImport("user32.dll")]
+  public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+
+  [DllImport("user32.dll")]
+  public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, UInt32 uFlags);
+
+  [DllImport("user32.dll")]
+  public static extern void SwitchToThisWindow(IntPtr hWnd, bool fAltTab);
+
+  public static void Force(IntPtr hWnd) {
+    ShowWindowAsync(hWnd, 9);
+
+    IntPtr foreground = GetForegroundWindow();
+    uint ignored;
+    uint currentThread = GetCurrentThreadId();
+    uint foregroundThread = GetWindowThreadProcessId(foreground, out ignored);
+    uint targetThread = GetWindowThreadProcessId(hWnd, out ignored);
+    bool attachedForeground = false;
+    bool attachedTarget = false;
+
+    try {
+      if (foregroundThread != currentThread) {
+        attachedForeground = AttachThreadInput(currentThread, foregroundThread, true);
+      }
+      if (targetThread != currentThread) {
+        attachedTarget = AttachThreadInput(currentThread, targetThread, true);
+      }
+      BringWindowToTop(hWnd);
+      SetForegroundWindow(hWnd);
+      SwitchToThisWindow(hWnd, true);
+    } finally {
+      if (attachedTarget) {
+        AttachThreadInput(currentThread, targetThread, false);
+      }
+      if (attachedForeground) {
+        AttachThreadInput(currentThread, foregroundThread, false);
+      }
+    }
+
+    SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    SetWindowPos(hWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+    SetForegroundWindow(hWnd);
+  }
+}
+'@`,
+    'function Normalize-FolderPath([string]$value) {',
+    '  if (-not $value) { return $null }',
+    '  return [System.IO.Path]::GetFullPath($value).TrimEnd([char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar))',
+    '}',
+    `$target = ${psString(absPath)}`,
+    `$select = ${select ? '$true' : '$false'}`,
+    '$targetPath = [System.IO.Path]::GetFullPath($target)',
+    '$folderPath = if ($select) { Split-Path -LiteralPath $targetPath -Parent } else { $targetPath }',
+    '$shell = New-Object -ComObject Shell.Application',
+    '$targetFolder = Normalize-FolderPath $folderPath',
+    'function Focus-MatchingExplorerFolder {',
+    '  foreach ($window in @($shell.Windows())) {',
+    '    try {',
+    '      $currentFolder = Normalize-FolderPath $window.Document.Folder.Self.Path',
+    '      if ($currentFolder -and ($currentFolder -ieq $targetFolder)) {',
+    '        $hwnd = [IntPtr]$window.HWND',
+    '        [ForegroundWindow]::Force($hwnd)',
+    '        return $true',
+    '      }',
+    '    } catch { }',
+    '  }',
+    '  return $false',
+    '}',
+    'if (-not $select -and (Focus-MatchingExplorerFolder)) { exit 0 }',
+    '$argument = if ($select) { \'/select,"\' + $targetPath + \'"\' } else { \'"\' + $targetPath + \'"\' }',
+    'Start-Process -FilePath explorer.exe -ArgumentList $argument',
+    'for ($i = 0; $i -lt 25; $i++) {',
+    '  Start-Sleep -Milliseconds 120',
+    '  if (Focus-MatchingExplorerFolder) { exit 0 }',
+    '}',
+  ].join('\n');
+
+  await execFileAsync('powershell.exe', [
+    '-NoProfile',
+    '-STA',
+    '-ExecutionPolicy',
+    'Bypass',
+    '-Command',
+    script,
+  ]);
+}
+
 async function openWindowsProjectFilePicker(initialDirectory: string) {
   const script = [
     '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8',
@@ -64,10 +183,23 @@ function resolveUnderRoot(root: string, relPath: string) {
   return targetPath;
 }
 
-function openInExplorer(absPath: string, select = false) {
+function openInExplorerDetached(absPath: string, select = false) {
   const args = select ? [`/select,${absPath}`] : [absPath];
   const child = spawn('explorer.exe', args, { detached: true, stdio: 'ignore' });
   child.unref();
+}
+
+async function openInExplorer(absPath: string, select = false) {
+  if (process.platform !== 'win32') {
+    openInExplorerDetached(absPath, select);
+    return;
+  }
+
+  try {
+    await openWindowsExplorerForeground(absPath, select);
+  } catch {
+    openInExplorerDetached(absPath, select);
+  }
 }
 
 async function listProjectJsonFiles(projectsDir: string) {
@@ -123,9 +255,9 @@ export function openFolderPlugin() {
           }
           const hasExt = /\.\w+$/.test(relPath);
           if (hasExt) {
-            openInExplorer(absPath, true);
+            await openInExplorer(absPath, true);
           } else {
-            openInExplorer(absPath);
+            await openInExplorer(absPath);
           }
           res.statusCode = 200;
           res.end('ok');

@@ -104,6 +104,7 @@ Generates random problems with step-by-step solutions. Available generators: `co
 ## Rules
 
 - Always exactly 3 wrong answers per question
+- Keep answer options similar in character count and detail; the longest and shortest visible options should stay within 12 characters, and the correct answer must not be the longest or most specific option
 - Section IDs: lowercase, no spaces (e.g. `"elements"`, `"ch5-reactions"`)
 - Keep explanations to 1–2 sentences
 - Use `imageName` for visual subjects — creates a Google Images link

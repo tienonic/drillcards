@@ -4,6 +4,7 @@ import { easyMode } from '../../core/store/app.ts';
 import { getLabel } from '../settings/keybinds.ts';
 import { LatexText } from '../../components/LatexText.tsx';
 import { imgSrc } from '../../utils/imgSrc.ts';
+import { handleMcqOptionClick } from './mcqOptionClick.ts';
 
 const RATING_CSS: Record<number, string> = { 1: 'rating-again', 2: 'rating-hard', 3: 'rating-good', 4: 'rating-easy' };
 const RATING_NAMES: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
@@ -36,7 +37,7 @@ export function McqCard(props: { session: McqView; isPassage?: boolean }) {
     const st = s.state(); const q = s.question();
     if (st === 'answering' || st === 'idle' || !q) return null;
     if (s.skipped() && opt === q.correct) return { text: q.correct, cls: 'option-feedback skip-fb', explanation: q.explanation };
-    if (opt === s.selected()) return s.isCorrect() ? { text: '', cls: 'option-feedback correct-fb', explanation: q.explanation } : { text: q.correct, cls: 'option-feedback wrong-fb', explanation: q.explanation };
+    if (opt === s.selected()) return s.isCorrect() ? { text: q.correct, cls: 'option-feedback correct-fb', explanation: q.explanation } : { text: q.correct, cls: 'option-feedback wrong-fb', explanation: q.explanation };
     return null;
   }
 
@@ -60,7 +61,7 @@ export function McqCard(props: { session: McqView; isPassage?: boolean }) {
             const fb = () => feedbackFor(opt);
             return (
               <div class="option-wrapper">
-                <button type="button" class={optionClass(opt)} onClick={() => { const st = s.state(); if (st === 'answering') { s.answer(opt).catch(() => {}); return; } if (st === 'rated') s.pickNextCard().catch(() => {}); else if (st === 'revealed' && easyMode()) s.rate(s.isCorrect() ? 3 : 1).catch(() => {}); else if (st === 'reviewing-history') s.advanceFromHistory(); }}><LatexText text={opt} /></button>
+                <button type="button" class={optionClass(opt)} onClick={() => handleMcqOptionClick(s, opt)}><LatexText text={opt} /></button>
                 <Show when={fb()}>
                   {(fbd) => <div class={fbd().cls}><Show when={fbd().text}><LatexText text={fbd().text} /></Show><Show when={fbd().explanation}><LatexText text={fbd().explanation} class="explanation" /></Show></div>}
                 </Show>
@@ -79,6 +80,13 @@ export function McqCard(props: { session: McqView; isPassage?: boolean }) {
         <div class="card-actions"><button type="button" class="action-sm" onClick={() => s.undo().catch(() => {})}>Undo</button><button type="button" class="action-sm" onClick={() => s.suspend().catch(() => {})}>Suspend</button><button type="button" class="action-sm" onClick={() => s.bury().catch(() => {})}>Bury</button></div>
       </Show>
 
+      <Show when={s.state() === 'rated' && !s.cramMode()}>
+        <div class="card-actions continue-actions">
+          <button type="button" class="action-sm continue-btn" onClick={() => s.pickNextCard().catch(() => {})}>Next question</button>
+          <button type="button" class="action-sm" onClick={() => s.undo().catch(() => {})}>Undo</button>
+        </div>
+      </Show>
+
       <Show when={s.leechWarning()}>
         <span class="explanation leech-warning">This card is a leech (frequently forgotten). Consider reviewing the material.</span>
       </Show>
@@ -93,7 +101,7 @@ export function McqCard(props: { session: McqView; isPassage?: boolean }) {
           <Show when={s.score().attempted > 0}>
             <div class="done-stats"><span class="done-stat">{s.score().correct} / {s.score().attempted} correct</span><span class="done-stat">{Math.round((s.score().correct / s.score().attempted) * 100)}% accuracy</span></div>
           </Show>
-          <div class="done-due"><span>{s.dueCount().newCount} new remaining</span><span>{s.dueCount().total} total cards</span></div>
+          <div class="done-due"><span>{s.dueCount().due} due now</span><span>{s.dueCount().newCount} new remaining</span><span>{s.dueCount().total} total cards</span></div>
           <div class="done-actions">
             <button type="button" class="action-sm" onClick={() => s.studyMore().catch(() => {})}>Study More</button>
             <button type="button" class="action-sm cram-btn" onClick={() => s.startCram().catch(() => {})}>Cram</button>

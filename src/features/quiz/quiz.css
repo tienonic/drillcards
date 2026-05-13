@@ -306,6 +306,16 @@
   margin-top: 12px;
 }
 
+.continue-actions {
+  display: none;
+}
+
+@media (pointer: coarse) and (min-width: 700px) and (max-width: 1366px) {
+  .continue-actions {
+    display: flex;
+  }
+}
+
 .action-sm {
   padding: 6px 14px;
   background: none;

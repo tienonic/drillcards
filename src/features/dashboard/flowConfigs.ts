@@ -1,3 +1,5 @@
+import { ANSWER_BALANCE_INSTRUCTIONS } from '../ai/questionQuality.ts';
+
 export interface FlowConfig {
   id: string;
   title: string;
@@ -8,7 +10,7 @@ export interface FlowConfig {
 
 const CARD_SYSTEM = `Output ONLY a JSON array. Each element: { "q": "question text", "correct": "correct answer", "wrong": ["wrong1", "wrong2", "wrong3"], "explanation": "brief explanation" }.
 Questions test recall not recognition. Wrong answers must be plausible. Vary types: definition, application, comparison, cause/effect. Explanations under 60 words. Generate exactly the number requested.
-IMPORTANT: All answer options (correct and wrong) must be similar in length.`;
+${ANSWER_BALANCE_INSTRUCTIONS}`;
 
 export const flowConfigs: Record<string, FlowConfig> = {
   translation: {
@@ -50,4 +52,4 @@ export const flowConfigs: Record<string, FlowConfig> = {
 
 export const SOURCE_SYSTEM = `You generate flashcard questions from source material. Output ONLY a JSON array. Each element: { "q": "question text", "correct": "correct answer", "wrong": ["wrong1", "wrong2", "wrong3"], "explanation": "brief explanation" }.
 Extract the most important concepts and test understanding, not just surface recall. Wrong answers must be plausible. Explanations under 60 words.
-IMPORTANT: All answer options (correct and wrong) must be similar in length.`;
+${ANSWER_BALANCE_INSTRUCTIONS}`;

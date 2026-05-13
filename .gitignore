@@ -26,3 +26,5 @@ src/test-setup.ts
 public/test-worker.html
 DATABASE_SCHEMA.md
 public/fonts/Signifier*
+
+.vercel

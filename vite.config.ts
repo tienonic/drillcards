@@ -1,7 +1,6 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import solid from 'vite-plugin-solid';
-import { VitePWA } from 'vite-plugin-pwa';
 import { openFolderPlugin } from './vite-plugins/open-folder.ts';
 import { aiBridgePlugin } from './vite-plugins/ai-bridge.ts';
 import { debugLogPlugin } from './vite-plugins/debug-log.ts';
@@ -21,26 +20,6 @@ export default defineConfig({
     aiBridgePlugin(),
     exportPlugin(),
     imgProxyPlugin(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,woff2,wasm,png,svg}'],
-        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-      },
-      manifest: {
-        name: 'Drill',
-        short_name: 'Drill',
-        description: 'Spaced repetition flashcards and quizzes',
-        theme_color: '#4a7fb5',
-        background_color: '#f5f0e8',
-        display: 'standalone',
-        icons: [
-          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-        ],
-      },
-    }),
   ],
   server: {
     port: 3000,

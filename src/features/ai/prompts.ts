@@ -1,6 +1,6 @@
 import type { PerformanceSummary, GeneratedQuestion } from './types.ts';
 import type { Section } from '../../projects/types.ts';
-import { normalizeProjectText } from '../../projects/textNormalization.ts';
+import { ANSWER_BALANCE_INSTRUCTIONS, parseGeneratedMcqCards } from './questionQuality.ts';
 
 const INSIGHTS_SYSTEM = `You are a spaced-repetition study coach analyzing FSRS data. Cover:
 1. Overall summary (1-2 sentences)
@@ -13,11 +13,11 @@ Be direct, under 600 words. Use markdown headers and bullet points.`;
 
 const GENERATE_SYSTEM = `Output ONLY a JSON array. Each element: { "q": "question text", "correct": "correct answer", "wrong": ["wrong1", "wrong2", "wrong3"], "explanation": "brief explanation" }.
 Questions test recall not recognition. Wrong answers must be plausible. Vary types: definition, application, comparison, cause/effect. Explanations under 60 words. Generate exactly the number requested.
-IMPORTANT: All answer options (correct and wrong) must be similar in length. Do not let the correct answer stand out by being noticeably longer or shorter than the distractors.`;
+${ANSWER_BALANCE_INSTRUCTIONS}`;
 
 const TARGETED_SYSTEM = `Output ONLY a JSON array. Each element: { "q": "question text", "correct": "correct answer", "wrong": ["wrong1", "wrong2", "wrong3"], "explanation": "brief explanation" }.
 Focus on the student's weakest areas. Generate questions that reinforce concepts they're struggling with — target low-accuracy sections, high-lapse cards, and unstable knowledge. Wrong answers must be plausible. Explanations under 60 words.
-IMPORTANT: All answer options (correct and wrong) must be similar in length. Do not let the correct answer stand out by being noticeably longer or shorter than the distractors.`;
+${ANSWER_BALANCE_INSTRUCTIONS}`;
 
 export function formatPerformanceSummary(summary: PerformanceSummary): string {
   const lines: string[] = [];
@@ -51,31 +51,7 @@ export function formatSampleQuestions(section: Section): string {
 }
 
 export function parseGeneratedQuestions(raw: string): GeneratedQuestion[] {
-  let cleaned = raw.trim();
-  cleaned = cleaned.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '');
-
-  try {
-    const parsed = JSON.parse(cleaned);
-    if (Array.isArray(parsed)) {
-      return normalizeProjectText(parsed.filter(validateQuestion));
-    }
-  } catch {
-    // Try regex extraction as fallback
-  }
-
-  const match = cleaned.match(/\[[\s\S]*\]/);
-  if (match) {
-    try {
-      const parsed = JSON.parse(match[0]);
-      if (Array.isArray(parsed)) {
-        return normalizeProjectText(parsed.filter(validateQuestion));
-      }
-    } catch {
-      // Give up
-    }
-  }
-
-  return [];
+  return parseGeneratedMcqCards(raw);
 }
 
 export function buildInsightsPrompt(performanceData: string): string {
@@ -88,15 +64,4 @@ export function buildGeneratePrompt(sourceText: string, count: number): string {
 
 export function buildTargetedPrompt(performanceData: string, sampleQuestions: string, count: number): string {
   return `${TARGETED_SYSTEM}\n\nStudent performance data:\n${performanceData}\n\n${sampleQuestions}\n\nGenerate ${count} questions targeting their weaknesses.`;
-}
-
-function validateQuestion(item: unknown): item is GeneratedQuestion {
-  if (!item || typeof item !== 'object') return false;
-  const obj = item as Record<string, unknown>;
-  return (
-    typeof obj.q === 'string' && obj.q.length > 0 &&
-    typeof obj.correct === 'string' && obj.correct.length > 0 &&
-    Array.isArray(obj.wrong) && obj.wrong.length >= 3 &&
-    obj.wrong.every((w: unknown) => typeof w === 'string')
-  );
 }

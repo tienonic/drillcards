@@ -72,7 +72,8 @@ Multiple sections create separate tabs in the UI, which gets crowded. Put all qu
 **Quality rules — follow these strictly:**
 - Every question MUST have exactly 3 wrong answers (4 total options)
 - Wrong answers must be plausible misconceptions, not obviously wrong
-- Normalize option length — the correct answer must not be the longest
+- Normalize option character count and detail — keep the longest and shortest visible options within 12 characters, and the correct answer must not be the longest or most specific option
+- For term-in-context MCQs, do not make one option carry all the contextual detail while the others are short labels
 - No "all of the above" or "none of the above"
 - No absolutes ("always", "never") unless that's genuinely the answer
 - Every question must have an `explanation`
@@ -334,7 +335,8 @@ You cannot define custom math generators via JSON. Only the four keys above are 
 **Structure:**
 - Exactly 3 wrong answers per question (4 options total)
 - The question stem must be a complete question on its own — it should make sense without reading the options
-- **Answer-length parity is critical.** All 4 options must be similar in length, grammar, and detail level. The correct answer must NOT be the longest. If the correct answer needs a qualifier ("because X"), add qualifiers to the wrong answers too. Aim for <20% length variance between the shortest and longest option. Agents generating questions must enforce this — it's the #1 source of guessable questions
+- **Answer-length parity is critical.** All 4 options must be similar in character count, grammar, and detail level. Keep the longest and shortest visible options within 12 characters. The correct answer must NOT be the longest, most qualified, or most specific option. If the correct answer needs a qualifier ("because X"), add comparable qualifiers to the wrong answers too. Agents generating questions must enforce this — it is the #1 source of guessable questions
+- **Term-in-context MCQs need matched options.** If the stem gives a context clue and asks for the term, each option should be the same kind of term or same kind of short explanation. Do not make the answer obvious by giving it a full sentence while the distractors are short labels.
 - Distribute correct answer positions randomly — don't default to putting the correct answer first in the `correct` field (the app shuffles at display time, but consistent patterns in source data can indicate quality issues)
 
 **Distractors (wrong answers):**

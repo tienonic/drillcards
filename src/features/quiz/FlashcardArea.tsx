@@ -44,7 +44,7 @@ export function FlashcardArea(props: { session: FlashView }) {
       <Show when={s.state() === 'done'}>
         <div class="done-screen">
           <h3 class="done-title">Session Complete</h3>
-          <div class="done-due"><span>{s.dueCount().newCount} new remaining</span><span>{s.dueCount().total} total cards</span></div>
+          <div class="done-due"><span>{s.dueCount().due} due now</span><span>{s.dueCount().newCount} new remaining</span><span>{s.dueCount().total} total cards</span></div>
           <div class="done-actions">
             <button type="button" class="action-sm" onClick={() => s.studyMore().catch(() => {})}>Study More</button>
             <button type="button" class="action-sm cram-btn" onClick={() => s.startCram().catch(() => {})}>Cram</button>
