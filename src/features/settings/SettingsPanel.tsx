@@ -1,7 +1,7 @@
 import './settings.css';
 import { Show, For, onMount, onCleanup, createSignal, batch } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import { activeProject, setActiveProject, activePanel, setActivePanel, setHeaderLocked, graphVisible, toggleGraphVisible, syncActivity, toggleSyncActivity, termsVisible, toggleTermsVisible } from '../../core/store/app.ts';
+import { activeProject, setActiveProject, activePanel, setActivePanel, setHeaderLocked } from '../../core/store/app.ts';
 import { getTimerConfig, TIMER_DEFAULTS } from '../../core/timerConfig.ts';
 import { exportProjectData } from '../export/export.ts';
 import { workerApi } from '../../core/hooks/useWorker.ts';
@@ -195,9 +195,6 @@ export function SettingsPanel() {
         <Portal>
           <div class="settings-backdrop" onClick={(e) => { if (e.target instanceof Element && e.target.classList.contains('settings-backdrop')) close(); }}>
             <div class="settings-dropdown" style={{ top: `${panelTop()}px` }} onMouseEnter={() => { if (closeTimer) clearTimeout(closeTimer); }} onMouseLeave={() => { if (activePanel() === 'settings') delayedClose(); }}>
-              <label class="settings-toggle"><input type="checkbox" checked={graphVisible()} onChange={toggleGraphVisible} />Show Graph</label>
-              <label class="settings-toggle"><input type="checkbox" checked={syncActivity()} onChange={toggleSyncActivity} />Sync Graph</label>
-              <label class="settings-toggle"><input type="checkbox" checked={termsVisible()} onChange={toggleTermsVisible} />Key Terms</label>
               <button type="button" class="settings-export-btn" disabled={exportLabel() !== 'Export'} onClick={async () => {
                 const p = activeProject();
                 if (!p) return;

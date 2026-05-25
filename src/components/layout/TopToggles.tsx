@@ -1,5 +1,5 @@
 import { Show } from 'solid-js';
-import { activeTab, zenMode, toggleZenMode, headerVisible, termsOpen } from '../../core/store/app.ts';
+import { activeTab, zenMode, toggleZenMode, headerVisible, termsOpen, graphVisible, toggleGraphVisible } from '../../core/store/app.ts';
 import { sectionHandlers, handlerVersion } from '../../core/store/sections.ts';
 
 export function TopToggles() {
@@ -23,6 +23,12 @@ export function TopToggles() {
             checked={quizSession()?.flashDefFirst() ?? false}
             onChange={(e) => quizSession()?.setFlashDefFirst(e.currentTarget.checked)}
           />
+        </label>
+      </Show>
+      <Show when={!graphVisible()}>
+        <label class="top-toggle graph-toggle" title="Show activity graph">
+          <span class="top-toggle-label">graph</span>
+          <input type="checkbox" checked={graphVisible()} onChange={toggleGraphVisible} />
         </label>
       </Show>
       <label class="top-toggle zen-toggle" title="Focus mode — hide extra UI">

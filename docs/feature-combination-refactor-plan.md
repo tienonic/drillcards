@@ -86,9 +86,9 @@ These should be enforced with fast Vitest tests before new UI work:
 
 ### Phase 3: Move Graph And Option Controls
 
-- Create a minimal `ActivityOptionsMenu` near the current activity graph controls.
-- Put graph visibility and related checkboxes in that menu.
-- When the graph is hidden, show a small top-level graph toggle chip near the existing mode controls, similar in weight to the current Zed-style control.
+- Create a minimal `ActivityOptionsMenu` near the current activity graph controls. Initial widget-owned options menu added on 2026-05-25.
+- Put graph visibility and related checkboxes in that menu. Initial `Graph`, `Sync`, and `Terms` controls moved out of Settings on 2026-05-25.
+- When the graph is hidden, show a small top-level graph toggle chip near the existing mode controls, similar in weight to the current Zed-style control. Initial hidden-graph top toggle added on 2026-05-25.
 - Persist this as layout state only. It must not touch quiz/session state.
 - Add matrix cases for `graphOn`, `graphOff`, and `optionsOpen`.
 

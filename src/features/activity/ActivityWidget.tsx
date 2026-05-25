@@ -4,7 +4,12 @@ import {
   activityScore, reviewStats, sidebarScore,
   setCanvasRef, loadActivity, clearActivity,
 } from './store.ts';
-import { copiedFlash, activeProject, activeTab } from '../../core/store/app.ts';
+import {
+  copiedFlash, activeProject, activeTab,
+  graphVisible, toggleGraphVisible,
+  syncActivity, toggleSyncActivity,
+  termsVisible, toggleTermsVisible,
+} from '../../core/store/app.ts';
 import { getTimerConfig } from '../../core/timerConfig.ts';
 
 import type { SessionEntry } from '../../core/store/sections.ts';
@@ -33,16 +38,36 @@ export function ActivityWidget(props: { isFlashMode: () => boolean; activeEntry:
   const timerContent = () => { const s = seconds(); return paused() ? '\u23F8' : s >= tc().failAt ? '\u{1F480}' : s + 's'; };
 
   const [resetMenuOpen, setResetMenuOpen] = createSignal(false);
+  const [optionsMenuOpen, setOptionsMenuOpen] = createSignal(false);
   const [confirmAction, setConfirmAction] = createSignal<(() => void) | null>(null);
 
   let resetWrapRef: HTMLDivElement | undefined;
-  const clickOutsideHandler = (e: MouseEvent) => { if (resetMenuOpen() && resetWrapRef && e.target instanceof Node && !resetWrapRef.contains(e.target)) { batch(() => { setResetMenuOpen(false); setConfirmAction(null); }); } };
+  let optionsWrapRef: HTMLDivElement | undefined;
+  const clickOutsideHandler = (e: MouseEvent) => {
+    if (!(e.target instanceof Node)) return;
+    if (resetMenuOpen() && resetWrapRef && !resetWrapRef.contains(e.target)) {
+      batch(() => { setResetMenuOpen(false); setConfirmAction(null); });
+    }
+    if (optionsMenuOpen() && optionsWrapRef && !optionsWrapRef.contains(e.target)) {
+      setOptionsMenuOpen(false);
+    }
+  };
   onMount(() => document.addEventListener('mousedown', clickOutsideHandler));
   onCleanup(() => document.removeEventListener('mousedown', clickOutsideHandler));
 
   return (
     <>
       <div class="activity-widget">
+        <div class="activity-options-wrap" ref={optionsWrapRef} onMouseDown={(e) => e.stopPropagation()}>
+          <button type="button" class="activity-options-btn" title="Graph options" onClick={() => batch(() => { setOptionsMenuOpen(v => !v); setResetMenuOpen(false); setConfirmAction(null); })}>opt</button>
+          <Show when={optionsMenuOpen()}>
+            <div class="activity-options-menu">
+              <label class="activity-option-check"><input type="checkbox" checked={graphVisible()} onChange={toggleGraphVisible} />Graph</label>
+              <label class="activity-option-check"><input type="checkbox" checked={syncActivity()} onChange={toggleSyncActivity} />Sync</label>
+              <label class="activity-option-check"><input type="checkbox" checked={termsVisible()} onChange={toggleTermsVisible} />Terms</label>
+            </div>
+          </Show>
+        </div>
         <div class="activity-score-row"><Show when={isAnswering()}><span class={timerCls()} onClick={() => togglePause()} title={paused() ? 'Resume timer' : 'Pause timer'}>{timerContent()}</span></Show><div class="activity-score-label">{activityScore()}</div></div>
         <Show when={visibleHistoryPosition()}>
           {(pos) => <div class="history-position-badge">card {pos().current}/{pos().total}</div>}
