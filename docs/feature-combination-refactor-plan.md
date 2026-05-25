@@ -75,6 +75,7 @@ These should be enforced with fast Vitest tests before new UI work:
 - Add `src/features/quiz/featureMatrix.ts` with the axes, constraints, and a compact list of generated scenarios. Initial version added on 2026-05-25.
 - Add `src/features/quiz/featureMatrix.test.ts` using Vitest matrix checks. Initial version added on 2026-05-25.
 - Add matrix-backed behavior tests so high-risk scenario rows exercise actual session code. Initial `historyIsReadOnly` and `cramHardRemembered` checks added on 2026-05-25.
+- Add layout-only tests for graph/options toggles. Initial `activityPanelLayoutOnly` app-store check added on 2026-05-25.
 - Start with 12-20 scenarios, not every possible cartesian product. The first matrix has 19 scenarios.
 - Include scenario names that read like bug reports: `flash + cram + history + keyboard`, `mcq + merged + done + addAll`, `graphOff + optionsOpen + activeTimer`.
 
