@@ -12,11 +12,6 @@ credentials.json
 .DS_Store
 Thumbs.db
 *.log
-*.test.ts
-*.test.tsx
-*.spec.ts
-*.spec.tsx
-__tests__/
 research/
 # Local/private study decks and generated course assets.
 projects/*.json
