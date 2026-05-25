@@ -2,8 +2,9 @@ import { onMount, onCleanup } from 'solid-js';
 import { activeTab, activeProject, setNoteBoxVisible, termsOpen, easyMode, zenMode, toggleZenMode, headerVisible, activePanel, flashCopied } from '../store/app.ts';
 import { sectionHandlers } from '../store/sections.ts';
 import { matchesKey } from '../../features/settings/keybinds.ts';
+import { isAnsweringState, isRatedState, isRevealedState, isReviewingHistoryState } from '../../features/quiz/sessionState.ts';
 import type { MathSession } from '../../features/math/store.ts';
-import type { McqView, FlashView } from '../../features/quiz/types.ts';
+import type { McqView, FlashView, QuizState } from '../../features/quiz/types.ts';
 
 export function useKeyboard() {
   let autoPaused = false;
@@ -149,7 +150,7 @@ function handleFlashcardKeyboard(e: KeyboardEvent, session: FlashView) {
 
   if (isHistoryForwardKey(e)) {
     e.preventDefault();
-    if (session.state() === 'reviewing-history' && session.historyPosition().canGoForward) {
+    if (isReviewingHistoryState(session.state()) && session.historyPosition().canGoForward) {
       session.advanceFromHistory();
     }
     return;
@@ -179,36 +180,36 @@ function handleFlashcardKeyboard(e: KeyboardEvent, session: FlashView) {
   }
 }
 
-function handleAnswerKey(e: KeyboardEvent, session: McqView, st: string) {
+function handleAnswerKey(e: KeyboardEvent, session: McqView, st: QuizState) {
   e.preventDefault();
   const answerActions = ['answer1', 'answer2', 'answer3', 'answer4'] as const;
   const idx = answerActions.findIndex(a => matchesKey(e, a));
   if (idx < 0) return;
-  if (st === 'answering') {
+  if (isAnsweringState(st)) {
     const opts = session.options();
     if (opts[idx]) session.answer(opts[idx]).catch(() => {});
-  } else if (st === 'revealed') {
+  } else if (isRevealedState(st)) {
     session.rate(idx + 1).catch(() => {});
   }
 }
 
-function handleSpaceKey(e: KeyboardEvent, session: McqView, st: string) {
+function handleSpaceKey(e: KeyboardEvent, session: McqView, st: QuizState) {
   e.preventDefault();
-  if (st === 'reviewing-history') {
+  if (isReviewingHistoryState(st)) {
     if (session.historyPosition().canGoForward) session.advanceFromHistory();
     else session.pickNextCard().catch(() => {});
-  } else if (st === 'rated') {
+  } else if (isRatedState(st)) {
     session.pickNextCard().catch(() => {});
-  } else if (st === 'revealed') {
+  } else if (isRevealedState(st)) {
     if (easyMode()) session.rate(session.isCorrect() ? 3 : 1).catch(() => {});
-  } else if (st === 'answering') {
+  } else if (isAnsweringState(st)) {
     session.skip().catch(() => {});
   }
 }
 
-function handleForwardKey(e: KeyboardEvent, session: McqView, st: string) {
+function handleForwardKey(e: KeyboardEvent, session: McqView, st: QuizState) {
   e.preventDefault();
-  if (st === 'reviewing-history' && session.historyPosition().canGoForward) {
+  if (isReviewingHistoryState(st) && session.historyPosition().canGoForward) {
     session.advanceFromHistory();
   }
 }

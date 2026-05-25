@@ -81,6 +81,7 @@ These should be enforced with fast Vitest tests before new UI work:
 
 ### Phase 2: Isolate Session State
 
+- Introduce a shared typed state helper layer before the full machine extraction. Initial `src/features/quiz/sessionState.ts` predicates and transition helpers landed on 2026-05-25.
 - Introduce a `QuizSessionState` discriminated union and `QuizSessionEvent` union.
 - Move pure transitions into `src/features/quiz/sessionMachine.ts`.
 - Keep Solid signals as the view adapter, but stop letting many independent signals define the source of truth.

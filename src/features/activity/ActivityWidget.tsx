@@ -11,6 +11,7 @@ import {
   termsVisible, toggleTermsVisible,
 } from '../../core/store/app.ts';
 import { getTimerConfig } from '../../core/timerConfig.ts';
+import { isAnsweringState } from '../quiz/sessionState.ts';
 
 import type { SessionEntry } from '../../core/store/sections.ts';
 
@@ -23,7 +24,10 @@ export function ActivityWidget(props: { isFlashMode: () => boolean; activeEntry:
     return pos?.reviewing && pos.total > 0 ? pos : undefined;
   };
   const seconds = () => session()?.timer.seconds() ?? 0;
-  const isAnswering = () => session()?.state() === 'answering';
+  const isAnswering = () => {
+    const state = session()?.state();
+    return state ? isAnsweringState(state) : false;
+  };
   const paused = () => session()?.paused() ?? false;
   const togglePause = () => session()?.togglePause();
 

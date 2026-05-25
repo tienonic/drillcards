@@ -4,6 +4,7 @@ import { easyMode, sessionSummary, setSessionSummary } from '../../core/store/ap
 import { setQuestionContext } from '../glossary/store.ts';
 import { timeToRating, lookupQuestion, lookupQuestionAcross, findOwnerSection, getCardType } from './helpers.ts';
 import { createHistoryNav, type HistoryEntry } from './historyNav.ts';
+import { isAnsweringState, isRatedState, isRevealedState, isReviewableMcqState, isReviewingHistoryState, restoredHistoryState } from './sessionState.ts';
 import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 import type { PickCardType } from '../../core/workers/protocol.ts';
 import type { Guard } from './guard.ts';
@@ -146,7 +147,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
   }
 
   async function answer(option: string) {
-    if (s.state() !== 'answering') return;
+    if (!isAnsweringState(s.state())) return;
     const elapsed = d.timer.stop();
     const q = s.question();
     const cId = s.cardId();
@@ -174,7 +175,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
   }
 
   async function doSkip() {
-    if (s.state() !== 'answering') return;
+    if (!isAnsweringState(s.state())) return;
     d.timer.stop();
     const q = s.question();
     const cId = s.cardId();
@@ -197,7 +198,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
   }
 
   async function rate(rating: number) {
-    if (s.state() !== 'revealed') return;
+    if (!isRevealedState(s.state())) return;
     const cId = s.cardId();
     if (!cId) return;
     await d.guard.withActing(async () => d.doRate(cId, rating));
@@ -209,9 +210,9 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
     if (!cId || !p) return;
     await d.guard.withActing(async () => {
       const st = s.state();
-      if (st === 'revealed') {
+      if (isRevealedState(st)) {
         await d.doRate(cId, 1);
-      } else if (st === 'rated') {
+      } else if (isRatedState(st)) {
         const result = await d.api.undoReview();
         if (result.undone) await d.doRate(cId, 1);
       }
@@ -220,7 +221,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
 
   async function undoAction() {
     const st = s.state();
-    if (st !== 'revealed' && st !== 'rated') return;
+    if (!isReviewableMcqState(st)) return;
     const cId = s.cardId();
     if (!cId) return;
     await d.guard.withActing(async () => {
@@ -279,7 +280,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
       s.setSkipped(unanswered ? false : entry.skipped);
       s.setPassage(entry.passage);
       if (!unanswered) s.setRatingLabels({});
-      s.setState(unanswered ? 'answering' : 'reviewing-history');
+      s.setState(restoredHistoryState(unanswered));
     });
     if (unanswered) d.timer.start();
   }
@@ -291,7 +292,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
 
   function advanceFromHistory(pickNextCard: () => Promise<void>) {
     if (d.guard.isActing()) return;
-    if (s.state() !== 'reviewing-history') return;
+    if (!isReviewingHistoryState(s.state())) return;
     histNav.advance(restoreHistoryEntry);
   }
 

@@ -4,6 +4,7 @@ import { pushChartEntry } from '../activity/store.ts';
 import { autoSave } from '../backup/backup.ts';
 import { resolveFlashCard, resolveFlashCardAcross, findOwnerSection } from './helpers.ts';
 import { flashIdentityTitle } from './flashIdentity.ts';
+import { flashCardEntryState, flashFlipState, isReviewingHistoryState } from './sessionState.ts';
 import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 import type { Guard } from './guard.ts';
 import type { HistoryPosition } from './historyNav.ts';
@@ -158,7 +159,7 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
       s.setFlashBackImage(defFirst ? resolved.card.frontImage ?? '' : resolved.card.backImage ?? '');
       s.setFlashFlipped(opts.flipped ?? false);
       s.setRatingLabels({});
-      s.setState(opts.reviewing ? 'reviewing-history' : 'answering');
+      s.setState(flashCardEntryState(!!opts.reviewing));
     });
     if (opts.reviewing) d.timer.reset();
     else d.timer.start();
@@ -203,15 +204,15 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
   function flipFlash() {
     if (d.guard.isActing()) return;
     const flipped = !s.flashFlipped();
-    const reviewing = s.state() === 'reviewing-history';
+    const reviewing = isReviewingHistoryState(s.state());
     s.setFlashFlipped(flipped);
     updateCurrentHistoryEntry({ flipped });
     if (!reviewing) {
       if (flipped) {
         d.timer.stop();
-        s.setState('revealed');
+        s.setState(flashFlipState(true));
       } else {
-        s.setState('answering');
+        s.setState(flashFlipState(false));
         d.timer.start();
       }
     }
@@ -228,7 +229,7 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
     const fId = s.flashCardId();
     const p = d.project();
     if (!fId || !p) return;
-    if (s.state() === 'reviewing-history') return;
+    if (isReviewingHistoryState(s.state())) return;
     await d.guard.withActing(async () => {
       d.timer.stop();
       updateCurrentHistoryEntry({ flipped: s.flashFlipped(), rated: true });

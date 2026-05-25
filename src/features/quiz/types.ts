@@ -1,7 +1,8 @@
 import type { Question } from '../../projects/types.ts';
 import type { HistoryEntry, HistoryPosition } from './historyNav.ts';
+import type { QuizState } from './sessionState.ts';
 
-export type QuizState = 'idle' | 'answering' | 'revealed' | 'rated' | 'reviewing-history' | 'done';
+export type { QuizState };
 
 /** Core MCQ view — used by McqCard.tsx and handleMcqKeyboard */
 export interface McqView {
