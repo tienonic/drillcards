@@ -51,6 +51,7 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
   const [flashFlipped, setFlashFlipped] = createSignal(false);
   const [flashFront, setFlashFront] = createSignal('');
   const [flashBack, setFlashBack] = createSignal('');
+  const [flashTitle, setFlashTitle] = createSignal('');
   const [flashFrontImage, setFlashFrontImage] = createSignal('');
   const [flashBackImage, setFlashBackImage] = createSignal('');
   const [flashDefFirst, setFlashDefFirst] = createSignal(false);
@@ -143,10 +144,10 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
   // --- Flash flow ---
   const flash = createFlashFlow(
     { state, setState, flashCardId, setFlashCardId, flashFlipped, setFlashFlipped,
-      flashFront, setFlashFront, flashBack, setFlashBack,
+      flashFront, setFlashFront, flashBack, setFlashBack, flashTitle, setFlashTitle,
       flashFrontImage, setFlashFrontImage, flashBackImage, setFlashBackImage,
       flashDefFirst, ratingLabels, setRatingLabels },
-    { section, sourceSections, project, guard, refreshDue,
+    { section, sourceSections, project, guard, timer, refreshDue,
       cramMode: cram.cramMode, cramMarkSeen: cram.markSeen, cramPickNext: cram.pickNextCram, cramRate: cram.rateCram, api },
   );
 
@@ -192,21 +193,7 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
       await mcq.pickNextCardImpl();
       if (state() !== 'done') return;
 
-      const cardType = sectionCardType();
-      const result = await api.pickNextOverride(allSectionIds, cardType);
-      if (result.cardId) {
-        if (flashMode()) {
-          const resolved = resolveFlash(result.cardId);
-          if (!resolved) return;
-          flash.applyFlashCard(result.cardId, resolved);
-        } else {
-          const found = lookup(result.cardId);
-          if (!found) return;
-          const shuffled = mcq.shuffleOptionsForCard(result.cardId, found.question);
-          const passageText = found.passage ?? '';
-          mcq.applyMcqCard(result.cardId, found, shuffled, passageText);
-          mcq.pushHistoryEntry(result.cardId, found, shuffled, passageText);
-        }
+      if (await pickOverrideCard()) {
         await refreshDue();
         return;
       }
@@ -224,6 +211,25 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
     });
   }
 
+  async function pickOverrideCard(): Promise<boolean> {
+    const cardType = sectionCardType();
+    const result = await api.pickNextOverride(allSectionIds, cardType);
+    if (!result.cardId) return false;
+    if (flashMode()) {
+      const resolved = resolveFlash(result.cardId);
+      if (!resolved) return false;
+      flash.applyFlashCard(result.cardId, resolved);
+      return true;
+    }
+    const found = lookup(result.cardId);
+    if (!found) return false;
+    const shuffled = mcq.shuffleOptionsForCard(result.cardId, found.question);
+    const passageText = found.passage ?? '';
+    mcq.applyMcqCard(result.cardId, found, shuffled, passageText);
+    mcq.pushHistoryEntry(result.cardId, found, shuffled, passageText);
+    return true;
+  }
+
   async function startCramAction() {
     await guard.withActing(async () => {
       await cram.startCram();
@@ -232,7 +238,8 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
 
   async function increaseNewCards(count?: number) {
     const p = project();
-    if (p && count != null) {
+    const before = dueCount();
+    if (p && count != null && count > 0) {
       setActiveProject({ ...p, config: { ...p.config, new_per_session: count } });
     }
     await guard.withActing(async () => {
@@ -241,6 +248,10 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
         await flash.pickNextFlash();
       } else {
         await mcq.pickNextCardImpl();
+      }
+      if (state() === 'done' && (before.due > 0 || before.newCount > 0)) {
+        await pickOverrideCard();
+        await refreshDue();
       }
     });
   }
@@ -270,6 +281,7 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
       ];
       await api.loadProject([section.id], cardRegs);
       mcq.histNav.reset();
+      flash.resetHistory();
       batch(() => { cram.endCram(); setScore({ correct: 0, attempted: 0 }); });
       if (flashMode()) {
         await flash.pickNextFlash();
@@ -280,11 +292,13 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
   }
 
   // --- Public interface ---
+  const activeHistoryPosition = () => flashMode() ? flash.historyPosition() : mcq.histNav.historyPosition();
+
   return {
     state, cardId, question, options, selected, isCorrect, ratingLabels,
-    score, dueCount, flashMode, flashCardId, flashFlipped, flashFront, flashBack,
+    score, dueCount, flashMode, flashCardId, flashFlipped, flashFront, flashBack, flashTitle,
     flashFrontImage, flashBackImage,
-    flashDefFirst, passage, historyReview: mcq.histNav.historyReview,
+    flashDefFirst, passage, historyReview: mcq.histNav.historyReview, historyPosition: activeHistoryPosition,
     leechWarning, skipped, currentImageLink: mcq.currentImageLink, currentImageLinks: mcq.currentImageLinks,
     cramMode: cram.cramMode, cramCount: cram.cramCount,
 
@@ -312,8 +326,8 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
         setFlashFlipped(false);
       });
     },
-    advanceFromHistory: () => mcq.advanceFromHistory(pickNextCard),
-    goBackHistory: mcq.goBackHistory,
+    advanceFromHistory: () => flashMode() ? flash.advanceHistory() : mcq.advanceFromHistory(pickNextCard),
+    goBackHistory: () => flashMode() ? flash.goBackHistory() : mcq.goBackHistory(),
     shuffleFlash: flash.shuffleFlash,
     shuffleMcq: mcq.shuffleMcq,
     resetSection: resetSectionAction,

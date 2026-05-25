@@ -105,7 +105,13 @@ export function createCramSession(deps: CramDeps) {
 
     const now = cramCount();
     const ready = active.filter(card => card.nextAt <= now);
-    const candidates = ready.length > 0
+    const dueMisses = ready.filter(card => card.misses > 0);
+    const unseen = ready.filter(card => card.reviews === 0);
+    const candidates = dueMisses.length > 0
+      ? dueMisses
+      : unseen.length > 0
+        ? unseen
+        : ready.length > 0
       ? ready
       : active.filter(card => card.nextAt === Math.min(...active.map(c => c.nextAt)));
 
@@ -182,15 +188,15 @@ export function createCramSession(deps: CramDeps) {
     const card = cramCards.find(item => item.id === cardId);
     if (card) {
       card.reviews += 1;
-      if (rating <= 2) {
+      if (rating === 1) {
         card.misses += 1;
         card.goal = Math.max(card.goal, 2);
         card.correctStreak = 0;
-        card.nextAt = nextCount + (rating === 1 ? 1 : 2);
+        card.nextAt = nextCount + 1;
       } else {
         card.correctStreak += rating === 4 ? 2 : 1;
         card.retired = card.correctStreak >= card.goal;
-        card.nextAt = nextCount + (rating === 4 ? 5 : 3);
+        card.nextAt = nextCount + (rating === 2 ? 2 : rating === 4 ? 5 : 3);
       }
     }
     setCramCount(nextCount);

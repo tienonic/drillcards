@@ -4,6 +4,11 @@ dist/
 CLAUDE.md
 .env
 .env.*
+credentials.json
+*.pem
+*.key
+*.sqlite
+*.db
 .DS_Store
 Thumbs.db
 *.log

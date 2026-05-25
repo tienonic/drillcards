@@ -119,6 +119,14 @@ function handleMathKeyboard(e: KeyboardEvent, session: MathSession) {
   }
 }
 
+function isHistoryBackKey(e: KeyboardEvent): boolean {
+  return matchesKey(e, 'goBack') || e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a';
+}
+
+function isHistoryForwardKey(e: KeyboardEvent): boolean {
+  return matchesKey(e, 'forward') || e.key === 'ArrowRight' || e.key.toLowerCase() === 'd';
+}
+
 function handleFlashcardKeyboard(e: KeyboardEvent, session: FlashView) {
   if (matchesKey(e, 'copyCard')) {
     e.preventDefault();
@@ -130,6 +138,20 @@ function handleFlashcardKeyboard(e: KeyboardEvent, session: FlashView) {
       parts.push(session.flashBack());
     }
     copyToClipboard(parts.filter(Boolean).join('\n\n'));
+    return;
+  }
+
+  if (isHistoryBackKey(e)) {
+    e.preventDefault();
+    session.goBackHistory();
+    return;
+  }
+
+  if (isHistoryForwardKey(e)) {
+    e.preventDefault();
+    if (session.state() === 'reviewing-history' && session.historyPosition().canGoForward) {
+      session.advanceFromHistory();
+    }
     return;
   }
 
@@ -173,7 +195,8 @@ function handleAnswerKey(e: KeyboardEvent, session: McqView, st: string) {
 function handleSpaceKey(e: KeyboardEvent, session: McqView, st: string) {
   e.preventDefault();
   if (st === 'reviewing-history') {
-    session.advanceFromHistory();
+    if (session.historyPosition().canGoForward) session.advanceFromHistory();
+    else session.pickNextCard().catch(() => {});
   } else if (st === 'rated') {
     session.pickNextCard().catch(() => {});
   } else if (st === 'revealed') {
@@ -185,14 +208,9 @@ function handleSpaceKey(e: KeyboardEvent, session: McqView, st: string) {
 
 function handleForwardKey(e: KeyboardEvent, session: McqView, st: string) {
   e.preventDefault();
-  if (st === 'reviewing-history') {
+  if (st === 'reviewing-history' && session.historyPosition().canGoForward) {
     session.advanceFromHistory();
-  } else if (st === 'rated') {
-    session.pickNextCard().catch(() => {});
-  } else if (st === 'revealed' && easyMode()) {
-    session.rate(session.isCorrect() ? 3 : 1).catch(() => {});
   }
-  // answering → do nothing (can't go forward without answering)
 }
 
 function handleMcqKeyboard(e: KeyboardEvent, session: McqView) {
@@ -231,6 +249,6 @@ function handleMcqKeyboard(e: KeyboardEvent, session: McqView) {
     }
     return;
   }
-  if (matchesKey(e, 'goBack') || e.key === 'ArrowLeft') { e.preventDefault(); session.goBackHistory(); return; }
-  if (matchesKey(e, 'forward') || e.key === 'ArrowRight') { handleForwardKey(e, session, st); return; }
+  if (isHistoryBackKey(e)) { e.preventDefault(); session.goBackHistory(); return; }
+  if (isHistoryForwardKey(e)) { handleForwardKey(e, session, st); return; }
 }

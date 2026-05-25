@@ -9,17 +9,22 @@ import { handleMcqOptionClick } from './mcqOptionClick.ts';
 const RATING_CSS: Record<number, string> = { 1: 'rating-again', 2: 'rating-hard', 3: 'rating-good', 4: 'rating-easy' };
 const RATING_NAMES: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
 
-export function AddNewCards(props: { session: Pick<McqView, 'increaseNewCards' | 'dueCount'> }) {
+export function AddNewCards(props: { session: Pick<McqView, 'increaseNewCards' | 'dueCount' | 'studyMore'> }) {
   const [count, setCount] = createSignal(5);
-  const addAllCount = () => props.session.dueCount().newCount;
+  const canAddAll = () => props.session.dueCount().due > 0 || props.session.dueCount().newCount > 0;
+  function addAll() {
+    const due = props.session.dueCount();
+    if (due.newCount > 0) return props.session.increaseNewCards(due.newCount);
+    return props.session.studyMore();
+  }
   return (
     <div class="done-add-new">
       <input type="number" value={count()} min="1" class="new-cards-input"
         onInput={(e) => setCount(Math.max(1, parseInt(e.currentTarget.value, 10) || 1))} />
       <button type="button" class="action-sm"
         onClick={() => props.session.increaseNewCards(count()).catch(() => {})}>Add New</button>
-      <button type="button" class="action-sm" disabled={addAllCount() <= 0}
-        onClick={() => props.session.increaseNewCards(addAllCount()).catch(() => {})}>Add all</button>
+      <button type="button" class="action-sm" disabled={!canAddAll()}
+        onClick={() => addAll().catch(() => {})}>Add all</button>
     </div>
   );
 }
@@ -92,7 +97,7 @@ export function McqCard(props: { session: McqView; isPassage?: boolean }) {
       </Show>
 
       <Show when={s.state() === 'reviewing-history'}>
-        <div class="key-hints">Reviewing previous — press <kbd>{getLabel('skip')}</kbd> or <kbd>{getLabel('forward')}</kbd> for next</div>
+        <div class="key-hints">History {s.historyPosition().current}/{s.historyPosition().total} — <kbd>{getLabel('goBack')}</kbd>/<kbd>&larr;</kbd> back, <kbd>{getLabel('forward')}</kbd>/<kbd>&rarr;</kbd> forward</div>
       </Show>
 
       <Show when={s.state() === 'done'}>

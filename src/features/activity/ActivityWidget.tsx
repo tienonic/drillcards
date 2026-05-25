@@ -12,6 +12,11 @@ import type { SessionEntry } from '../../core/store/sections.ts';
 export function ActivityWidget(props: { isFlashMode: () => boolean; activeEntry: () => SessionEntry | undefined }) {
   const session = () => props.activeEntry()?.session;
   const quizSession = () => { const e = props.activeEntry(); return e?.kind === 'quiz' ? e.session : undefined; };
+  const historyPosition = () => quizSession()?.historyPosition();
+  const visibleHistoryPosition = () => {
+    const pos = historyPosition();
+    return pos?.reviewing && pos.total > 0 ? pos : undefined;
+  };
   const seconds = () => session()?.timer.seconds() ?? 0;
   const isAnswering = () => session()?.state() === 'answering';
   const paused = () => session()?.paused() ?? false;
@@ -39,7 +44,13 @@ export function ActivityWidget(props: { isFlashMode: () => boolean; activeEntry:
     <>
       <div class="activity-widget">
         <div class="activity-score-row"><Show when={isAnswering()}><span class={timerCls()} onClick={() => togglePause()} title={paused() ? 'Resume timer' : 'Pause timer'}>{timerContent()}</span></Show><div class="activity-score-label">{activityScore()}</div></div>
-        <div class="activity-chart-wrap"><canvas ref={el => setCanvasRef(el)} width="210" height="120" /><Show when={copiedFlash()}><span class="copied-flash">Copied</span></Show></div>
+        <Show when={visibleHistoryPosition()}>
+          {(pos) => <div class="history-position-badge">card {pos().current}/{pos().total}</div>}
+        </Show>
+        <div class="activity-chart-wrap">
+          <canvas ref={el => setCanvasRef(el)} width="210" height="120" />
+          <Show when={copiedFlash()}><span class="copied-flash">Copied</span></Show>
+        </div>
         <div class="activity-widget-stats">
           <div class="activity-stats"><span class="stat-item">review: <strong>{reviewStats().reviews}</strong></span><span class="stat-item">retention: <strong>{reviewStats().retention}</strong></span></div>
           <div class="activity-stats"><span class="stat-item">score: <strong>{sidebarScore().correct} / {sidebarScore().attempted}</strong></span><span class="stat-item">due: <strong>{sidebarScore().due} / {sidebarScore().total}</strong></span></div>

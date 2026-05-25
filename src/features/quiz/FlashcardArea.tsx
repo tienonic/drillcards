@@ -4,31 +4,45 @@ import { easyMode } from '../../core/store/app.ts';
 import { LatexHtml } from '../../components/LatexText.tsx';
 import { AddNewCards } from './McqCard.tsx';
 import { imgSrc } from '../../utils/imgSrc.ts';
+import { stripDuplicateFlashTitle } from './flashIdentity.ts';
+import { getLabel } from '../settings/keybinds.ts';
 
 const RATING_CSS: Record<number, string> = { 1: 'rating-again', 2: 'rating-hard', 3: 'rating-good', 4: 'rating-easy' };
 const RATING_NAMES: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
 
 export function FlashcardArea(props: { session: FlashView }) {
   const s = props.session;
+  const answerImage = () => s.flashBackImage() || s.flashFrontImage();
+  const expandedBack = () => s.flashFlipped() && !!answerImage();
+  const backBody = () => stripDuplicateFlashTitle(s.flashBack(), s.flashTitle());
+  const reviewingHistory = () => s.state() === 'reviewing-history';
 
   return (
     <div>
       <Show when={s.state() !== 'done'}>
         <div class="flashcard-container" onClick={() => s.flipFlash()}>
-          <div class={`flashcard ${s.flashFlipped() ? 'flipped' : ''}${s.flashFrontImage() || s.flashBackImage() ? ' has-image' : ''}`}>
-            <div class="flashcard-face flashcard-front">
-              <Show when={s.flashFrontImage()}><img src={imgSrc(s.flashFrontImage())} alt="" class="flashcard-image" loading="lazy" crossorigin="anonymous" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></Show>
-              <Show when={s.flashFront()}><LatexHtml html={s.flashFront()} /></Show>
-            </div>
-            <div class="flashcard-face flashcard-back">
-              <Show when={s.flashBackImage()}><img src={imgSrc(s.flashBackImage())} alt="" class="flashcard-image" loading="lazy" crossorigin="anonymous" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></Show>
-              <Show when={s.flashBack()}><LatexHtml html={s.flashBack()} /></Show>
-            </div>
+          <div class={`flashcard ${s.flashFlipped() ? 'flipped' : ''}${expandedBack() ? ' has-image' : ''}`}>
+            <Show when={!s.flashFlipped()} fallback={
+              <div class="flashcard-face flashcard-back">
+                <Show when={s.flashTitle()}><div class="flashcard-title"><LatexHtml html={s.flashTitle()} /></div></Show>
+                <Show when={answerImage()}>{(image) => <img src={imgSrc(image())} alt="" class="flashcard-image" loading="lazy" crossorigin="anonymous" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}</Show>
+                <Show when={backBody()}><div class="flashcard-copy"><LatexHtml html={backBody()} /></div></Show>
+              </div>
+            }>
+              <div class="flashcard-face flashcard-front">
+                <Show when={s.flashFrontImage()}><img src={imgSrc(s.flashFrontImage())} alt="" class="flashcard-image" loading="lazy" crossorigin="anonymous" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></Show>
+                <Show when={s.flashFront()}><div class="flashcard-copy"><LatexHtml html={s.flashFront()} /></div></Show>
+              </div>
+            </Show>
           </div>
         </div>
 
 
-        <Show when={s.flashFlipped() && s.flashCardId()}>
+        <Show when={reviewingHistory()}>
+          <div class="key-hints">History {s.historyPosition().current}/{s.historyPosition().total} — <kbd>{getLabel('goBack')}</kbd>/<kbd>&larr;</kbd> back, <kbd>{getLabel('forward')}</kbd>/<kbd>&rarr;</kbd> forward</div>
+        </Show>
+
+        <Show when={s.flashFlipped() && s.flashCardId() && !reviewingHistory()}>
           <Show when={easyMode()}>
             <div class="flash-rating-area">
               <button type="button" class="flash-rating-btn rating-again" onClick={(e) => { e.stopPropagation(); s.rateFlash(1).catch(() => {}); }}>Again</button>

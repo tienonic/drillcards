@@ -1,5 +1,5 @@
 import type { Question } from '../../projects/types.ts';
-import type { HistoryEntry } from './historyNav.ts';
+import type { HistoryEntry, HistoryPosition } from './historyNav.ts';
 
 export type QuizState = 'idle' | 'answering' | 'revealed' | 'rated' | 'reviewing-history' | 'done';
 
@@ -18,6 +18,7 @@ export interface McqView {
   currentImageLinks: () => { wiki?: string; search?: string };
   score: () => { correct: number; attempted: number };
   dueCount: () => { due: number; newCount: number; total: number };
+  historyPosition: () => HistoryPosition;
   cramMode: () => boolean;
 
   answer: (option: string) => Promise<void>;
@@ -42,14 +43,18 @@ export interface FlashView {
   flashFlipped: () => boolean;
   flashFront: () => string;
   flashBack: () => string;
+  flashTitle: () => string;
   flashFrontImage: () => string;
   flashBackImage: () => string;
   flashCardId: () => string | null;
   dueCount: () => { due: number; newCount: number; total: number };
+  historyPosition: () => HistoryPosition;
   ratingLabels: () => Record<number, string>;
 
   flipFlash: () => void;
   rateFlash: (rating: number) => Promise<void>;
+  goBackHistory: () => void;
+  advanceFromHistory: () => void;
   studyMore: () => Promise<void>;
   startCram: () => Promise<void>;
   increaseNewCards: (count?: number) => Promise<void>;

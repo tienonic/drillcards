@@ -172,6 +172,18 @@
   height: auto;
 }
 
+.history-position-badge {
+  width: max-content;
+  margin: 0 auto 2px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  background: color-mix(in srgb, var(--color-warm-bg) 80%, transparent);
+  padding: 1px 5px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
 .copied-flash {
   position: absolute;
   inset: 0;

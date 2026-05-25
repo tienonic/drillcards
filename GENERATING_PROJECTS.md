@@ -77,6 +77,7 @@ Multiple sections create separate tabs in the UI, which gets crowded. Put all qu
 - No "all of the above" or "none of the above"
 - No absolutes ("always", "never") unless that's genuinely the answer
 - Every question must have an `explanation`
+- For art history slide/image IDs, style/movement/culture is required ID content: include it in feedback and in flashcard answers, not just in surrounding notes
 - Distribute the correct answer position randomly (don't always put it first)
 - One fact per flashcard — no lists or compound answers
 - Interleave topics within sections rather than clustering by subtopic
@@ -370,6 +371,14 @@ Aim for variety across cognitive levels, not just "remember" questions.
 - **Why cards.** For every factual card ("What does X do?"), consider adding a companion card ("Why does X do that?" or "What happens if X fails?").
 - **Use HTML for structure** when the back needs formatting: `<strong>` for key terms, `<br>` for line breaks, `<em>` for emphasis.
 
+### Art History Slide IDs
+
+- Treat style, movement, or culture as part of the slide ID alongside artist/maker, title/object, date, medium, and significance.
+- For each visual ID card, make the learner recall style explicitly. A strong prompt is: "Identify this work, style, and one significance phrase."
+- Put style in the answer feedback as `Style: ...` so MCQ review also reinforces it.
+- Keep wrong answers balanced by ID label only; do not make the correct MCQ option longer by appending style when distractors omit it.
+- For non-paintings, use the closest course-relevant label: architecture, interior, porcelain, print, photography process, culture/dynasty, or movement.
+
 ### Passage-Quiz Design
 
 - Passages should be **self-contained** — the reader should have all the information needed to answer without external knowledge (unless the questions test prior knowledge applied to the scenario)
@@ -608,6 +617,7 @@ Fix every issue identified in the review. Also:
 - Ensure no two questions test the exact same fact
 - Add flashcards for any concept that appears in questions but not in the flashcard deck
 - Add glossary entries for any technical term used in questions
+- For art history slide/image IDs, make sure every visual object has explicit style/movement/culture coverage
 
 Output the complete corrected JSON.
 ```

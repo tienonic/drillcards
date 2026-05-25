@@ -432,9 +432,9 @@
 
 /* === Flashcards === */
 .flashcard-container {
-  perspective: 800px;
   margin: 20px auto 20px;
   max-width: 420px;
+  width: min(100%, 420px);
 }
 
 .flashcard {
@@ -442,18 +442,20 @@
   min-height: 180px;
   position: relative;
   cursor: pointer;
-  transform-style: preserve-3d;
-  transition: transform 0.15s;
 }
 
-.flashcard-container:has(.has-image) { max-width: 520px; }
+.flashcard-container:has(.has-image) {
+  max-width: min(90vw, 920px);
+  width: min(90vw, 920px);
+}
 
-.flashcard.flipped { transform: rotateY(180deg); }
+.flashcard.has-image {
+  min-height: 0;
+}
 
 .flashcard-face {
   width: 100%;
   min-height: 180px;
-  backface-visibility: hidden;
   border-radius: 2px;
   display: flex;
   flex-direction: column;
@@ -465,13 +467,23 @@
   box-shadow: 0 2px 8px rgba(45, 42, 38, 0.07);
 }
 
+.flashcard.has-image .flashcard-face {
+  min-height: 0;
+}
+
 .flashcard-image {
   display: block;
   width: 100%;
-  max-height: 480px;
+  max-height: 320px;
   object-fit: contain;
   border-radius: 6px;
   margin: 0 auto 12px;
+}
+
+.flashcard.flipped.has-image .flashcard-image {
+  max-height: min(52vh, 520px);
+  height: auto;
+  object-fit: contain;
 }
 
 .flashcard-front {
@@ -483,17 +495,34 @@
 }
 
 .flashcard-back {
-  position: absolute;
-  inset: 0;
   background: var(--color-card);
-  transform: rotateY(180deg);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   line-height: 1.5;
   color: var(--color-text);
   border: 2px solid var(--color-primary);
-  overflow-y: auto;
+  overflow: visible;
   justify-content: flex-start;
   padding-top: 24px;
+}
+
+.flashcard-title {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto 14px;
+  font-size: clamp(1.05rem, 1.5vw, 1.35rem);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--color-text);
+}
+
+.flashcard-copy {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.flashcard.has-image .flashcard-copy {
+  font-size: clamp(0.98rem, 1.15vw, 1.1rem);
 }
 
 .flash-rating-area {

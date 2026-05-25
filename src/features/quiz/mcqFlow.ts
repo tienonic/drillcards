@@ -119,10 +119,10 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
     const cardType: PickCardType = merged ? 'quiz' : getCardType(d.section.type, false);
     const result = await d.api.pickNext(allSectionIds, p.config.new_per_session, cardType);
     if (s.flashMode()) return; // Stale: flash mode toggled during pick — flash path handles it
-    if (!result.cardId) { s.setState('done'); return; }
+    if (!result.cardId) { s.setState('done'); await d.refreshDue(); return; }
 
     const found = lookup(result.cardId);
-    if (!found) { s.setState('done'); return; }
+    if (!found) { s.setState('done'); await d.refreshDue(); return; }
 
     const shuffled = shuffleOptionsForCard(result.cardId, found.question);
     const passageText = found.passage ?? '';
@@ -292,7 +292,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
   function advanceFromHistory(pickNextCard: () => Promise<void>) {
     if (d.guard.isActing()) return;
     if (s.state() !== 'reviewing-history') return;
-    histNav.advance(restoreHistoryEntry, () => pickNextCard().catch(() => {}));
+    histNav.advance(restoreHistoryEntry);
   }
 
   async function shuffleMcq() {

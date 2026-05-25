@@ -38,7 +38,7 @@ export const flowConfigs: Record<string, FlowConfig> = {
     id: 'academic_qa',
     title: 'Academic Q&A',
     subtitle: 'Traditional flashcards for study',
-    systemPrompt: `You generate academic Q&A flashcards. ${CARD_SYSTEM}`,
+    systemPrompt: `You generate academic Q&A flashcards. For art history slide/image ID material, include the work's style, movement, or culture in the tested fact or explanation when the source provides it. Do not leave style implicit. ${CARD_SYSTEM}`,
     defaultModel: 'gemini-2.0-flash-lite',
   },
   academic_checkit: {
@@ -52,4 +52,5 @@ export const flowConfigs: Record<string, FlowConfig> = {
 
 export const SOURCE_SYSTEM = `You generate flashcard questions from source material. Output ONLY a JSON array. Each element: { "q": "question text", "correct": "correct answer", "wrong": ["wrong1", "wrong2", "wrong3"], "explanation": "brief explanation" }.
 Extract the most important concepts and test understanding, not just surface recall. Wrong answers must be plausible. Explanations under 60 words.
+For art history slide/image ID material, include the work's style, movement, or culture in the tested fact or explanation when the source provides it. Do not leave style implicit.
 ${ANSWER_BALANCE_INSTRUCTIONS}`;

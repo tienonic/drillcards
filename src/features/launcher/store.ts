@@ -1,6 +1,6 @@
 import { createSignal, batch } from 'solid-js';
 import { projectRegistry } from '../../projects/registry.ts';
-import { loadProject, validateProject } from '../../projects/loader.ts';
+import { loadProject, validateProject, slugify } from '../../projects/loader.ts';
 import { normalizeProjectData } from '../../projects/textNormalization.ts';
 import { initWorker, workerApi } from '../../core/hooks/useWorker.ts';
 import { setAppPhase, setActiveProject, setActiveTab, setHeaderVisible, setActivePanel, setHeaderLocked, setSessionSummary, formatGap, mergedMode } from '../../core/store/app.ts';
@@ -20,6 +20,12 @@ interface RecentProject {
   name: string;
   slug: string;
   timestamp: number;
+}
+
+interface ProjectFileSummary {
+  file: string;
+  name: string;
+  modifiedAt?: string;
 }
 
 const [isLoading, setIsLoading] = createSignal(false);
@@ -187,36 +193,111 @@ export async function openRegistryProject(slug: string) {
   }
 }
 
-export async function openProjectFileFromProjects(file: string, options: OpenProjectOptions = {}) {
-  if (!file || file.includes('/') || file.includes('\\') || !file.toLowerCase().endsWith('.json')) {
-    setLoadError('Invalid project file');
-    return;
+function isValidProjectFile(file: string) {
+  return !!file && !file.includes('/') && !file.includes('\\') && file.toLowerCase().endsWith('.json');
+}
+
+async function fetchProjectFileContents(file: string, quiet = false): Promise<string | null> {
+  if (!isValidProjectFile(file)) {
+    if (!quiet) setLoadError('Invalid project file');
+    return null;
   }
   try {
     const response = await fetch(`/__project-file?dir=projects&file=${encodeURIComponent(file)}`);
     const payload = (await response.json()) as { contents?: string; error?: string };
     if (!response.ok || typeof payload.contents !== 'string') {
-      setLoadError(payload.error ?? 'Failed to open project file');
-      return;
+      if (!quiet) setLoadError(payload.error ?? 'Failed to open project file');
+      return null;
     }
-    await validateAndOpenFile(payload.contents, options);
+    return payload.contents;
   } catch (err) {
-    setLoadError(err instanceof Error ? err.message : 'Failed to open project file');
+    if (!quiet) setLoadError(err instanceof Error ? err.message : 'Failed to open project file');
+    return null;
   }
 }
 
-export function openRecentProject(slug: string) {
+async function listLocalProjectFiles(): Promise<ProjectFileSummary[]> {
+  try {
+    const response = await fetch('/__project-files?dir=projects');
+    const payload = (await response.json()) as { files?: ProjectFileSummary[] };
+    if (!response.ok || !Array.isArray(payload.files)) return [];
+    return payload.files.filter(file => isValidProjectFile(file.file));
+  } catch {
+    return [];
+  }
+}
+
+async function findLocalProjectFileBySlug(slug: string): Promise<string | null> {
+  const files = await listLocalProjectFiles();
+  const found = files.find(file =>
+    slugify(file.name) === slug || slugify(file.file.replace(/\.json$/i, '')) === slug
+  );
+  return found?.file ?? null;
+}
+
+async function newestLocalProjectFile(): Promise<string | null> {
+  const files = await listLocalProjectFiles();
+  files.sort((a, b) => (Date.parse(b.modifiedAt ?? '') || 0) - (Date.parse(a.modifiedAt ?? '') || 0));
+  return files[0]?.file ?? null;
+}
+
+export async function openProjectFileFromProjects(file: string, options: OpenProjectOptions = {}) {
+  const contents = await fetchProjectFileContents(file);
+  if (contents === null) return;
+  await validateAndOpenFile(contents, options);
+}
+
+export async function tryOpenProjectFileFromProjects(file: string, options: OpenProjectOptions = {}): Promise<boolean> {
+  const contents = await fetchProjectFileContents(file, true);
+  if (contents === null) return false;
+  const previousError = loadError();
+  setLoadError(null);
+  await validateAndOpenFile(contents, options);
+  const ok = loadError() === null;
+  if (!ok) setLoadError(previousError);
+  return ok;
+}
+
+async function openRecentProjectAsync(slug: string, quietNotFound = false): Promise<boolean> {
   batch(() => { setLoadError(null); setFailedSlug(null); });
   const entry = projectRegistry.find(p => p.slug === slug);
   if (entry) {
-    entry.loader()
-      .then(data => openProject(data, true, entry.folder))
-      .catch(err => batch(() => { setLoadError('Failed to load'); setFailedSlug(slug); }));
-  } else {
-    const saved = getProjectData(slug);
-    if (saved) openProject(saved, false);
-    else batch(() => { setLoadError('Data not found — re-import file'); setFailedSlug(slug); });
+    try {
+      const data = await entry.loader();
+      await openProject(data, true, entry.folder);
+      return loadError() === null;
+    } catch {
+      batch(() => { setLoadError('Failed to load'); setFailedSlug(slug); });
+      return false;
+    }
   }
+
+  const localFile = await findLocalProjectFileBySlug(slug);
+  if (localFile && await tryOpenProjectFileFromProjects(localFile)) return true;
+
+  const saved = getProjectData(slug);
+  if (saved) {
+    await openProject(saved, false);
+    return loadError() === null;
+  }
+
+  if (!quietNotFound) batch(() => { setLoadError('Data not found — re-import file'); setFailedSlug(slug); });
+  return false;
+}
+
+export function openRecentProject(slug: string) {
+  openRecentProjectAsync(slug).catch(() => {});
+}
+
+export async function openStartupProject() {
+  const last = getLastProject();
+  if (last && await openRecentProjectAsync(last, true)) return;
+
+  const newestLocal = await newestLocalProjectFile();
+  if (newestLocal && await tryOpenProjectFileFromProjects(newestLocal)) return;
+
+  const fallback = projectRegistry[0];
+  if (fallback) await openRegistryProject(fallback.slug);
 }
 
 export function clearRecentProjects() {

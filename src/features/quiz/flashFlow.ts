@@ -1,11 +1,13 @@
-import { batch } from 'solid-js';
+import { batch, createSignal } from 'solid-js';
 import { setQuestionContext } from '../glossary/store.ts';
 import { pushChartEntry } from '../activity/store.ts';
 import { autoSave } from '../backup/backup.ts';
 import { resolveFlashCard, resolveFlashCardAcross, findOwnerSection } from './helpers.ts';
+import { flashIdentityTitle } from './flashIdentity.ts';
 import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 import type { Guard } from './guard.ts';
-import type { Section } from '../../projects/types.ts';
+import type { HistoryPosition } from './historyNav.ts';
+import type { Flashcard, Section } from '../../projects/types.ts';
 import type { QuizState } from './types.ts';
 
 export interface FlashSignals {
@@ -19,6 +21,8 @@ export interface FlashSignals {
   setFlashFront: (v: string) => void;
   flashBack: () => string;
   setFlashBack: (v: string) => void;
+  flashTitle: () => string;
+  setFlashTitle: (v: string) => void;
   flashFrontImage: () => string;
   setFlashFrontImage: (v: string) => void;
   flashBackImage: () => string;
@@ -33,12 +37,19 @@ export interface FlashDeps {
   sourceSections?: Section[];
   project: () => { slug: string; config: { new_per_session: number } } | null;
   guard: Guard;
+  timer: { start: () => void; stop: () => number; reset: () => void };
   cramMode: () => boolean;
   cramMarkSeen: (id: string) => void;
   cramPickNext: () => Promise<void>;
   cramRate: (cardId: string, rating: number) => void;
   refreshDue: () => Promise<void>;
   api: ProjectApi;
+}
+
+interface FlashHistoryEntry {
+  cardId: string;
+  flipped: boolean;
+  rated: boolean;
 }
 
 export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
@@ -56,22 +67,102 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
     return (findOwnerSection(allSections, cardId) ?? d.section).id;
   }
 
-  function setFlashError(msg = 'Card data mismatch') {
-    batch(() => { s.setFlashCardId(null); s.setFlashFront(msg); s.setFlashBack(''); s.setFlashFrontImage(''); s.setFlashBackImage(''); s.setFlashFlipped(false); });
+  let flashHistory: FlashHistoryEntry[] = [];
+  let flashHistPos = -1;
+  let reviewingFlashHistory = false;
+  const [historyPosition, setHistoryPosition] = createSignal<HistoryPosition>({
+    current: 0,
+    total: 0,
+    reviewing: false,
+    canGoBack: false,
+    canGoForward: false,
+  });
+
+  function updateHistoryPosition() {
+    const total = flashHistory.length;
+    setHistoryPosition({
+      current: total > 0 && flashHistPos >= 0 ? flashHistPos + 1 : 0,
+      total,
+      reviewing: reviewingFlashHistory,
+      canGoBack: total > 0 && flashHistPos > 0,
+      canGoForward: total > 0 && flashHistPos >= 0 && flashHistPos < total - 1,
+    });
   }
 
-  function applyFlashCard(cardId: string, resolved: { card: { front: string; back: string; frontImage?: string; backImage?: string } }) {
+  function pushFlashHistory(cardId: string) {
+    flashHistory = flashHistory.slice(0, flashHistPos + 1);
+    flashHistory.push({ cardId, flipped: false, rated: false });
+    flashHistPos = flashHistory.length - 1;
+    reviewingFlashHistory = false;
+    updateHistoryPosition();
+  }
+
+  function updateCurrentHistoryEntry(patch: Partial<FlashHistoryEntry>) {
+    const entry = flashHistory[flashHistPos];
+    if (!entry || entry.cardId !== s.flashCardId()) return;
+    Object.assign(entry, patch);
+    updateHistoryPosition();
+  }
+
+  function restoreFlashHistoryEntry(entry: FlashHistoryEntry) {
+    const resolved = resolve(entry.cardId);
+    if (!resolved) return;
+    applyFlashCard(entry.cardId, resolved, {
+      recordHistory: false,
+      flipped: entry.flipped,
+      reviewing: entry.rated,
+    });
+  }
+
+  function goBackHistory() {
+    if (d.guard.isActing()) return;
+    if (flashHistPos <= 0) return;
+    flashHistPos--;
+    reviewingFlashHistory = true;
+    updateHistoryPosition();
+    const entry = flashHistory[flashHistPos];
+    if (entry) restoreFlashHistoryEntry(entry);
+  }
+
+  function advanceHistory() {
+    if (d.guard.isActing()) return;
+    if (!reviewingFlashHistory || flashHistPos < 0 || flashHistPos >= flashHistory.length - 1) return;
+    flashHistPos++;
+    const entry = flashHistory[flashHistPos];
+    if (!entry) return;
+    reviewingFlashHistory = entry.rated;
+    updateHistoryPosition();
+    restoreFlashHistoryEntry(entry);
+  }
+
+  function resetHistory() {
+    flashHistory = [];
+    flashHistPos = -1;
+    reviewingFlashHistory = false;
+    updateHistoryPosition();
+  }
+
+  function setFlashError(msg = 'Card data mismatch') {
+    d.timer.reset();
+    batch(() => { s.setFlashCardId(null); s.setFlashFront(msg); s.setFlashBack(''); s.setFlashTitle(''); s.setFlashFrontImage(''); s.setFlashBackImage(''); s.setFlashFlipped(false); });
+  }
+
+  function applyFlashCard(cardId: string, resolved: { card: Flashcard }, opts: { recordHistory?: boolean; flipped?: boolean; reviewing?: boolean } = {}) {
     const defFirst = s.flashDefFirst();
     batch(() => {
       s.setFlashCardId(cardId);
       s.setFlashFront(defFirst ? resolved.card.back : resolved.card.front);
       s.setFlashBack(defFirst ? resolved.card.front : resolved.card.back);
+      s.setFlashTitle(flashIdentityTitle(resolved.card, allFlashcards));
       s.setFlashFrontImage(defFirst ? resolved.card.backImage ?? '' : resolved.card.frontImage ?? '');
       s.setFlashBackImage(defFirst ? resolved.card.frontImage ?? '' : resolved.card.backImage ?? '');
-      s.setFlashFlipped(false);
+      s.setFlashFlipped(opts.flipped ?? false);
       s.setRatingLabels({});
-      s.setState('answering');
+      s.setState(opts.reviewing ? 'reviewing-history' : 'answering');
     });
+    if (opts.reviewing) d.timer.reset();
+    else d.timer.start();
+    if (opts.recordHistory !== false) pushFlashHistory(cardId);
     setQuestionContext([resolved.card.front, resolved.card.back].join(' '));
   }
 
@@ -84,10 +175,12 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
     if (!s.state()) return; // component unmounted
 
     if (!result.cardId) {
+      d.timer.reset();
       batch(() => {
         s.setFlashCardId(null);
         s.setFlashFront('');
         s.setFlashBack('');
+        s.setFlashTitle('');
         s.setFlashFrontImage('');
         s.setFlashBackImage('');
         s.setFlashFlipped(false);
@@ -110,7 +203,18 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
   function flipFlash() {
     if (d.guard.isActing()) return;
     const flipped = !s.flashFlipped();
+    const reviewing = s.state() === 'reviewing-history';
     s.setFlashFlipped(flipped);
+    updateCurrentHistoryEntry({ flipped });
+    if (!reviewing) {
+      if (flipped) {
+        d.timer.stop();
+        s.setState('revealed');
+      } else {
+        s.setState('answering');
+        d.timer.start();
+      }
+    }
     const cId = s.flashCardId();
     if (flipped && cId) {
       const captured = cId;
@@ -124,7 +228,10 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
     const fId = s.flashCardId();
     const p = d.project();
     if (!fId || !p) return;
+    if (s.state() === 'reviewing-history') return;
     await d.guard.withActing(async () => {
+      d.timer.stop();
+      updateCurrentHistoryEntry({ flipped: s.flashFlipped(), rated: true });
       if (d.cramMode()) {
         d.cramRate(fId, rating);
         await d.cramPickNext();
@@ -152,10 +259,14 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
   }
 
   return {
+    historyPosition,
     applyFlashCard,
     pickNextFlash,
     flipFlash,
     rateFlash: rateFlashAction,
     shuffleFlash: shuffleFlashAction,
+    goBackHistory,
+    advanceHistory,
+    resetHistory,
   };
 }
