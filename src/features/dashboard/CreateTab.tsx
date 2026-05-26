@@ -1,4 +1,4 @@
-import { createSignal } from 'solid-js';
+import { createSignal, onCleanup, onMount } from 'solid-js';
 import { createHoverMenu } from './createHoverMenu.ts';
 import { ProjectBrowserModal } from './ProjectBrowserModal.tsx';
 import { ProjectFilePickerModal } from './ProjectFilePickerModal.tsx';
@@ -18,8 +18,23 @@ export function CreateTab() {
   const [apiKey, setApiKey] = createSignal(getGeminiKey() ?? '');
 
   function openFlow(id: string) {
-    menu.closeAll();
+    closeMenus();
     setActiveFlow(flowConfigs[id] ?? null);
+  }
+
+  function closeMenus() {
+    menu.closeAll();
+  }
+
+  function openTopMenu(key: string, e: MouseEvent) {
+    e.stopPropagation();
+    menu.closeAll();
+    menu.enter(key);
+  }
+
+  function openSubMenu(key: string, e: MouseEvent | PointerEvent) {
+    if ((e.target as Element).closest('.db-submenu-l2')) return;
+    menu.enter(key);
   }
 
   function handleKeyChange(e: Event) {
@@ -27,6 +42,15 @@ export function CreateTab() {
     setApiKey(val);
     setGeminiKey(val);
   }
+
+  onMount(() => {
+    const closeOnOutsidePointer = (e: PointerEvent) => {
+      if ((e.target as Element | null)?.closest('.db-create')) return;
+      closeMenus();
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer);
+    onCleanup(() => document.removeEventListener('pointerdown', closeOnOutsidePointer));
+  });
 
   return (
     <div class="db-create" onMouseLeave={() => menu.closeAll()}>
@@ -37,18 +61,20 @@ export function CreateTab() {
           onMouseEnter={() => menu.enter('import')}
           onMouseLeave={() => menu.leave('import')}
         >
-          <span class="db-create-item-label">Import</span>
-          <span class="db-create-item-sub">Decks & files</span>
+          <button type="button" class="db-create-item-trigger" onClick={(e) => openTopMenu('import', e)}>
+            <span class="db-create-item-label">Import</span>
+            <span class="db-create-item-sub">Decks & files</span>
+          </button>
           <div class={`db-submenu ${menu.isOpen('import') ? 'db-submenu--open' : ''}`}>
-            <button type="button" class="db-submenu-action" onClick={() => { setBrowserOpen(true); menu.closeAll(); }}>
+            <button type="button" class="db-submenu-action" onClick={() => { setBrowserOpen(true); closeMenus(); }}>
               <span>Browse Decks</span>
               <span class="db-submenu-action-sub">Select from your deck library</span>
             </button>
-            <button type="button" class="db-submenu-action" onClick={() => { menu.closeAll(); setFilePickerOpen(true); }}>
+            <button type="button" class="db-submenu-action" onClick={() => { closeMenus(); setFilePickerOpen(true); }}>
               <span>Open File (.json)</span>
               <span class="db-submenu-action-sub">Import a project file</span>
             </button>
-            <button type="button" class="db-submenu-action" onClick={() => { setSourceOpen(true); menu.closeAll(); }}>
+            <button type="button" class="db-submenu-action" onClick={() => { setSourceOpen(true); closeMenus(); }}>
               <span>Source Material</span>
               <span class="db-submenu-action-sub">Paste text to generate cards</span>
             </button>
@@ -61,14 +87,16 @@ export function CreateTab() {
           onMouseEnter={() => menu.enter('manual')}
           onMouseLeave={() => menu.leave('manual')}
         >
-          <span class="db-create-item-label">Manual</span>
-          <span class="db-create-item-sub">Your own cards</span>
+          <button type="button" class="db-create-item-trigger" onClick={(e) => openTopMenu('manual', e)}>
+            <span class="db-create-item-label">Manual</span>
+            <span class="db-create-item-sub">Your own cards</span>
+          </button>
           <div class={`db-submenu ${menu.isOpen('manual') ? 'db-submenu--open' : ''}`}>
-            <button type="button" class="db-submenu-action" onClick={() => { setDiyOpen(true); menu.closeAll(); }}>
+            <button type="button" class="db-submenu-action" onClick={() => { setDiyOpen(true); closeMenus(); }}>
               <span>DIY Flashcards</span>
               <span class="db-submenu-action-sub">Create front/back card pairs</span>
             </button>
-            <button type="button" class="db-submenu-action" onClick={() => { fetch('/__open-folder?path=GENERATING_PROJECTS.md').catch(() => {}); menu.closeAll(); }}>
+            <button type="button" class="db-submenu-action" onClick={() => { fetch('/__open-folder?path=GENERATING_PROJECTS.md').catch(() => {}); closeMenus(); }}>
               <span>LLM Prompt Guide</span>
               <span class="db-submenu-action-sub">Open GENERATING_PROJECTS.md</span>
             </button>
@@ -81,13 +109,17 @@ export function CreateTab() {
           onMouseEnter={() => menu.enter('ai')}
           onMouseLeave={() => menu.leave('ai')}
         >
-          <span class="db-create-item-label">AI-Powered</span>
-          <span class="db-create-item-sub">Gemini-generated</span>
+          <button type="button" class="db-create-item-trigger" onClick={(e) => openTopMenu('ai', e)}>
+            <span class="db-create-item-label">AI-Powered</span>
+            <span class="db-create-item-sub">Gemini-generated</span>
+          </button>
           <div class={`db-submenu ${menu.isOpen('ai') ? 'db-submenu--open' : ''}`}>
             <div
               class="db-submenu-group"
               onMouseEnter={() => menu.enter('ai-lang')}
               onMouseLeave={() => menu.leave('ai-lang')}
+              onPointerDown={(e) => openSubMenu('ai-lang', e)}
+              onClick={(e) => openSubMenu('ai-lang', e)}
             >
               <span class="db-submenu-item-label">Language</span>
               <span class="db-submenu-item-sub">E.g., Spanish</span>
@@ -110,6 +142,8 @@ export function CreateTab() {
               class="db-submenu-group"
               onMouseEnter={() => menu.enter('ai-acad')}
               onMouseLeave={() => menu.leave('ai-acad')}
+              onPointerDown={(e) => openSubMenu('ai-acad', e)}
+              onClick={(e) => openSubMenu('ai-acad', e)}
             >
               <span class="db-submenu-item-label">Academic</span>
               <span class="db-submenu-item-sub">E.g., Physics</span>

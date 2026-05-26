@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from 'solid-js';
+import { createSignal, onCleanup, onMount } from 'solid-js';
 import { createHoverMenu } from './createHoverMenu.ts';
 import type { FSRSDefaults } from '../../core/store/config.ts';
 
@@ -15,6 +15,16 @@ export function ParametersTab(props: ParametersTabProps) {
   const [maxInterval, setMaxInterval] = createSignal(props.defaults.max_interval);
   const [saved, setSaved] = createSignal(false);
 
+  function closeMenus() {
+    menu.closeAll();
+  }
+
+  function openTopMenu(key: string, e: MouseEvent) {
+    e.stopPropagation();
+    menu.closeAll();
+    menu.enter(key);
+  }
+
   function handleSave() {
     props.onSaveDefaults({
       desired_retention: retention(),
@@ -26,8 +36,17 @@ export function ParametersTab(props: ParametersTabProps) {
     setTimeout(() => setSaved(false), 2000);
   }
 
+  onMount(() => {
+    const closeOnOutsidePointer = (e: PointerEvent) => {
+      if ((e.target as Element | null)?.closest('.db-create')) return;
+      closeMenus();
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer);
+    onCleanup(() => document.removeEventListener('pointerdown', closeOnOutsidePointer));
+  });
+
   return (
-    <div class="db-create" onMouseLeave={() => menu.closeAll()}>
+    <div class="db-create" onMouseLeave={closeMenus}>
       <div class="db-create-menu">
 
         {/* FSRS Defaults */}
@@ -36,8 +55,10 @@ export function ParametersTab(props: ParametersTabProps) {
           onMouseEnter={() => menu.enter('fsrs')}
           onMouseLeave={() => menu.leave('fsrs')}
         >
-          <span class="db-create-item-label">FSRS Defaults</span>
-          <span class="db-create-item-sub">Retention & limits</span>
+          <button type="button" class="db-create-item-trigger" onClick={(e) => openTopMenu('fsrs', e)}>
+            <span class="db-create-item-label">FSRS Defaults</span>
+            <span class="db-create-item-sub">Retention & limits</span>
+          </button>
           <div class={`db-submenu db-submenu-wide ${menu.isOpen('fsrs') ? 'db-submenu--open' : ''}`}>
             <div class="db-params-form">
               <label class="db-params-field">
@@ -83,8 +104,10 @@ export function ParametersTab(props: ParametersTabProps) {
           onMouseEnter={() => menu.enter('tips')}
           onMouseLeave={() => menu.leave('tips')}
         >
-          <span class="db-create-item-label">Tips</span>
-          <span class="db-create-item-sub">Deck generation</span>
+          <button type="button" class="db-create-item-trigger" onClick={(e) => openTopMenu('tips', e)}>
+            <span class="db-create-item-label">Tips</span>
+            <span class="db-create-item-sub">Deck generation</span>
+          </button>
           <div class={`db-submenu db-submenu-wide ${menu.isOpen('tips') ? 'db-submenu--open' : ''}`}>
             <div class="db-params-dropdown-body db-params-tips">
               <p>Paste <button type="button" class="db-tips-open-btn" title="Open in explorer" onClick={() => fetch('/__open-folder?path=GENERATING_PROJECTS.md').catch(() => {})}>GENERATING_PROJECTS.md</button> into any LLM with your source material. It will generate a JSON you can import directly.</p>

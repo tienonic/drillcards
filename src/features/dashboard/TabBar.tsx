@@ -14,6 +14,8 @@ export function TabBar() {
         <button
           type="button"
           class={`db-tab ${dashboardTab() === t.id ? 'db-tab--active' : ''}`}
+          onClick={() => setDashboardTab(t.id)}
+          onFocus={() => setDashboardTab(t.id)}
           onMouseEnter={() => setDashboardTab(t.id)}
         >
           {t.label}

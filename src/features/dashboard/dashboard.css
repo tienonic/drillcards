@@ -555,6 +555,19 @@
   cursor: default;
 }
 
+.db-create-item-trigger {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 .db-create-item--clickable {
   cursor: pointer;
   border-radius: 6px;
@@ -610,6 +623,44 @@
 
 .db-submenu-l2.db-submenu--open {
   transform: translateX(4px) scale(1);
+}
+
+@media (max-width: 900px), (hover: none) {
+  .db-create-item:first-child > .db-submenu {
+    left: 0;
+    transform: scale(0.97);
+    transform-origin: top left;
+  }
+
+  .db-create-item:first-child > .db-submenu.db-submenu--open {
+    transform: scale(1);
+  }
+
+  .db-create-item:last-child > .db-submenu {
+    left: auto;
+    right: 0;
+    transform: scale(0.97);
+    transform-origin: top right;
+  }
+
+  .db-create-item:last-child > .db-submenu.db-submenu--open {
+    transform: scale(1);
+  }
+
+  .db-submenu-l2 {
+    position: static;
+    display: none;
+    min-width: 0;
+    width: 100%;
+    margin-top: 0.35rem;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .db-submenu-l2.db-submenu--open {
+    display: block;
+    transform: none;
+  }
 }
 
 .db-submenu-group {
