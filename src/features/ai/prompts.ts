@@ -1,6 +1,6 @@
 import type { PerformanceSummary, GeneratedQuestion } from './types.ts';
 import type { Section } from '../../projects/types.ts';
-import { ANSWER_BALANCE_INSTRUCTIONS, parseGeneratedMcqCards } from './questionQuality.ts';
+import { ANSWER_BALANCE_INSTRUCTIONS, SOURCE_COVERAGE_INSTRUCTIONS, parseGeneratedMcqCards } from './questionQuality.ts';
 
 const INSIGHTS_SYSTEM = `You are a spaced-repetition study coach analyzing FSRS data. Cover:
 1. Overall summary (1-2 sentences)
@@ -14,6 +14,7 @@ Be direct, under 600 words. Use markdown headers and bullet points.`;
 const GENERATE_SYSTEM = `Output ONLY a JSON array. Each element: { "q": "question text", "correct": "correct answer", "wrong": ["wrong1", "wrong2", "wrong3"], "explanation": "brief explanation" }.
 Questions test recall not recognition. Wrong answers must be plausible. Vary types: definition, application, comparison, cause/effect. Explanations under 60 words. Generate exactly the number requested.
 For art history slide/image ID material, include the work's style, movement, or culture in the tested fact or explanation when the source provides it. Do not leave style implicit.
+${SOURCE_COVERAGE_INSTRUCTIONS}
 ${ANSWER_BALANCE_INSTRUCTIONS}`;
 
 const TARGETED_SYSTEM = `Output ONLY a JSON array. Each element: { "q": "question text", "correct": "correct answer", "wrong": ["wrong1", "wrong2", "wrong3"], "explanation": "brief explanation" }.

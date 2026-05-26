@@ -1,4 +1,4 @@
-import { ANSWER_BALANCE_INSTRUCTIONS } from '../ai/questionQuality.ts';
+import { ANSWER_BALANCE_INSTRUCTIONS, SOURCE_COVERAGE_INSTRUCTIONS } from '../ai/questionQuality.ts';
 
 export interface FlowConfig {
   id: string;
@@ -53,4 +53,5 @@ export const flowConfigs: Record<string, FlowConfig> = {
 export const SOURCE_SYSTEM = `You generate flashcard questions from source material. Output ONLY a JSON array. Each element: { "q": "question text", "correct": "correct answer", "wrong": ["wrong1", "wrong2", "wrong3"], "explanation": "brief explanation" }.
 Extract the most important concepts and test understanding, not just surface recall. Wrong answers must be plausible. Explanations under 60 words.
 For art history slide/image ID material, include the work's style, movement, or culture in the tested fact or explanation when the source provides it. Do not leave style implicit.
+${SOURCE_COVERAGE_INSTRUCTIONS}
 ${ANSWER_BALANCE_INSTRUCTIONS}`;

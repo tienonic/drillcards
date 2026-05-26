@@ -15,6 +15,14 @@ export const ANSWER_BALANCE_INSTRUCTIONS = `Anti-guessing requirements:
 - Put teaching detail in the explanation, not in the answer option.
 - Before returning JSON, rewrite any question a test-taker could answer by picking the longest or most specific option.`;
 
+export const SOURCE_COVERAGE_INSTRUCTIONS = `Source coverage requirements:
+- Use only the pasted source material and any topic or density constraints supplied in this prompt.
+- Do not invent around skipped, auth-blocked, unreadable, unconverted, or image-only material.
+- When the source names required sources, chapters, slides, images, objects, pages, timestamps, or coverage buckets, keep questions mapped to those source anchors when possible.
+- If in-scope material is named but missing or unreadable in the pasted text, surface it as a source gap instead of pretending coverage is complete.
+- Do not call a deck exam-ready or comprehensive unless the pasted source shows every in-scope item is covered or explicitly excluded.
+- For art history or visual material, every in-scope artwork, object, or image present in the pasted source should be tested, explicitly excluded, or surfaced as a source gap.`;
+
 const MAX_OPTION_LENGTH_SPREAD = 12;
 
 function visibleLength(text: string): number {

@@ -241,6 +241,15 @@ describe('buildGeneratePrompt', () => {
     expect(prompt).toContain('Photosynthesis info');
     expect(prompt).toContain('JSON array');
   });
+
+  it('includes source coverage guidance without requiring a manual agreement', () => {
+    const prompt = buildGeneratePrompt('Photosynthesis info\nMissing: lab handout unavailable', 5);
+    expect(prompt).toContain('Source coverage requirements');
+    expect(prompt).toContain('Use only the pasted source material');
+    expect(prompt).toContain('source gap');
+    expect(prompt).not.toContain('MISSING:');
+    expect(prompt).not.toContain('Ask for goal/event');
+  });
 });
 
 describe('buildTargetedPrompt', () => {
