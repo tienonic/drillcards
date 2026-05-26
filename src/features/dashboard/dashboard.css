@@ -12,6 +12,8 @@
 }
 
 .db-header {
+  width: 100%;
+  max-width: 48rem;
   text-align: center;
   margin-bottom: 1.5rem;
 }
@@ -35,12 +37,16 @@
 /* Tab bar */
 .db-tabs {
   display: flex;
+  flex-wrap: wrap;
+  width: 100%;
   gap: 0.5rem;
   justify-content: center;
+  max-width: 100%;
 }
 
 .db-tab {
   position: relative;
+  min-width: 0;
   padding: 0.5rem 1.5rem;
   font-family: inherit;
   font-size: 1.05rem;
@@ -94,6 +100,7 @@
   max-width: 48rem;
   padding: 0 1rem;
   min-height: 400px;
+  overflow-x: hidden;
 }
 
 .db-placeholder {
@@ -106,6 +113,7 @@
 /* === Review Tab === */
 .db-review-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.75rem;
@@ -118,7 +126,9 @@
 
 .db-review-header-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
+  justify-content: flex-end;
 }
 
 .db-review-browse {
@@ -1654,6 +1664,39 @@
 
 /* Responsive */
 @media (max-width: 600px) {
+  .db-root {
+    padding-inline: 0.75rem;
+  }
+
+  .db-header {
+    width: 100%;
+  }
+
+  .db-tabs {
+    width: 100%;
+    gap: 0;
+    justify-content: space-between;
+  }
+
+  .db-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.5rem 0.25rem;
+    font-size: clamp(0.9rem, 4vw, 1.05rem);
+  }
+
+  .db-content {
+    padding-inline: 0;
+  }
+
+  .db-review-header {
+    gap: 0.75rem;
+  }
+
+  .db-review-header-actions {
+    flex-shrink: 0;
+  }
+
   .sm-grid {
     grid-template-columns: 1fr;
   }

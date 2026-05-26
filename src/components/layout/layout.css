@@ -111,7 +111,8 @@
 main {
   max-width: 820px;
   margin: 0 auto;
-  padding: 15vh 16px 70px;
+  width: 100%;
+  padding: clamp(72px, 12vh, 132px) 16px 70px;
   font-family: var(--font-ui);
 }
 
