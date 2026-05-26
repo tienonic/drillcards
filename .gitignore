@@ -17,9 +17,13 @@ research/
 projects/*.json
 projects/*/
 projects/registry.js
+src/projects/generated/*.json
+src/projects/generated/*.source.txt
 public/*exam*/
 public/ahi001c-exam-2/
 exports/
+.browser-receipts/
+docs/goals/
 ai-bridge.json
 *.tsbuildinfo
 .cursorrules

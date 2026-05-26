@@ -70,6 +70,9 @@ Multiple sections create separate tabs in the UI, which gets crowded. Put all qu
 ```
 
 **Quality rules — follow these strictly:**
+- Before generating, write a short study agreement: goal/event, desired outcome, scope boundary, source universe, output contract, depth/time, and success proof.
+- Before generating, build a source ledger for every relevant source in the agreed boundary. Mark each source found/downloaded, converted to LLM-readable text, categorized, excluded by agreement, or inaccessible with a recovery path.
+- Do not create a deck from a partial source set unless missing/auth-blocked/unreadable sources are visible source gaps and the deck is labeled as downgraded/not fully exam-ready.
 - Every question MUST have exactly 3 wrong answers (4 total options)
 - Wrong answers must be plausible misconceptions, not obviously wrong
 - Normalize option character count and detail — keep the longest and shortest visible options within 12 characters, and the correct answer must not be the longest or most specific option
@@ -78,6 +81,7 @@ Multiple sections create separate tabs in the UI, which gets crowded. Put all qu
 - No absolutes ("always", "never") unless that's genuinely the answer
 - Every question must have an `explanation`
 - For art history slide/image IDs, style/movement/culture is required ID content: include it in feedback and in flashcard answers, not just in surrounding notes
+- For art history, every in-scope artwork/object/image from the source ledger must be covered, explicitly excluded, or listed as a source gap before the deck is called exam-ready.
 - Distribute the correct answer position randomly (don't always put it first)
 - One fact per flashcard — no lists or compound answers
 - Interleave topics within sections rather than clustering by subtopic
@@ -88,6 +92,9 @@ Multiple sections create separate tabs in the UI, which gets crowded. Put all qu
 
 **Source material:**
 [PASTE YOUR SOURCE MATERIAL HERE]
+
+**Study agreement and source ledger:**
+[PASTE THE AGREED CONSTRAINTS AND SOURCE LEDGER HERE. Do not generate from source material alone.]
 
 **What to generate:**
 - Project name: [YOUR PROJECT NAME]
@@ -586,6 +593,7 @@ When using an LLM to generate a project, a single prompt often produces adequate
 ### Pass 1: Generate
 
 Feed the source material verbatim — don't summarize it, as the LLM loses detail. Use the prompt template from the Quick Start section. Specify:
+- The study agreement and source ledger; the model must generate only inside that agreed boundary
 - Target number of questions per section (generate 2-3x your target, you'll filter later)
 - Bloom's level distribution: "30% understand, 40% apply, 30% analyze"
 - Require source citations in explanations when based on specific facts
@@ -603,6 +611,8 @@ For each question, check:
 4. Does the explanation add value beyond restating the answer?
 5. Is this a "remember" question that could be upgraded to "apply" or "analyze"?
 6. Could the question be answered without knowing the material (e.g., by eliminating obviously wrong options)?
+7. Does every item map to the study agreement, source ledger, and coverage matrix?
+8. Are any relevant sources, PDFs, slides, images, chapters, pages, timestamps, or lecture objects skipped without a source-gap note?
 
 List every issue found. Do not output corrected JSON yet.
 ```
@@ -618,6 +628,7 @@ Fix every issue identified in the review. Also:
 - Add flashcards for any concept that appears in questions but not in the flashcard deck
 - Add glossary entries for any technical term used in questions
 - For art history slide/image IDs, make sure every visual object has explicit style/movement/culture coverage
+- Add or preserve a source-gap note for every relevant item that was inaccessible, unreadable, auth-blocked, or not converted
 
 Output the complete corrected JSON.
 ```

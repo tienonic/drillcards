@@ -39,11 +39,28 @@ vi.mock('../../core/store/config.ts', () => ({
   }),
 }));
 
+vi.mock('../../projects/registry.ts', () => ({
+  projectRegistry: [{
+    name: 'Registry Project',
+    slug: 'registry-project',
+    folder: '',
+    loader: vi.fn().mockResolvedValue({
+      name: 'Registry Project',
+      sections: [{
+        id: 'sec1',
+        name: 'Section 1',
+        type: 'mc-quiz',
+        questions: [{ q: 'Q1?', correct: 'A', wrong: ['B', 'C', 'D'] }],
+      }],
+    }),
+  }],
+}));
+
 vi.mock('../quiz/helpers.ts', () => ({
   sectionToCardType: vi.fn().mockReturnValue('mcq'),
 }));
 
-import { openProject, isLoading, loadError, getProjectConfig } from './store.ts';
+import { openProject, openStartupProject, isLoading, loadError, getProjectConfig } from './store.ts';
 import { appPhase, activeProject, activeTab } from '../../core/store/app.ts';
 import { initWorker, workerApi } from '../../core/hooks/useWorker.ts';
 import { fetchAutosave, restoreBackup } from '../backup/backup.ts';
@@ -63,6 +80,9 @@ const minimalProject: ProjectData = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+  vi.mocked(initWorker).mockResolvedValue(undefined);
   // Reset getDeckStats to non-empty (no auto-restore by default)
   vi.mocked(workerApi.getDeckStats).mockResolvedValue({ new: 5, learning: 0, due: 0 });
   vi.mocked(fetchAutosave).mockResolvedValue(null);
@@ -167,6 +187,28 @@ describe('openProject', () => {
       try { saved = localStorage.getItem('proj-data-test-project'); } catch {}
       expect(saved).toBeNull();
       expect(activeProject()?.name).toBe('Test Project');
+
+      dispose();
+    });
+  });
+
+  it('single-deck startup opens the registry deck without probing local project files', async () => {
+    vi.stubEnv('VITE_STUDY_SINGLE_DECK', '1');
+    const fetchMock = vi.fn().mockRejectedValue(new Error('local project file probe should be skipped'));
+    vi.stubGlobal('fetch', fetchMock);
+    try { localStorage.setItem('last-project', 'stale-local-deck'); } catch {}
+
+    await createRoot(async (dispose) => {
+      await openStartupProject();
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(loadError()).toBeNull();
+      expect(activeProject()?.name).toBe('Registry Project');
+      expect(workerApi.loadProject).toHaveBeenCalledWith(
+        'registry-project',
+        ['sec1'],
+        expect.arrayContaining([expect.objectContaining({ sectionId: 'sec1', cardId: 'sec1-0', cardType: 'mcq' })]),
+      );
 
       dispose();
     });

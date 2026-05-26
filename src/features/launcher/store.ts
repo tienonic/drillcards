@@ -290,6 +290,12 @@ export function openRecentProject(slug: string) {
 }
 
 export async function openStartupProject() {
+  if (import.meta.env.VITE_STUDY_SINGLE_DECK === '1') {
+    const fallback = projectRegistry[0];
+    if (fallback) await openRegistryProject(fallback.slug);
+    return;
+  }
+
   const last = getLastProject();
   if (last && await openRecentProjectAsync(last, true)) return;
 
