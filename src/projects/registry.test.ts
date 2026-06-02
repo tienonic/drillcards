@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildProjectRegistry, selectGeneratedProject } from './registry.ts';
+import { buildProjectRegistry, parseLocalProjectBindings, selectGeneratedProject } from './registry.ts';
 import type { ProjectData } from './types.ts';
 
 function projectData(name: string): ProjectData {
@@ -58,5 +58,39 @@ describe('buildProjectRegistry', () => {
     expect(registry).toHaveLength(1);
     expect(registry[0].name).toBe('Example Art History Drill');
     await expect(registry[0].loader()).resolves.toMatchObject({ name: 'Example Art History Drill' });
+  });
+
+  it('can add local project bindings to the normal app registry', () => {
+    const registry = buildProjectRegistry(undefined, false, [
+      { name: 'Local Practice Deck', file: 'local-practice.json' },
+      { name: 'Local Review Deck', file: 'local-review.json' },
+    ]);
+
+    expect(registry.map(entry => entry.name)).toEqual([
+      'Local Practice Deck',
+      'Local Review Deck',
+      'Example Art History Drill',
+    ]);
+    expect(registry.map(entry => entry.slug)).toEqual([
+      'local-practice-deck',
+      'local-review-deck',
+      'example-art-history-drill',
+    ]);
+    expect(registry.every(entry => entry.folder === '')).toBe(true);
+  });
+});
+
+describe('parseLocalProjectBindings', () => {
+  it('parses semicolon-delimited local project bindings', () => {
+    expect(parseLocalProjectBindings('Local Practice|local-practice.json;Local Review|local-review.json')).toEqual([
+      { name: 'Local Practice', file: 'local-practice.json' },
+      { name: 'Local Review', file: 'local-review.json' },
+    ]);
+  });
+
+  it('drops invalid local project file names', () => {
+    expect(parseLocalProjectBindings('Good Deck|good.json;Bad Path|../bad.json;Bad Type|bad.txt')).toEqual([
+      { name: 'Good Deck', file: 'good.json' },
+    ]);
   });
 });

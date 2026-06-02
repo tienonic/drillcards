@@ -15,11 +15,13 @@ Thumbs.db
 research/
 # Local/private study decks and generated course assets.
 projects/*.json
+projects/*.json.*.bak
 projects/*/
 projects/registry.js
 src/projects/generated/*.json
 src/projects/generated/*.source.txt
 public/*exam*/
+public/*final*/
 public/ahi001c-exam-2/
 exports/
 .browser-receipts/
