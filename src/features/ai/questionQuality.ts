@@ -1,4 +1,5 @@
 import { normalizeProjectText } from '../../projects/textNormalization.ts';
+import { cleanAnswerLabel, cleanExplanation, cleanQuestionPrompt } from '../../projects/studyCopy.ts';
 
 export interface GeneratedMcqCard {
   q: string;
@@ -72,12 +73,12 @@ function normalizeCard(item: Record<string, unknown>): GeneratedMcqCard | null {
     return null;
   }
 
-  return {
-    q: item.q,
-    correct: item.correct,
-    wrong: item.wrong.slice(0, 3).map(String),
-    explanation: item.explanation ? String(item.explanation) : undefined,
-  };
+  const question = cleanQuestionPrompt(item.q) ?? item.q;
+  const correct = cleanAnswerLabel(item.correct) ?? item.correct;
+  const wrong = item.wrong.slice(0, 3).map((wrong: string) => cleanAnswerLabel(wrong) ?? wrong);
+  const explanation = item.explanation ? cleanExplanation(String(item.explanation)) : undefined;
+
+  return { q: question, correct, wrong, explanation };
 }
 
 function extractJsonArray(raw: string): unknown[] | null {

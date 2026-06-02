@@ -6,6 +6,7 @@ import { AddNewCards } from './McqCard.tsx';
 import { imgSrc } from '../../utils/imgSrc.ts';
 import { stripDuplicateFlashTitle } from './flashIdentity.ts';
 import { getLabel } from '../settings/keybinds.ts';
+import { cleanFlashBack, cleanFlashFront } from '../../projects/studyCopy.ts';
 
 const RATING_CSS: Record<number, string> = { 1: 'rating-again', 2: 'rating-hard', 3: 'rating-good', 4: 'rating-easy' };
 const RATING_NAMES: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
@@ -14,7 +15,9 @@ export function FlashcardArea(props: { session: FlashView }) {
   const s = props.session;
   const answerImage = () => s.flashBackImage() || s.flashFrontImage();
   const expandedBack = () => s.flashFlipped() && !!answerImage();
-  const backBody = () => stripDuplicateFlashTitle(s.flashBack(), s.flashTitle());
+  const front = () => cleanFlashFront(s.flashFront());
+  const title = () => cleanFlashFront(s.flashTitle());
+  const backBody = () => cleanFlashBack(stripDuplicateFlashTitle(s.flashBack(), s.flashTitle()));
   const reviewingHistory = () => s.state() === 'reviewing-history';
 
   return (
@@ -24,14 +27,14 @@ export function FlashcardArea(props: { session: FlashView }) {
           <div class={`flashcard ${s.flashFlipped() ? 'flipped' : ''}${expandedBack() ? ' has-image' : ''}`}>
             <Show when={!s.flashFlipped()} fallback={
               <div class="flashcard-face flashcard-back">
-                <Show when={s.flashTitle()}><div class="flashcard-title"><LatexHtml html={s.flashTitle()} /></div></Show>
+                <Show when={title()}><div class="flashcard-title"><LatexHtml html={title() ?? ''} /></div></Show>
                 <Show when={answerImage()}>{(image) => <img src={imgSrc(image())} alt="" class="flashcard-image" loading="lazy" crossorigin="anonymous" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}</Show>
-                <Show when={backBody()}><div class="flashcard-copy"><LatexHtml html={backBody()} /></div></Show>
+                <Show when={backBody()}><div class="flashcard-copy"><LatexHtml html={backBody() ?? ''} /></div></Show>
               </div>
             }>
               <div class="flashcard-face flashcard-front">
                 <Show when={s.flashFrontImage()}><img src={imgSrc(s.flashFrontImage())} alt="" class="flashcard-image" loading="lazy" crossorigin="anonymous" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></Show>
-                <Show when={s.flashFront()}><div class="flashcard-copy"><LatexHtml html={s.flashFront()} /></div></Show>
+                <Show when={front()}><div class="flashcard-copy"><LatexHtml html={front() ?? ''} /></div></Show>
               </div>
             </Show>
           </div>

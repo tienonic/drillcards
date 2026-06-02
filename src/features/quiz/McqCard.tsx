@@ -5,6 +5,7 @@ import { getLabel } from '../settings/keybinds.ts';
 import { LatexText } from '../../components/LatexText.tsx';
 import { imgSrc } from '../../utils/imgSrc.ts';
 import { handleMcqOptionClick } from './mcqOptionClick.ts';
+import { cleanAnswerLabel, cleanExplanation, cleanPassageHtml, cleanQuestionPrompt } from '../../projects/studyCopy.ts';
 
 const RATING_CSS: Record<number, string> = { 1: 'rating-again', 2: 'rating-hard', 3: 'rating-good', 4: 'rating-easy' };
 const RATING_NAMES: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
@@ -41,8 +42,10 @@ export function McqCard(props: { session: McqView; isPassage?: boolean }) {
   function feedbackFor(opt: string) {
     const st = s.state(); const q = s.question();
     if (st === 'answering' || st === 'idle' || !q) return null;
-    if (s.skipped() && opt === q.correct) return { text: q.correct, cls: 'option-feedback skip-fb', explanation: q.explanation };
-    if (opt === s.selected()) return s.isCorrect() ? { text: q.correct, cls: 'option-feedback correct-fb', explanation: q.explanation } : { text: q.correct, cls: 'option-feedback wrong-fb', explanation: q.explanation };
+    const text = cleanAnswerLabel(q.correct) ?? q.correct;
+    const explanation = cleanExplanation(q.explanation);
+    if (s.skipped() && opt === q.correct) return { text, cls: 'option-feedback skip-fb', explanation };
+    if (opt === s.selected()) return s.isCorrect() ? { text, cls: 'option-feedback correct-fb', explanation } : { text, cls: 'option-feedback wrong-fb', explanation };
     return null;
   }
 
@@ -54,10 +57,10 @@ export function McqCard(props: { session: McqView; isPassage?: boolean }) {
       <Show when={s.isCorrect() && (s.state() === 'revealed' || (s.state() === 'rated' && !s.cramMode()))}>
         <button type="button" class="card-flag-btn" title="Mark as wrong for extra practice" onClick={() => s.flagWrong().catch(() => {})}>&times;</button>
       </Show>
-      <Show when={props.isPassage && s.passage()}><div class="passage" innerHTML={s.passage()} /></Show>
+      <Show when={props.isPassage ? cleanPassageHtml(s.passage()) : undefined}>{(passage) => <div class="passage" innerHTML={passage()} />}</Show>
       <Show when={s.question()}>{(q) => <>
         <Show when={q().image}><img src={imgSrc(q().image)} alt="" class="card-image" loading="lazy" crossorigin="anonymous" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></Show>
-        <div class="question-header"><LatexText text={q().q} class="question-text" /></div>
+        <div class="question-header"><LatexText text={cleanQuestionPrompt(q().q) ?? q().q} class="question-text" /></div>
       </>}</Show>
 
       <div class="options">
@@ -66,7 +69,7 @@ export function McqCard(props: { session: McqView; isPassage?: boolean }) {
             const fb = () => feedbackFor(opt);
             return (
               <div class="option-wrapper">
-                <button type="button" class={optionClass(opt)} onClick={() => handleMcqOptionClick(s, opt)}><LatexText text={opt} /></button>
+                <button type="button" class={optionClass(opt)} onClick={() => handleMcqOptionClick(s, opt)}><LatexText text={cleanAnswerLabel(opt) ?? opt} /></button>
                 <Show when={fb()}>
                   {(fbd) => <div class={fbd().cls}><Show when={fbd().text}><LatexText text={fbd().text} /></Show><Show when={fbd().explanation}><LatexText text={fbd().explanation} class="explanation" /></Show></div>}
                 </Show>

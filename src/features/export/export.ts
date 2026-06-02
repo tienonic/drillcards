@@ -1,5 +1,6 @@
 import { workerApi } from '../../core/hooks/useWorker.ts';
 import type { Project, Section, Question } from '../../projects/types.ts';
+import { cleanAnswerLabel, cleanFlashBack, cleanFlashFront, cleanQuestionPrompt } from '../../projects/studyCopy.ts';
 
 interface ReviewLogEntry {
   id: string;
@@ -35,8 +36,8 @@ function enrichEntry(entry: ReviewLogEntry, sectionMap: Map<string, Section>): E
       const idx = parseInt(id.slice(prefix.length + 'flash-'.length), 10);
       const fc = section.flashcards?.[idx];
       if (fc) {
-        question = fc.front;
-        correctAnswer = fc.back;
+        question = cleanFlashFront(fc.front) ?? fc.front;
+        correctAnswer = cleanFlashBack(fc.back) ?? fc.back;
       }
     } else if (section.type === 'passage-quiz' && section.scenarios) {
       cardType = 'passage';
@@ -47,16 +48,16 @@ function enrichEntry(entry: ReviewLogEntry, sectionMap: Map<string, Section>): E
         const questionIdx = parseInt(parts[1], 10);
         const q = section.scenarios[scenarioIdx]?.questions[questionIdx];
         if (q) {
-          question = q.q;
-          correctAnswer = q.correct;
+          question = cleanQuestionPrompt(q.q) ?? q.q;
+          correctAnswer = cleanAnswerLabel(q.correct) ?? q.correct;
         }
       }
     } else if (section.type === 'mc-quiz' && section.questions) {
       const idx = parseInt(id.slice(prefix.length), 10);
       const q: Question | undefined = section.questions[idx];
       if (q) {
-        question = q.q;
-        correctAnswer = q.correct;
+        question = cleanQuestionPrompt(q.q) ?? q.q;
+        correctAnswer = cleanAnswerLabel(q.correct) ?? q.correct;
       }
     }
   }

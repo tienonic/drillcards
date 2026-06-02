@@ -16,6 +16,26 @@ describe('generated MCQ quality checks', () => {
     expect(parseGeneratedMcqCards(raw)).toHaveLength(1);
   });
 
+  it('cleans generated source and final-deck boilerplate before insertion', () => {
+    const raw = JSON.stringify([
+      {
+        q: 'Which ABT 150 final concept fits this clue: One standard-size drink raises BAC by a predictable amount.',
+        correct: 'Final guide: Drink size',
+        wrong: ['Final guide: BAC chart', 'Final guide: Body water', 'Final guide: Food delay'],
+        explanation: 'Source-backed clue from ABT_FINAL_004.',
+      },
+    ]);
+
+    expect(parseGeneratedMcqCards(raw)).toEqual([
+      {
+        q: 'One standard-size drink raises BAC by a predictable amount.',
+        correct: 'Drink size',
+        wrong: ['BAC chart', 'Body water', 'Food delay'],
+        explanation: undefined,
+      },
+    ]);
+  });
+
   it('rejects questions where the correct answer is clearly the long giveaway', () => {
     const question = {
       q: 'Which term fits this context?',
