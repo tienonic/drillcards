@@ -45,9 +45,15 @@ export function FlashcardArea(props: { session: FlashView }) {
           <div class="key-hints">History {s.historyPosition().current}/{s.historyPosition().total} — <kbd>{getLabel('goBack')}</kbd>/<kbd>&larr;</kbd> back, <kbd>{getLabel('forward')}</kbd>/<kbd>&rarr;</kbd> forward</div>
         </Show>
 
+        <Show when={s.flashCardId() && !reviewingHistory()}>
+          <div class="mobile-flash-controller">
+            <button type="button" class="mobile-flip-btn" onClick={(e) => { e.stopPropagation(); s.flipFlash(); }}>{s.flashFlipped() ? 'Flip Back' : 'Flip'}</button>
+          </div>
+        </Show>
+
         <Show when={s.flashFlipped() && s.flashCardId() && !reviewingHistory()}>
           <Show when={easyMode()}>
-            <div class="flash-rating-area">
+            <div class="flash-rating-area flash-rating-area-easy">
               <button type="button" class="flash-rating-btn rating-again" onClick={(e) => { e.stopPropagation(); s.rateFlash(1).catch(() => {}); }}>Again</button>
               <button type="button" class="flash-rating-btn rating-good" onClick={(e) => { e.stopPropagation(); s.rateFlash(3).catch(() => {}); }}>Good</button>
             </div>

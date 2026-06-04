@@ -46,8 +46,8 @@
 
 /* Theme tokens */
 :root {
-  --color-bg: #f5f0e8;
-  --color-card: #faf7f2;
+  --color-bg: #eef4f0;
+  --color-card: #fbfdfb;
   --color-primary: #4a7fb5;
   --color-primary-light: #e4eef7;
   --color-primary-dark: #2c5a8a;
@@ -59,11 +59,11 @@
   --color-danger-dark: #8b3a32;
   --color-text: #2d2a26;
   --color-text-light: #6b6560;
-  --color-border: #d9d1c7;
+  --color-border: #d3dfd8;
   --color-info: #4a7a96;
   --color-info-light: #e4eff5;
   --color-success-dark: #2d6b3e;
-  --color-warm-bg: #f5ece0;
+  --color-warm-bg: #e6f0ea;
 
   --font-body: 'Saans', system-ui, sans-serif;
   --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

@@ -108,7 +108,7 @@
   width: 100%;
   max-height: min(48svh, 520px);
   object-fit: contain;
-  border-radius: 6px;
+  border-radius: 0;
   margin: 0 auto 16px;
 }
 
@@ -478,7 +478,7 @@
   width: 100%;
   max-height: 320px;
   object-fit: contain;
-  border-radius: 6px;
+  border-radius: 0;
   margin: 0 auto 12px;
 }
 
@@ -525,6 +525,21 @@
 
 .flashcard.has-image .flashcard-copy {
   font-size: clamp(0.98rem, 1.15vw, 1.1rem);
+}
+
+.mobile-flash-controller {
+  display: none;
+}
+
+.mobile-flip-btn {
+  width: 100%;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: white;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  text-align: center;
 }
 
 .flash-rating-area {
@@ -652,13 +667,19 @@
   }
 
   .card-image {
+    order: 2;
     max-height: min(36svh, 340px);
-    margin-bottom: 12px;
+    margin: 0 auto 12px;
   }
 
   .question-header {
+    order: 1;
     max-height: none;
     margin-bottom: 12px;
+  }
+
+  .options {
+    order: 3;
   }
 
   .question-text {
@@ -722,17 +743,54 @@
     padding: 16px;
   }
 
+  .flashcard-front .flashcard-copy {
+    order: 1;
+  }
+
+  .flashcard-front .flashcard-image {
+    order: 2;
+  }
+
   .flashcard-image {
     max-height: min(36svh, 300px);
   }
 
-  .flash-rating {
+  .mobile-flash-controller {
+    display: block;
+    width: 100%;
+    margin: 6px 0 0;
+  }
+
+  .mobile-flip-btn {
+    min-height: 64px;
+    padding: 14px 16px;
+    border-radius: 0;
+    font-size: 1.08rem;
+    letter-spacing: 0.01em;
+  }
+
+  .flash-rating-area {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .flash-rating-area-easy {
+    margin-top: 0;
   }
 
   .flash-rating-btn {
-    min-height: 44px;
-    padding: 7px 8px;
+    min-height: 74px;
+    min-width: 0;
+    padding: 14px 10px;
+    border-radius: 0;
+    font-size: 1.08rem;
+    font-weight: 750;
+  }
+
+  .flash-rating-area:not(.flash-rating-area-easy) .flash-rating-btn {
+    border-radius: 0;
   }
 }

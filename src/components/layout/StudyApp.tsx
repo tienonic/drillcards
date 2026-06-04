@@ -101,6 +101,10 @@ export function StudyApp() {
       <Header />
       <TopToggles />
 
+      <main>
+        <SectionsContainer />
+      </main>
+
       <Show when={!isMathTab()}>
         <div
           class={`sidebar-right ${dragging() ? 'dragging' : ''}`}
@@ -119,10 +123,6 @@ export function StudyApp() {
           </Show>
         </div>
       </Show>
-
-      <main>
-        <SectionsContainer />
-      </main>
     </div>
   );
 }
