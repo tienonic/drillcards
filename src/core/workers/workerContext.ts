@@ -9,7 +9,7 @@ export interface WorkerContext {
   initFSRS: (retention?: number, threshold?: number, maxInterval?: number) => void;
   uuidv7: () => string;
   cardToFSRS: (row: Record<string, unknown>) => Card;
-  saveCardFromFSRS: (cardId: string, card: Card, lapses?: number) => Promise<void>;
+  saveCardFromFSRS: (projectId: string, cardId: string, card: Card, lapses?: number) => Promise<void>;
   checkNewDay: () => Promise<void>;
   getNewTodayCount: (projectId: string, key: string) => Promise<number>;
   incrementNewToday: (projectId: string, key: string) => Promise<void>;

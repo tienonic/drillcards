@@ -85,7 +85,7 @@ export function McqCard(props: { session: McqView; isPassage?: boolean }) {
             {(rating) => <button type="button" class={`rating-btn ${RATING_CSS[rating]}`} onClick={() => s.rate(rating).catch(() => {})}><span class="rating-label">{RATING_NAMES[rating]}</span><span class="rating-interval">{s.ratingLabels()[rating] ?? ''}</span></button>}
           </For>
         </div>
-        <div class="card-actions"><button type="button" class="action-sm" onClick={() => s.undo().catch(() => {})}>Undo</button><button type="button" class="action-sm" onClick={() => s.suspend().catch(() => {})}>Suspend</button><button type="button" class="action-sm" onClick={() => s.bury().catch(() => {})}>Bury</button></div>
+        <div class="card-actions"><button type="button" class="action-sm" onClick={() => s.suspend().catch(() => {})}>Suspend</button><button type="button" class="action-sm" onClick={() => s.bury().catch(() => {})}>Bury</button></div>
       </Show>
 
       <Show when={s.state() === 'rated' && !s.cramMode()}>

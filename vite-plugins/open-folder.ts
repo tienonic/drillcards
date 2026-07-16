@@ -183,6 +183,10 @@ function resolveUnderRoot(root: string, relPath: string) {
   return targetPath;
 }
 
+export function isProjectDirectoryRequest(value: unknown): value is string {
+  return value === 'projects';
+}
+
 function openInExplorerDetached(absPath: string, select = false) {
   const args = select ? [`/select,${absPath}`] : [absPath];
   const child = spawn('explorer.exe', args, { detached: true, stdio: 'ignore' });
@@ -266,6 +270,10 @@ export function openFolderPlugin() {
         if (req.url?.startsWith('/__project-files')) {
           const url = new URL(req.url, 'http://localhost');
           const relDir = url.searchParams.get('dir') ?? 'projects';
+          if (!isProjectDirectoryRequest(relDir)) {
+            sendJson(res, 400, { error: 'Invalid projects folder.' });
+            return;
+          }
           const projectsDir = resolveUnderRoot(server.config.root, relDir);
           if (!projectsDir || !existsSync(projectsDir)) {
             sendJson(res, 404, { error: 'Projects folder not found.' });
@@ -285,6 +293,10 @@ export function openFolderPlugin() {
           const url = new URL(req.url, 'http://localhost');
           const relDir = url.searchParams.get('dir') ?? 'projects';
           const file = url.searchParams.get('file');
+          if (!isProjectDirectoryRequest(relDir)) {
+            sendJson(res, 400, { error: 'Invalid projects folder.' });
+            return;
+          }
           const projectsDir = resolveUnderRoot(server.config.root, relDir);
           if (!projectsDir || !existsSync(projectsDir)) {
             sendJson(res, 404, { error: 'Projects folder not found.' });
@@ -313,6 +325,10 @@ export function openFolderPlugin() {
 
           const url = new URL(req.url, 'http://localhost');
           const relDir = url.searchParams.get('dir') ?? 'projects';
+          if (!isProjectDirectoryRequest(relDir)) {
+            sendJson(res, 400, { error: 'Invalid projects folder.' });
+            return;
+          }
           const requestedDir = resolveUnderRoot(server.config.root, relDir);
           if (!requestedDir) {
             sendJson(res, 400, { error: 'Invalid projects folder.' });

@@ -9,6 +9,7 @@ vi.mock('../../core/hooks/useWorker.ts', () => {
     workerApi: {
       loadProject: vi.fn().mockResolvedValue({ ok: true }),
       setFSRSParams: vi.fn().mockResolvedValue({ ok: true }),
+      getProjectCardCount: vi.fn().mockResolvedValue(5),
       getDeckStats: vi.fn().mockResolvedValue({ new: 5, learning: 0, due: 0 }),
       getSessionSummary: vi.fn().mockResolvedValue({ lastReviewAt: null, dueNow: 0 }),
     },
@@ -83,7 +84,8 @@ beforeEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.mocked(initWorker).mockResolvedValue(undefined);
-  // Reset getDeckStats to non-empty (no auto-restore by default)
+  vi.mocked(workerApi.getProjectCardCount).mockResolvedValue(5);
+  // Retained for the rest of the launcher surface.
   vi.mocked(workerApi.getDeckStats).mockResolvedValue({ new: 5, learning: 0, due: 0 });
   vi.mocked(fetchAutosave).mockResolvedValue(null);
 });
@@ -123,9 +125,10 @@ describe('openProject', () => {
   });
 
   it('auto-restore: calls restoreBackup when DB is empty and autosave exists', async () => {
-    vi.mocked(workerApi.getDeckStats).mockResolvedValue({ new: 0, learning: 0, due: 0 });
+    vi.mocked(workerApi.getProjectCardCount).mockResolvedValue(0);
     vi.mocked(fetchAutosave).mockResolvedValue({
-      version: 1, backupType: 'project', slug: 'test-project',
+      version: 1, backupType: 'full', exportedAt: '2026-07-16T17:00:00.000Z', slug: 'test-project',
+      projectData: null, projectConfig: null,
       cards: [{ card_id: 'c1' }], review_log: [], scores: [], activity: [], notes: [], hotkeys: [],
     });
 
@@ -133,7 +136,7 @@ describe('openProject', () => {
       await openProject(minimalProject, false);
 
       expect(fetchAutosave).toHaveBeenCalledWith('test-project');
-      expect(restoreBackup).toHaveBeenCalled();
+      expect(restoreBackup).toHaveBeenCalledWith(expect.anything(), { includeGlobal: false });
       // Second loadProject + setFSRSParams after restore
       expect(workerApi.loadProject).toHaveBeenCalledTimes(2);
       expect(workerApi.setFSRSParams).toHaveBeenCalledTimes(2);
@@ -144,7 +147,7 @@ describe('openProject', () => {
   });
 
   it('auto-restore skipped: empty DB but no autosave', async () => {
-    vi.mocked(workerApi.getDeckStats).mockResolvedValue({ new: 0, learning: 0, due: 0 });
+    vi.mocked(workerApi.getProjectCardCount).mockResolvedValue(0);
     vi.mocked(fetchAutosave).mockResolvedValue(null);
 
     await createRoot(async (dispose) => {
@@ -155,6 +158,18 @@ describe('openProject', () => {
       expect(workerApi.loadProject).toHaveBeenCalledTimes(1);
       expect(activeProject()?.name).toBe('Test Project');
 
+      dispose();
+    });
+  });
+
+  it('does not overwrite a nonempty future-due or suspended deck with autosave', async () => {
+    vi.mocked(workerApi.getProjectCardCount).mockResolvedValue(1);
+
+    await createRoot(async (dispose) => {
+      await openProject(minimalProject, false);
+
+      expect(fetchAutosave).not.toHaveBeenCalled();
+      expect(restoreBackup).not.toHaveBeenCalled();
       dispose();
     });
   });

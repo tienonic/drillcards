@@ -2,9 +2,10 @@ import { batch } from 'solid-js';
 import { shuffleAvoidingPrevious } from '../../utils/shuffle.ts';
 import { easyMode, sessionSummary, setSessionSummary } from '../../core/store/app.ts';
 import { setQuestionContext } from '../glossary/store.ts';
+import { loadActivity } from '../activity/store.ts';
 import { timeToRating, lookupQuestion, lookupQuestionAcross, findOwnerSection, getCardType } from './helpers.ts';
 import { createHistoryNav, type HistoryEntry } from './historyNav.ts';
-import { isAnsweringState, isRatedState, isRevealedState, isReviewableMcqState, isReviewingHistoryState, restoredHistoryState } from './sessionState.ts';
+import { isAnsweringState, isRatedState, isRevealedState, isReviewingHistoryState, restoredHistoryState } from './sessionState.ts';
 import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 import type { PickCardType } from '../../core/workers/protocol.ts';
 import type { Guard } from './guard.ts';
@@ -214,33 +215,23 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
         await d.doRate(cId, 1);
       } else if (isRatedState(st)) {
         const result = await d.api.undoReview();
-        if (result.undone) await d.doRate(cId, 1);
+        if (result.undone) {
+          await loadActivity();
+          await d.doRate(cId, 1);
+        }
       }
     });
   }
 
   async function undoAction() {
-    const st = s.state();
-    if (!isReviewableMcqState(st)) return;
+    if (!isRatedState(s.state())) return;
     const cId = s.cardId();
     if (!cId) return;
     await d.guard.withActing(async () => {
       const result = await d.api.undoReview();
       if (result.undone && result.cardId) {
-        const restoredId = result.cardId;
-        const found = lookup(restoredId);
-        if (found) {
-          const newOptions = shuffleOptionsForCard(restoredId, found.question);
-          const entry = histNav.getEntry(histNav.getPos());
-          if (entry && entry.cardId === restoredId) {
-            entry.selected = null;
-            entry.isCorrect = false;
-            entry.skipped = false;
-            entry.optionOrder = newOptions;
-          }
-          applyMcqCard(restoredId, found, newOptions, found.passage ?? '');
-          await d.refreshDue();
-        }
+        s.setState('revealed');
+        await Promise.all([d.refreshDue(), loadActivity()]);
       }
     });
   }

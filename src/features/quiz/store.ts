@@ -95,7 +95,6 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
 
     const owner = ownerSection(cId);
     const result = await api.reviewCard(cId, owner.id, rating);
-    api.addActivity(owner.id, rating, rating !== 1).catch(() => {});
     pushChartEntry(rating, rating !== 1);
     autoSave(p.slug);
 
@@ -243,7 +242,7 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
       setActiveProject({ ...p, config: { ...p.config, new_per_session: count } });
     }
     await guard.withActing(async () => {
-      await api.resetNewCount();
+      await api.resetNewCount(allSectionIds, sectionCardType());
       if (flashMode()) {
         await flash.pickNextFlash();
       } else {

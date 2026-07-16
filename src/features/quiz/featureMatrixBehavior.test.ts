@@ -14,6 +14,7 @@ vi.mock('../glossary/store.ts', () => ({
 
 vi.mock('../activity/store.ts', () => ({
   pushChartEntry: vi.fn(),
+  loadActivity: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../backup/backup.ts', () => ({

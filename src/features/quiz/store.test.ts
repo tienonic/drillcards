@@ -31,6 +31,7 @@ vi.mock('../glossary/store.ts', () => ({
 
 vi.mock('../activity/store.ts', () => ({
   pushChartEntry: vi.fn(),
+  loadActivity: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../core/store/app.ts', () => {
@@ -160,7 +161,7 @@ describe('QuizSession interface completeness', () => {
       await session.refreshDue();
       await session.increaseNewCards(2);
 
-      expect(api.resetNewCount).toHaveBeenCalled();
+      expect(api.resetNewCount).toHaveBeenCalledWith(['sec1', 'sec2'], 'quiz');
       expect(api.pickNext).toHaveBeenCalledWith(['sec1', 'sec2'], 2, 'quiz');
       expect(api.pickNextOverride).toHaveBeenCalledWith(['sec1', 'sec2'], 'quiz');
       expect(session.state()).toBe('answering');

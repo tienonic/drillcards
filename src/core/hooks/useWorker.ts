@@ -76,25 +76,25 @@ export const workerApi = {
   pickNextOverride: (projectId: string, sectionIds: string[], cardType?: PickCardType, excludeIds?: string[]) =>
     sendWorkerMessage<{ cardId: string | null }>({ type: 'PICK_NEXT_OVERRIDE', projectId, sectionIds, cardType, excludeIds }),
 
-  resetNewCount: () =>
-    sendWorkerMessage({ type: 'RESET_NEW_COUNT' }),
+  resetNewCount: (projectId: string, sectionIds: string[], cardType?: PickCardType) =>
+    sendWorkerMessage({ type: 'RESET_NEW_COUNT', projectId, sectionIds, cardType }),
 
-  previewRatings: (cardId: string) =>
-    sendWorkerMessage<{ labels: Record<number, string> }>({ type: 'PREVIEW_RATINGS', cardId }),
+  previewRatings: (projectId: string, cardId: string) =>
+    sendWorkerMessage<{ labels: Record<number, string> }>({ type: 'PREVIEW_RATINGS', projectId, cardId }),
 
   reviewCard: (cardId: string, projectId: string, sectionId: string, rating: number) =>
     sendWorkerMessage<{ card: { state: number; due: string; stability: number; difficulty: number }; isLeech: boolean; lapses: number }>({
       type: 'REVIEW_CARD', cardId, projectId, sectionId, rating,
     }),
 
-  undoReview: () =>
-    sendWorkerMessage<{ undone: boolean; cardId?: string }>({ type: 'UNDO_REVIEW' }),
+  undoReview: (projectId: string) =>
+    sendWorkerMessage<{ undone: boolean; cardId?: string }>({ type: 'UNDO_REVIEW', projectId }),
 
-  suspendCard: (cardId: string) =>
-    sendWorkerMessage({ type: 'SUSPEND_CARD', cardId }),
+  suspendCard: (projectId: string, cardId: string) =>
+    sendWorkerMessage({ type: 'SUSPEND_CARD', projectId, cardId }),
 
-  buryCard: (cardId: string) =>
-    sendWorkerMessage({ type: 'BURY_CARD', cardId }),
+  buryCard: (projectId: string, cardId: string) =>
+    sendWorkerMessage({ type: 'BURY_CARD', projectId, cardId }),
 
   unburyAll: (projectId: string) =>
     sendWorkerMessage({ type: 'UNBURY_ALL', projectId }),
@@ -160,6 +160,9 @@ export const workerApi = {
   getDeckStats: (projectId: string) =>
     sendWorkerMessage<{ new: number; learning: number; due: number }>({ type: 'GET_DECK_STATS', projectId }),
 
+  getProjectCardCount: (projectId: string) =>
+    sendWorkerMessage<number>({ type: 'GET_PROJECT_CARD_COUNT', projectId }),
+
   getRetention: (projectId: string) =>
     sendWorkerMessage<{ retention: number | null }>({ type: 'GET_RETENTION', projectId }),
 
@@ -197,12 +200,11 @@ export interface ProjectApi {
   getSectionStats: () => Promise<{ section_id: string; new: number; learning: number; due: number; total: number }[]>;
   deleteProject: () => Promise<{ ok: boolean }>;
   reviewCard: (cardId: string, sectionId: string, rating: number) => Promise<{ card: { state: number; due: string; stability: number; difficulty: number }; isLeech: boolean; lapses: number }>;
-  // Card-scoped pass-throughs (no projectId needed)
-  previewRatings: typeof workerApi.previewRatings;
-  suspendCard: typeof workerApi.suspendCard;
-  buryCard: typeof workerApi.buryCard;
-  undoReview: typeof workerApi.undoReview;
-  resetNewCount: typeof workerApi.resetNewCount;
+  previewRatings: (cardId: string) => ReturnType<typeof workerApi.previewRatings>;
+  suspendCard: (cardId: string) => ReturnType<typeof workerApi.suspendCard>;
+  buryCard: (cardId: string) => ReturnType<typeof workerApi.buryCard>;
+  undoReview: () => ReturnType<typeof workerApi.undoReview>;
+  resetNewCount: (sectionIds: string[], cardType?: PickCardType) => ReturnType<typeof workerApi.resetNewCount>;
 }
 
 export function forProject(slug: string): ProjectApi {
@@ -229,11 +231,10 @@ export function forProject(slug: string): ProjectApi {
     getSectionStats: () => workerApi.getSectionStats(slug),
     deleteProject: () => workerApi.deleteProject(slug),
     reviewCard: (cardId, sectionId, rating) => workerApi.reviewCard(cardId, slug, sectionId, rating),
-    // Card-scoped pass-throughs
-    previewRatings: workerApi.previewRatings,
-    suspendCard: workerApi.suspendCard,
-    buryCard: workerApi.buryCard,
-    undoReview: workerApi.undoReview,
-    resetNewCount: workerApi.resetNewCount,
+    previewRatings: (cardId) => workerApi.previewRatings(slug, cardId),
+    suspendCard: (cardId) => workerApi.suspendCard(slug, cardId),
+    buryCard: (cardId) => workerApi.buryCard(slug, cardId),
+    undoReview: () => workerApi.undoReview(slug),
+    resetNewCount: (sectionIds, cardType?) => workerApi.resetNewCount(slug, sectionIds, cardType),
   };
 }

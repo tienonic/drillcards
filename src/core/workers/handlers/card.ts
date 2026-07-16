@@ -2,6 +2,7 @@ import type { WorkerContext } from '../workerContext.ts';
 import { Rating, State, type Card, type Grade, type IPreview, type RecordLogItem } from 'ts-fsrs';
 import { formatInterval, isLeech, newTodayKey } from '../helpers.ts';
 import type { PickCardType } from '../protocol.ts';
+import { localDateKey, nextLocalDateKey } from '../burial.ts';
 
 function cardTypeFilter(cardType?: PickCardType): { sql: string; params: string[] } {
   if (!cardType) return { sql: '', params: [] };
@@ -24,7 +25,7 @@ export async function pickNext(
   // 1. Learning/Relearning due (oldest)
   let row = await ctx.queryOne(
     `SELECT card_id FROM cards
-     WHERE project_id = ? AND section_id IN (${placeholders})
+     WHERE project_id = ? AND in_deck = 1 AND section_id IN (${placeholders})
      AND suspended = 0 AND buried = 0
      AND fsrs_state IN (1, 3) AND due <= ?${typeFilter.sql}
      ORDER BY due ASC LIMIT 1`,
@@ -35,7 +36,7 @@ export async function pickNext(
   // 2. Review due (oldest)
   row = await ctx.queryOne(
     `SELECT card_id FROM cards
-     WHERE project_id = ? AND section_id IN (${placeholders})
+     WHERE project_id = ? AND in_deck = 1 AND section_id IN (${placeholders})
      AND suspended = 0 AND buried = 0
      AND fsrs_state = 2 AND due <= ?${typeFilter.sql}
      ORDER BY due ASC LIMIT 1`,
@@ -49,7 +50,7 @@ export async function pickNext(
   if (used < newPerSession) {
     row = await ctx.queryOne(
       `SELECT card_id FROM cards
-       WHERE project_id = ? AND section_id IN (${placeholders})
+       WHERE project_id = ? AND in_deck = 1 AND section_id IN (${placeholders})
        AND suspended = 0 AND buried = 0
        AND fsrs_state = 0${typeFilter.sql}
        ORDER BY RANDOM() LIMIT 1`,
@@ -84,7 +85,7 @@ export async function pickNextOverride(
   // Pick weakest card (lowest stability) regardless of due date
   const row = await ctx.queryOne(
     `SELECT card_id FROM cards
-     WHERE project_id = ? AND section_id IN (${placeholders})
+     WHERE project_id = ? AND in_deck = 1 AND section_id IN (${placeholders})
      AND suspended = 0 AND buried = 0${typeFilter.sql}${excludeFilter}
      ORDER BY stability ASC, RANDOM() LIMIT 1`,
     [projectId, ...sectionIds, ...typeFilter.params, ...excludeParam],
@@ -92,17 +93,24 @@ export async function pickNextOverride(
   return row ? { cardId: row.card_id as string } : { cardId: null };
 }
 
-export async function resetNewCount(ctx: WorkerContext): Promise<{ ok: boolean }> {
-  const today = new Date().toISOString().slice(0, 10);
-  await ctx.run(`DELETE FROM daily_new WHERE date = ?`, [today]);
+export async function resetNewCount(
+  ctx: WorkerContext,
+  projectId: string,
+  sectionIds: string[],
+  cardType?: PickCardType,
+): Promise<{ ok: boolean }> {
+  const today = localDateKey();
+  const key = newTodayKey(projectId, sectionIds, cardType);
+  await ctx.run(`DELETE FROM daily_new WHERE project_id = ? AND date = ? AND key = ?`, [projectId, today, key]);
   return { ok: true };
 }
 
 export async function previewRatings(
   ctx: WorkerContext,
+  projectId: string,
   cardId: string,
 ): Promise<{ labels: Record<number, string> }> {
-  const row = await ctx.queryOne(`SELECT * FROM cards WHERE card_id = ?`, [cardId]);
+  const row = await ctx.queryOne(`SELECT * FROM cards WHERE project_id = ? AND card_id = ? AND in_deck = 1`, [projectId, cardId]);
   if (!row) return { labels: {} };
 
   const card = ctx.cardToFSRS(row);
@@ -127,7 +135,7 @@ export async function reviewCard(
   isLeech: boolean;
   lapses: number;
 }> {
-  const row = await ctx.queryOne(`SELECT * FROM cards WHERE card_id = ?`, [cardId]);
+  const row = await ctx.queryOne(`SELECT * FROM cards WHERE project_id = ? AND card_id = ? AND in_deck = 1`, [projectId, cardId]);
   if (!row) throw new Error(`Card not found: ${cardId}`);
 
   const card = ctx.cardToFSRS(row);
@@ -152,21 +160,26 @@ export async function reviewCard(
 
   await ctx.run('BEGIN');
   try {
-    await ctx.run(`DELETE FROM undo_stack`);
-    await ctx.run(`INSERT INTO undo_stack (card_id, prev_state) VALUES (?, ?)`, [
-      cardId,
-      JSON.stringify(row),
-    ]);
+    await deleteUndoRowsForScope(ctx, projectId);
+    await ctx.run(
+      `INSERT INTO undo_stack (project_id, card_id, review_log_id, activity_id, prev_state)
+       VALUES (?, ?, ?, ?, ?)`,
+      [projectId, cardId, logId, logId, JSON.stringify(row)],
+    );
 
     if (isLeechNow) {
-      await ctx.run(`UPDATE cards SET leech = 1 WHERE card_id = ?`, [cardId]);
+      await ctx.run(`UPDATE cards SET leech = 1 WHERE project_id = ? AND card_id = ? AND in_deck = 1`, [projectId, cardId]);
     }
 
-    await ctx.saveCardFromFSRS(cardId, newCard, newLapses);
+    await ctx.saveCardFromFSRS(projectId, cardId, newCard, newLapses);
 
     await ctx.run(
       `INSERT INTO review_log (id, card_id, project_id, rating, review_time, section_id) VALUES (?, ?, ?, ?, ?, ?)`,
       [logId, cardId, projectId, rating, reviewTime, sectionId],
+    );
+    await ctx.run(
+      `INSERT INTO activity (id, project_id, section_id, rating, correct, timestamp) VALUES (?, ?, ?, ?, ?, ?)`,
+      [logId, projectId, sectionId, rating, rating !== Rating.Again ? 1 : 0, reviewTime],
     );
 
     await ctx.run('COMMIT');
@@ -187,21 +200,47 @@ export async function reviewCard(
   };
 }
 
+function parseUndoState(value: unknown): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteUndoRowsForScope(ctx: WorkerContext, projectId: string, sectionId?: string): Promise<void> {
+  if (!sectionId) {
+    await ctx.run(`DELETE FROM undo_stack WHERE project_id = ?`, [projectId]);
+    return;
+  }
+  const rows = await ctx.queryAll(`SELECT id, prev_state FROM undo_stack WHERE project_id = ? ORDER BY id DESC`, [projectId]);
+  for (const row of rows) {
+    const state = parseUndoState(row.prev_state);
+    if (state?.section_id === sectionId) {
+      await ctx.run(`DELETE FROM undo_stack WHERE id = ?`, [row.id]);
+    }
+  }
+}
+
 export async function undoReview(
   ctx: WorkerContext,
+  projectId: string,
 ): Promise<{ undone: false } | { undone: true; cardId: string }> {
-  const undoRow = await ctx.queryOne(`SELECT * FROM undo_stack ORDER BY id DESC LIMIT 1`);
+  const undoRow = await ctx.queryOne(`SELECT * FROM undo_stack WHERE project_id = ? ORDER BY id DESC LIMIT 1`, [projectId]);
   if (!undoRow) return { undone: false };
 
-  const prevState = JSON.parse(undoRow.prev_state as string);
+  const prevState = parseUndoState(undoRow.prev_state)!;
+  const reviewLogId = undoRow.review_log_id as string;
+  const activityId = undoRow.activity_id as string | null;
 
   await ctx.run('BEGIN');
   try {
     await ctx.run(
       `UPDATE cards SET fsrs_state = ?, due = ?, stability = ?, difficulty = ?,
        elapsed_days = ?, scheduled_days = ?, reps = ?, lapses = ?,
-       last_review = ?, suspended = ?, buried = ?, leech = ?, updated_at = datetime('now')
-       WHERE card_id = ?`,
+       last_review = ?, suspended = ?, buried = ?, buried_until = ?, leech = ?, updated_at = datetime('now')
+       WHERE project_id = ? AND card_id = ? AND in_deck = 1`,
       [
         prevState.fsrs_state,
         prevState.due,
@@ -214,18 +253,16 @@ export async function undoReview(
         prevState.last_review,
         prevState.suspended,
         prevState.buried,
+        prevState.buried_until ?? null,
         prevState.leech,
+        projectId,
         undoRow.card_id,
       ],
     );
     await ctx.run(`DELETE FROM undo_stack WHERE id = ?`, [undoRow.id]);
 
-    await ctx.run(
-      `DELETE FROM review_log WHERE id = (
-        SELECT id FROM review_log WHERE card_id = ? ORDER BY review_time DESC LIMIT 1
-      )`,
-      [undoRow.card_id],
-    );
+    await ctx.run(`DELETE FROM review_log WHERE id = ? AND project_id = ?`, [reviewLogId, projectId]);
+    if (activityId) await ctx.run(`DELETE FROM activity WHERE id = ? AND project_id = ?`, [activityId, projectId]);
 
     await ctx.run('COMMIT');
   } catch (e) {
@@ -236,24 +273,24 @@ export async function undoReview(
   return { undone: true, cardId: undoRow.card_id as string };
 }
 
-export async function suspendCard(ctx: WorkerContext, cardId: string): Promise<{ ok: boolean }> {
+export async function suspendCard(ctx: WorkerContext, projectId: string, cardId: string): Promise<{ ok: boolean }> {
   await ctx.run(
-    `UPDATE cards SET suspended = 1, updated_at = datetime('now') WHERE card_id = ?`,
-    [cardId],
+    `UPDATE cards SET suspended = 1, updated_at = datetime('now') WHERE project_id = ? AND card_id = ? AND in_deck = 1`,
+    [projectId, cardId],
   );
   return { ok: true };
 }
 
-export async function buryCard(ctx: WorkerContext, cardId: string): Promise<{ ok: boolean }> {
-  await ctx.run(`UPDATE cards SET buried = 1, updated_at = datetime('now') WHERE card_id = ?`, [
-    cardId,
+export async function buryCard(ctx: WorkerContext, projectId: string, cardId: string): Promise<{ ok: boolean }> {
+  await ctx.run(`UPDATE cards SET buried = 1, buried_until = ?, updated_at = datetime('now') WHERE project_id = ? AND card_id = ? AND in_deck = 1`, [
+    nextLocalDateKey(), projectId, cardId,
   ]);
   return { ok: true };
 }
 
 export async function unburyAll(ctx: WorkerContext, projectId: string): Promise<{ ok: boolean }> {
   await ctx.run(
-    `UPDATE cards SET buried = 0, updated_at = datetime('now') WHERE project_id = ?`,
+    `UPDATE cards SET buried = 0, buried_until = NULL, updated_at = datetime('now') WHERE project_id = ?`,
     [projectId],
   );
   return { ok: true };
@@ -271,20 +308,20 @@ export async function countDue(
 
   const dueRow = await ctx.queryOne(
     `SELECT COUNT(*) as cnt FROM cards
-     WHERE project_id = ? AND section_id IN (${placeholders})
+     WHERE project_id = ? AND in_deck = 1 AND section_id IN (${placeholders})
      AND suspended = 0 AND buried = 0
      AND fsrs_state IN (1,2,3) AND due <= ?${typeFilter.sql}`,
     [projectId, ...sectionIds, now, ...typeFilter.params],
   );
   const newRow = await ctx.queryOne(
     `SELECT COUNT(*) as cnt FROM cards
-     WHERE project_id = ? AND section_id IN (${placeholders})
+     WHERE project_id = ? AND in_deck = 1 AND section_id IN (${placeholders})
      AND suspended = 0 AND buried = 0 AND fsrs_state = 0${typeFilter.sql}`,
     [projectId, ...sectionIds, ...typeFilter.params],
   );
   const totalRow = await ctx.queryOne(
     `SELECT COUNT(*) as cnt FROM cards
-     WHERE project_id = ? AND section_id IN (${placeholders})
+     WHERE project_id = ? AND in_deck = 1 AND section_id IN (${placeholders})
      AND suspended = 0 AND buried = 0${typeFilter.sql}`,
     [projectId, ...sectionIds, ...typeFilter.params],
   );

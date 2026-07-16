@@ -1,5 +1,24 @@
-import { resolve } from 'path';
+import { resolve, sep } from 'path';
 import { readFileSync, mkdirSync, writeFileSync, existsSync } from 'fs';
+
+const PROJECT_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const TIMESTAMPED_EXPORT_PATTERN = /^export-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.json$/;
+
+export function isValidExportSlug(value: unknown): value is string {
+  return typeof value === 'string' && PROJECT_SLUG_PATTERN.test(value);
+}
+
+export function isAppOwnedExportFileName(value: unknown): value is string {
+  return value === 'autosave.json'
+    || (typeof value === 'string' && TIMESTAMPED_EXPORT_PATTERN.test(value));
+}
+
+export function resolveExportTarget(exportsRoot: string, slug: unknown, fileName: unknown): string | null {
+  if (!isValidExportSlug(slug) || !isAppOwnedExportFileName(fileName)) return null;
+  const root = resolve(exportsRoot);
+  const target = resolve(root, slug, fileName);
+  return target.startsWith(root + sep) ? target : null;
+}
 
 export function exportPlugin() {
   return {
@@ -7,13 +26,23 @@ export function exportPlugin() {
     configureServer(server: any) {
       server.middlewares.use((req: any, res: any, next: any) => {
         if (req.method === 'GET' && req.url?.startsWith('/api/autosave/')) {
-          const slug = decodeURIComponent(req.url.slice('/api/autosave/'.length));
-          if (!slug || slug.includes('..') || slug.includes('/')) {
+          let slug: string;
+          try {
+            slug = decodeURIComponent(req.url.slice('/api/autosave/'.length));
+          } catch {
+            slug = '';
+          }
+          if (!isValidExportSlug(slug)) {
             res.writeHead(400, { 'Content-Type': 'text/plain' });
             res.end('Invalid slug');
             return;
           }
-          const filePath = resolve('exports', slug, 'autosave.json');
+          const filePath = resolveExportTarget(resolve(server.config.root, 'exports'), slug, 'autosave.json');
+          if (!filePath) {
+            res.writeHead(400, { 'Content-Type': 'text/plain' });
+            res.end('Invalid export path');
+            return;
+          }
           if (!existsSync(filePath)) {
             res.writeHead(404, { 'Content-Type': 'text/plain' });
             res.end('No autosave found');
@@ -37,10 +66,13 @@ export function exportPlugin() {
         req.on('end', () => {
           try {
             const { slug, fileName, data } = JSON.parse(body);
-            if (!slug || !fileName || !data) throw new Error('missing fields');
-            const dir = resolve('exports', slug);
+            if (data === undefined) throw new Error('missing data');
+            const exportsRoot = resolve(server.config.root, 'exports');
+            const filePath = resolveExportTarget(exportsRoot, slug, fileName);
+            if (!filePath) throw new Error('invalid export path');
+            const dir = resolve(exportsRoot, slug);
             mkdirSync(dir, { recursive: true });
-            writeFileSync(resolve(dir, fileName), JSON.stringify(data, null, 2));
+            writeFileSync(filePath, JSON.stringify(data, null, 2));
             console.log(`\x1b[32m[export]\x1b[0m ${slug}/${fileName}`);
             res.writeHead(200, { 'Content-Type': 'text/plain' });
             res.end('ok');

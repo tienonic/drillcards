@@ -1,20 +1,25 @@
 import type { WorkerContext } from '../workerContext.ts';
 
+export async function getProjectCardCount(ctx: WorkerContext, projectId: string): Promise<number> {
+  const row = await ctx.queryOne(`SELECT COUNT(*) as cnt FROM cards WHERE project_id = ?`, [projectId]);
+  return (row?.cnt as number) ?? 0;
+}
+
 export async function getDeckStats(
   ctx: WorkerContext,
   projectId: string,
 ): Promise<{ new: number; learning: number; due: number }> {
   const now = new Date().toISOString();
   const newRow = await ctx.queryOne(
-    `SELECT COUNT(*) as cnt FROM cards WHERE project_id = ? AND fsrs_state = 0 AND suspended = 0 AND buried = 0`,
+    `SELECT COUNT(*) as cnt FROM cards WHERE project_id = ? AND in_deck = 1 AND fsrs_state = 0 AND suspended = 0 AND buried = 0`,
     [projectId],
   );
   const learningRow = await ctx.queryOne(
-    `SELECT COUNT(*) as cnt FROM cards WHERE project_id = ? AND fsrs_state IN (1, 3) AND suspended = 0 AND buried = 0 AND due <= ?`,
+    `SELECT COUNT(*) as cnt FROM cards WHERE project_id = ? AND in_deck = 1 AND fsrs_state IN (1, 3) AND suspended = 0 AND buried = 0 AND due <= ?`,
     [projectId, now],
   );
   const dueRow = await ctx.queryOne(
-    `SELECT COUNT(*) as cnt FROM cards WHERE project_id = ? AND fsrs_state = 2 AND suspended = 0 AND buried = 0 AND due <= ?`,
+    `SELECT COUNT(*) as cnt FROM cards WHERE project_id = ? AND in_deck = 1 AND fsrs_state = 2 AND suspended = 0 AND buried = 0 AND due <= ?`,
     [projectId, now],
   );
   return {
@@ -36,7 +41,7 @@ export async function getSectionStats(
       SUM(CASE WHEN fsrs_state = 2 AND due <= ? THEN 1 ELSE 0 END) as due_count,
       COUNT(*) as total
     FROM cards
-    WHERE project_id = ? AND suspended = 0 AND buried = 0
+    WHERE project_id = ? AND in_deck = 1 AND suspended = 0 AND buried = 0
     GROUP BY section_id`,
     [now, now, projectId],
   );
@@ -60,7 +65,7 @@ export async function getSessionSummary(
   const now = new Date().toISOString();
   const dueRow = await ctx.queryOne(
     `SELECT COUNT(*) as cnt FROM cards
-     WHERE project_id = ? AND suspended = 0 AND buried = 0
+     WHERE project_id = ? AND in_deck = 1 AND suspended = 0 AND buried = 0
      AND fsrs_state IN (1,2,3) AND due <= ?`,
     [projectId, now],
   );
@@ -88,7 +93,7 @@ export async function getPerformanceCards(
 ): Promise<Record<string, unknown>[]> {
   return ctx.queryAll(
     `SELECT card_id, section_id, card_type, fsrs_state, stability, difficulty, reps, lapses
-     FROM cards WHERE project_id = ? AND suspended = 0 AND buried = 0
+     FROM cards WHERE project_id = ? AND in_deck = 1 AND suspended = 0 AND buried = 0
      ORDER BY lapses DESC, stability ASC`,
     [projectId],
   );
@@ -104,7 +109,7 @@ export async function getRetention(
   projectId: string,
 ): Promise<{ retention: number | null }> {
   const rows = await ctx.queryAll(
-    `SELECT * FROM cards WHERE project_id = ? AND fsrs_state = 2 AND suspended = 0`,
+    `SELECT * FROM cards WHERE project_id = ? AND in_deck = 1 AND fsrs_state = 2 AND suspended = 0`,
     [projectId],
   );
   if (rows.length === 0) return { retention: null };

@@ -240,7 +240,6 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
       }
 
       await d.api.reviewCard(fId, ownerSectionId(fId), rating);
-      d.api.addActivity(ownerSectionId(fId), rating, rating !== 1).catch(() => {});
       pushChartEntry(rating, rating !== 1);
       autoSave(p.slug);
       await pickNextFlash();

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  activeDeckCards,
   aggregateTodaySummary,
   aggregateFutureDue,
   aggregateCalendar,
@@ -8,6 +9,16 @@ import {
   aggregateIntervals,
   avgInterval,
 } from './statsAggregations.ts';
+
+describe('activeDeckCards', () => {
+  it('keeps legacy/current active rows and excludes explicitly inactive membership', () => {
+    expect(activeDeckCards([
+      card({ card_id: 'active', in_deck: 1 }),
+      card({ card_id: 'legacy' }),
+      card({ card_id: 'inactive', in_deck: 0 }),
+    ]).map(row => row.card_id)).toEqual(['active', 'legacy']);
+  });
+});
 import type { CardRow, ReviewLogRow } from '../../core/workers/protocol.ts';
 
 // Helper: build a minimal ReviewLogRow

@@ -7,6 +7,7 @@ import type {
   NoteRow,
   HotkeyRow,
 } from '../protocol.ts';
+import { localDateKey, releaseExpiredBuried } from '../burial.ts';
 
 export async function exportProjectData(
   ctx: WorkerContext,
@@ -52,15 +53,17 @@ export async function importProjectData(
     await ctx.run(`DELETE FROM activity WHERE project_id = ?`, [projectId]);
     await ctx.run(`DELETE FROM notes WHERE project_id = ?`, [projectId]);
     await ctx.run(`DELETE FROM daily_new WHERE project_id = ?`, [projectId]);
-    await ctx.run(`DELETE FROM undo_stack`);
+    await ctx.run(`DELETE FROM undo_stack WHERE project_id = ?`, [projectId]);
 
     for (const c of cards) {
+      const buriedUntil = typeof c.buried_until === 'string' ? c.buried_until : null;
+      const buried = c.buried === 1 && buriedUntil !== null && buriedUntil > localDateKey() ? 1 : 0;
       await ctx.run(
-        `INSERT INTO cards (card_id, project_id, section_id, card_type, fsrs_state, due, stability, difficulty, elapsed_days, scheduled_days, reps, lapses, last_review, suspended, buried, leech, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO cards (project_id, card_id, section_id, card_type, fsrs_state, due, stability, difficulty, elapsed_days, scheduled_days, reps, lapses, last_review, suspended, buried, buried_until, leech, in_deck, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
+          projectId,
           c.card_id,
-          c.project_id,
           c.section_id,
           c.card_type,
           c.fsrs_state,
@@ -72,9 +75,11 @@ export async function importProjectData(
           c.reps,
           c.lapses,
           c.last_review,
-          c.suspended,
-          c.buried,
-          c.leech,
+          c.suspended === 1 ? 1 : 0,
+          buried,
+          buried ? buriedUntil : null,
+          c.leech === 1 ? 1 : 0,
+          c.in_deck === 0 ? 0 : 1,
           c.updated_at,
         ],
       );
@@ -82,27 +87,29 @@ export async function importProjectData(
     for (const r of review_log) {
       await ctx.run(
         `INSERT INTO review_log (id, card_id, project_id, rating, review_time, section_id) VALUES (?, ?, ?, ?, ?, ?)`,
-        [r.id, r.card_id, r.project_id, r.rating, r.review_time, r.section_id],
+        [r.id, r.card_id, projectId, r.rating, r.review_time, r.section_id],
       );
     }
     for (const s of scores) {
       await ctx.run(
         `INSERT INTO scores (project_id, section_id, correct, attempted, updated_at) VALUES (?, ?, ?, ?, ?)`,
-        [s.project_id, s.section_id, s.correct, s.attempted, s.updated_at],
+        [projectId, s.section_id, s.correct, s.attempted, s.updated_at],
       );
     }
     for (const a of activity) {
       await ctx.run(
         `INSERT INTO activity (id, project_id, section_id, rating, correct, timestamp) VALUES (?, ?, ?, ?, ?, ?)`,
-        [a.id, a.project_id, a.section_id, a.rating, a.correct, a.timestamp],
+        [a.id, projectId, a.section_id, a.rating, a.correct, a.timestamp],
       );
     }
     for (const n of notes) {
       await ctx.run(
         `INSERT INTO notes (id, project_id, text, created_at) VALUES (?, ?, ?, ?)`,
-        [n.id, n.project_id, n.text, n.created_at],
+        [n.id, projectId, n.text, n.created_at],
       );
     }
+
+    await releaseExpiredBuried(ctx);
 
     await ctx.run('COMMIT');
   } catch (e) {
@@ -142,5 +149,6 @@ export async function deleteProject(
   await ctx.run(`DELETE FROM activity WHERE project_id = ?`, [projectId]);
   await ctx.run(`DELETE FROM notes WHERE project_id = ?`, [projectId]);
   await ctx.run(`DELETE FROM daily_new WHERE project_id = ?`, [projectId]);
+  await ctx.run(`DELETE FROM undo_stack WHERE project_id = ?`, [projectId]);
   return { ok: true };
 }

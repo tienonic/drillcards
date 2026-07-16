@@ -270,3 +270,18 @@
   padding: 8px 14px;
   border-top: 1px solid var(--color-border);
 }
+
+@media (max-width: 600px) {
+  .settings-dropdown,
+  .keybinds-modal.panel-fixed {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    max-height: none;
+  }
+
+  .settings-dropdown {
+    overflow-y: auto;
+  }
+}

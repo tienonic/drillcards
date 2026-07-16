@@ -6,12 +6,12 @@ export type WorkerRequest =
   | { type: 'LOAD_PROJECT'; projectId: string; sectionIds: string[]; cardIds: { sectionId: string; cardId: string; cardType: StudyCardType }[] }
   | { type: 'PICK_NEXT'; projectId: string; sectionIds: string[]; newPerSession: number; cardType?: PickCardType }
   | { type: 'PICK_NEXT_OVERRIDE'; projectId: string; sectionIds: string[]; cardType?: PickCardType; excludeIds?: string[] }
-  | { type: 'RESET_NEW_COUNT' }
-  | { type: 'PREVIEW_RATINGS'; cardId: string }
+  | { type: 'RESET_NEW_COUNT'; projectId: string; sectionIds: string[]; cardType?: PickCardType }
+  | { type: 'PREVIEW_RATINGS'; projectId: string; cardId: string }
   | { type: 'REVIEW_CARD'; cardId: string; projectId: string; sectionId: string; rating: number }
-  | { type: 'UNDO_REVIEW' }
-  | { type: 'SUSPEND_CARD'; cardId: string }
-  | { type: 'BURY_CARD'; cardId: string }
+  | { type: 'UNDO_REVIEW'; projectId: string }
+  | { type: 'SUSPEND_CARD'; projectId: string; cardId: string }
+  | { type: 'BURY_CARD'; projectId: string; cardId: string }
   | { type: 'UNBURY_ALL'; projectId: string }
   | { type: 'COUNT_DUE'; projectId: string; sectionIds: string[]; cardType?: PickCardType }
   | { type: 'UPDATE_SCORE'; projectId: string; sectionId: string; correct: boolean }
@@ -32,6 +32,7 @@ export type WorkerRequest =
   | { type: 'IMPORT_PROJECT_DATA'; projectId: string; cards: CardRow[]; review_log: ReviewLogRow[]; scores: ScoreRow[]; activity: ActivityRow[]; notes: NoteRow[] }
   | { type: 'IMPORT_GLOBAL_DATA'; hotkeys: HotkeyRow[] }
   | { type: 'GET_DECK_STATS'; projectId: string }
+  | { type: 'GET_PROJECT_CARD_COUNT'; projectId: string }
   | { type: 'GET_RETENTION'; projectId: string }
   | { type: 'GET_SECTION_STATS'; projectId: string }
   | { type: 'GET_ALL_PROJECT_IDS' }
@@ -65,7 +66,9 @@ export interface CardRow {
   last_review: string | null;
   suspended: number;
   buried: number;
+  buried_until?: string | null;
   leech: number;
+  in_deck?: number;
   updated_at: string;
 }
 

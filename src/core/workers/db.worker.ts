@@ -7,6 +7,8 @@ import {
 } from 'ts-fsrs';
 import { cardToFSRS, uuidv7 } from './helpers.ts';
 import type { WorkerContext } from './workerContext.ts';
+import { localDateKey, releaseExpiredBuried } from './burial.ts';
+import { SCHEMA, SCHEMA_VERSION, migrateToV3 } from './schema.ts';
 
 // Handler imports
 import * as cardH from './handlers/card.ts';
@@ -15,95 +17,14 @@ import * as activityH from './handlers/activity.ts';
 import * as statsH from './handlers/stats.ts';
 import * as importExportH from './handlers/importExport.ts';
 import * as miscH from './handlers/misc.ts';
+import * as projectH from './handlers/project.ts';
 
 import type { SQLiteAPI } from 'wa-sqlite';
 
 // wa-sqlite state
 let db: number = 0;
 let sqlite3: SQLiteAPI | null = null;
-
-const SCHEMA = `
-CREATE TABLE IF NOT EXISTS cards (
-  card_id TEXT PRIMARY KEY,
-  project_id TEXT NOT NULL,
-  section_id TEXT NOT NULL,
-  card_type TEXT NOT NULL CHECK(card_type IN ('mcq','passage','flashcard')),
-  fsrs_state INTEGER DEFAULT 0,
-  due TEXT DEFAULT (datetime('now')),
-  stability REAL DEFAULT 0,
-  difficulty REAL DEFAULT 0,
-  elapsed_days INTEGER DEFAULT 0,
-  scheduled_days INTEGER DEFAULT 0,
-  reps INTEGER DEFAULT 0,
-  lapses INTEGER DEFAULT 0,
-  last_review TEXT,
-  suspended INTEGER DEFAULT 0,
-  buried INTEGER DEFAULT 0,
-  leech INTEGER DEFAULT 0,
-  updated_at TEXT DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_cards_due ON cards(due);
-CREATE INDEX IF NOT EXISTS idx_cards_section ON cards(section_id);
-CREATE INDEX IF NOT EXISTS idx_cards_project ON cards(project_id);
-
-CREATE TABLE IF NOT EXISTS review_log (
-  id TEXT PRIMARY KEY,
-  card_id TEXT NOT NULL,
-  project_id TEXT NOT NULL,
-  rating INTEGER NOT NULL,
-  review_time TEXT NOT NULL,
-  section_id TEXT
-);
-
-CREATE TABLE IF NOT EXISTS scores (
-  project_id TEXT NOT NULL,
-  section_id TEXT NOT NULL,
-  correct INTEGER DEFAULT 0,
-  attempted INTEGER DEFAULT 0,
-  updated_at TEXT DEFAULT (datetime('now')),
-  PRIMARY KEY (project_id, section_id)
-);
-
-CREATE TABLE IF NOT EXISTS activity (
-  id TEXT PRIMARY KEY,
-  project_id TEXT NOT NULL,
-  section_id TEXT,
-  rating INTEGER NOT NULL,
-  correct INTEGER NOT NULL,
-  timestamp TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS notes (
-  id TEXT PRIMARY KEY,
-  project_id TEXT NOT NULL,
-  text TEXT NOT NULL,
-  created_at TEXT DEFAULT (datetime('now'))
-);
-
-CREATE TABLE IF NOT EXISTS hotkeys (
-  action TEXT PRIMARY KEY,
-  binding TEXT NOT NULL,
-  context TEXT NOT NULL DEFAULT 'global',
-  updated_at TEXT
-);
-
-CREATE TABLE IF NOT EXISTS undo_stack (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  card_id TEXT NOT NULL,
-  prev_state TEXT NOT NULL,
-  created_at TEXT DEFAULT (datetime('now'))
-);
-
-CREATE TABLE IF NOT EXISTS daily_new (
-  project_id TEXT NOT NULL,
-  date TEXT NOT NULL,
-  key TEXT NOT NULL,
-  count INTEGER NOT NULL DEFAULT 0,
-  PRIMARY KEY (project_id, date, key)
-);
-`;
-
-const SCHEMA_VERSION = 2;
+let lastBurialCheckDate: string | null = null;
 
 const migrations: Record<number, () => Promise<void>> = {
   2: async () => {
@@ -117,6 +38,7 @@ const migrations: Record<number, () => Promise<void>> = {
       );
     `);
   },
+  3: async () => migrateToV3(sqlite3!, db),
 };
 
 async function applyMigrations() {
@@ -187,34 +109,31 @@ async function queryOne(sql: string, params?: unknown[]): Promise<Record<string,
   return rows[0] ?? null;
 }
 
-async function saveCardFromFSRS(cardId: string, card: Card, lapses?: number) {
+async function saveCardFromFSRS(projectId: string, cardId: string, card: Card, lapses?: number) {
   await run(
     `UPDATE cards SET fsrs_state = ?, due = ?, stability = ?, difficulty = ?,
      elapsed_days = ?, scheduled_days = ?, reps = ?, lapses = COALESCE(?, lapses),
      last_review = ?, updated_at = datetime('now')
-     WHERE card_id = ?`,
+     WHERE project_id = ? AND card_id = ? AND in_deck = 1`,
     [
       card.state, card.due.toISOString(), card.stability, card.difficulty,
       card.elapsed_days, card.scheduled_days, card.reps,
       lapses ?? null,
       card.last_review ? card.last_review.toISOString() : null,
-      cardId,
+      projectId, cardId,
     ]
   );
 }
 
-let lastDate = new Date().toISOString().slice(0, 10);
-
 async function checkNewDay() {
-  const today = new Date().toISOString().slice(0, 10);
-  if (lastDate !== today) {
-    lastDate = today;
-    await run(`UPDATE cards SET buried = 0 WHERE buried = 1`);
-  }
+  const today = localDateKey();
+  if (lastBurialCheckDate === today) return;
+  await releaseExpiredBuried(getContext(), today);
+  lastBurialCheckDate = today;
 }
 
 async function getNewTodayCount(projectId: string, key: string): Promise<number> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
   const row = await queryOne(
     `SELECT count FROM daily_new WHERE project_id = ? AND date = ? AND key = ?`,
     [projectId, today, key]
@@ -223,7 +142,7 @@ async function getNewTodayCount(projectId: string, key: string): Promise<number>
 }
 
 async function incrementNewToday(projectId: string, key: string): Promise<void> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey();
   await run(
     `INSERT INTO daily_new (project_id, date, key, count) VALUES (?, ?, ?, 1)
      ON CONFLICT(project_id, date, key) DO UPDATE SET count = count + 1`,
@@ -252,6 +171,8 @@ function getContext(): WorkerContext {
 async function handleMessage(request: WorkerRequest): Promise<unknown> {
   const ctx = getContext();
 
+  if (request.type !== 'INIT') await checkNewDay();
+
   switch (request.type) {
     case 'INIT': {
       const SQLiteESMFactory = (await import('wa-sqlite/dist/wa-sqlite-async.mjs')).default;
@@ -274,42 +195,24 @@ async function handleMessage(request: WorkerRequest): Promise<unknown> {
       }
 
       initFSRS();
+      await checkNewDay();
       return { ok: true };
     }
 
     case 'LOAD_PROJECT': {
       const { projectId, sectionIds, cardIds } = request;
-      await run('BEGIN');
-      try {
-        for (const sid of sectionIds) {
-          await run(
-            `INSERT OR IGNORE INTO scores (project_id, section_id, correct, attempted) VALUES (?, ?, 0, 0)`,
-            [projectId, sid]
-          );
-        }
-        for (const c of cardIds) {
-          await run(
-            `INSERT OR IGNORE INTO cards (card_id, project_id, section_id, card_type) VALUES (?, ?, ?, ?)`,
-            [c.cardId, projectId, c.sectionId, c.cardType]
-          );
-        }
-        await run('COMMIT');
-      } catch (e) {
-        await run('ROLLBACK');
-        throw e;
-      }
-      return { ok: true };
+      return projectH.loadProject(ctx, projectId, sectionIds, cardIds);
     }
 
     // Card scheduling / FSRS
     case 'PICK_NEXT': return cardH.pickNext(ctx, request.projectId, request.sectionIds, request.newPerSession, request.cardType);
     case 'PICK_NEXT_OVERRIDE': return cardH.pickNextOverride(ctx, request.projectId, request.sectionIds, request.cardType, request.excludeIds);
-    case 'RESET_NEW_COUNT': return cardH.resetNewCount(ctx);
-    case 'PREVIEW_RATINGS': return cardH.previewRatings(ctx, request.cardId);
+    case 'RESET_NEW_COUNT': return cardH.resetNewCount(ctx, request.projectId, request.sectionIds, request.cardType);
+    case 'PREVIEW_RATINGS': return cardH.previewRatings(ctx, request.projectId, request.cardId);
     case 'REVIEW_CARD': return cardH.reviewCard(ctx, request.cardId, request.projectId, request.sectionId, request.rating);
-    case 'UNDO_REVIEW': return cardH.undoReview(ctx);
-    case 'SUSPEND_CARD': return cardH.suspendCard(ctx, request.cardId);
-    case 'BURY_CARD': return cardH.buryCard(ctx, request.cardId);
+    case 'UNDO_REVIEW': return cardH.undoReview(ctx, request.projectId);
+    case 'SUSPEND_CARD': return cardH.suspendCard(ctx, request.projectId, request.cardId);
+    case 'BURY_CARD': return cardH.buryCard(ctx, request.projectId, request.cardId);
     case 'UNBURY_ALL': return cardH.unburyAll(ctx, request.projectId);
     case 'COUNT_DUE': return cardH.countDue(ctx, request.projectId, request.sectionIds, request.cardType);
 
@@ -325,6 +228,7 @@ async function handleMessage(request: WorkerRequest): Promise<unknown> {
 
     // Stats
     case 'GET_DECK_STATS': return statsH.getDeckStats(ctx, request.projectId);
+    case 'GET_PROJECT_CARD_COUNT': return statsH.getProjectCardCount(ctx, request.projectId);
     case 'GET_SECTION_STATS': return statsH.getSectionStats(ctx, request.projectId);
     case 'GET_SESSION_SUMMARY': return statsH.getSessionSummary(ctx, request.projectId);
     case 'GET_REVIEW_LOG': return statsH.getReviewLog(ctx, request.projectId, request.limit);

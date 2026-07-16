@@ -1,5 +1,9 @@
 import type { CardRow, ReviewLogRow } from '../../core/workers/protocol.ts';
 
+export function activeDeckCards(cards: CardRow[]): CardRow[] {
+  return cards.filter(card => card.in_deck !== 0);
+}
+
 // --- Helpers ---
 
 function todayMidnight(): Date {

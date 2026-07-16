@@ -96,7 +96,7 @@ describe('createFlashFlow with injected API', () => {
     });
   });
 
-  it('rateFlash calls api.reviewCard and api.addActivity in normal mode', async () => {
+  it('rateFlash uses the canonical review operation without a second activity write', async () => {
     await createRoot(async dispose => {
       const api = createFakeProjectApi({
         pickNext: vi.fn()
@@ -113,7 +113,7 @@ describe('createFlashFlow with injected API', () => {
       await flow.rateFlash(3);
 
       expect(api.reviewCard).toHaveBeenCalledWith('sec1-flash-0', 'sec1', 3);
-      expect(api.addActivity).toHaveBeenCalledWith('sec1', 3, true);
+      expect(api.addActivity).not.toHaveBeenCalled();
       dispose();
     });
   });

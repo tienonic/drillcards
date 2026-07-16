@@ -13,6 +13,10 @@ vi.mock('../../core/store/app.ts', () => ({
   setSessionSummary: vi.fn(),
 }));
 
+vi.mock('../activity/store.ts', () => ({
+  loadActivity: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { createMcqFlow } from './mcqFlow.ts';
 import { handleMcqOptionClick } from './mcqOptionClick.ts';
 import type { McqSignals } from './mcqFlow.ts';

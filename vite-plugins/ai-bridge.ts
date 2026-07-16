@@ -2,6 +2,12 @@ import { spawn } from 'child_process';
 import { resolve } from 'path';
 import { readFileSync } from 'fs';
 
+const ALLOWED_CLAUDE_MODELS = new Set(['haiku', 'sonnet', 'opus']);
+
+export function isAllowedClaudeModel(value: unknown): value is string {
+  return typeof value === 'string' && ALLOWED_CLAUDE_MODELS.has(value);
+}
+
 function loadBridgeConfig() {
   try {
     const raw = readFileSync(resolve('ai-bridge.json'), 'utf-8');
@@ -27,7 +33,8 @@ export function aiBridgePlugin() {
             const parsed = JSON.parse(body);
             prompt = parsed.prompt;
             requestModel = parsed.model;
-            if (!prompt) throw new Error('missing prompt');
+            if (typeof prompt !== 'string' || !prompt.trim()) throw new Error('missing prompt');
+            if (requestModel !== undefined && !isAllowedClaudeModel(requestModel)) throw new Error('invalid model');
           } catch {
             res.writeHead(400, { 'Content-Type': 'text/plain' });
             res.end('Bad request: body must be { "prompt": "...", "model?": "..." }');
@@ -36,6 +43,11 @@ export function aiBridgePlugin() {
 
           const config = loadBridgeConfig();
           const model = requestModel || config.model || 'sonnet';
+          if (!isAllowedClaudeModel(model)) {
+            res.writeHead(400, { 'Content-Type': 'text/plain' });
+            res.end('Bad request: unsupported model');
+            return;
+          }
           const showOutput = config.showOutput !== false;
 
           const args = ['-p', '--output-format', 'text', '--model', model];

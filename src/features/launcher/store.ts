@@ -123,16 +123,18 @@ export async function openProject(data: ProjectData, isDefault: boolean, registr
         cardRegs.push({ sectionId: s.id, cardId: id, cardType: 'flashcard' });
       }
     }
+    // Count canonical rows before registration. Due-state counts are not an emptiness test:
+    // a nonempty project may contain only future, suspended, or buried cards.
+    const existingCardCount = await workerApi.getProjectCardCount(project.slug);
     await workerApi.loadProject(project.slug, sectionIds, cardRegs);
     await workerApi.setFSRSParams(project.config.desired_retention, project.config.leech_threshold, project.config.max_interval);
     await loadKeybinds();
 
-    // Auto-restore: if DB appears empty but an autosave exists on disk, restore it
-    const stats = await workerApi.getDeckStats(project.slug);
-    if (stats.new + stats.learning + stats.due === 0 && cardRegs.length > 0) {
+    // Auto-restore only when the project truly had no canonical card rows before registration.
+    if (existingCardCount === 0 && cardRegs.length > 0) {
       const autosave = await fetchAutosave(project.slug);
       if (autosave && autosave.cards.length > 0) {
-        await restoreBackup(autosave);
+        await restoreBackup(autosave, { includeGlobal: false });
         await workerApi.loadProject(project.slug, sectionIds, cardRegs);
         await workerApi.setFSRSParams(project.config.desired_retention, project.config.leech_threshold, project.config.max_interval);
       }

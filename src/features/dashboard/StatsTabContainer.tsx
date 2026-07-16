@@ -5,6 +5,7 @@ import { StatsTab } from './StatsTab.tsx';
 import type { ProjectGroup, SectionStatRow } from './StatsTab.tsx';
 import type { CardRow, ReviewLogRow } from '../../core/workers/protocol.ts';
 import type { WeakCard } from './DiagnosticTab.tsx';
+import { activeDeckCards } from './statsAggregations.ts';
 
 const EXCLUDED_PROJECTS = ['example-botany-project'];
 
@@ -64,12 +65,13 @@ export function StatsTabContainer() {
         retCount++;
       }
 
-      cards.push(...exported.cards);
+      const activeCards = activeDeckCards(exported.cards);
+      cards.push(...activeCards);
       reviewLogs.push(...exported.review_log);
 
       const name = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
-      for (const c of exported.cards) {
+      for (const c of activeCards) {
         if (c.lapses >= 3 && !c.suspended) {
           weak.push({
             card_id: c.card_id,
