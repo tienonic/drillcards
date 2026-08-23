@@ -1,10 +1,10 @@
 # Drill
 
-Spaced repetition study app using the FSRS algorithm (same scheduling as Anki). Load any subject as a JSON file and study with MCQ quizzes, flashcards, and math drills. All card state persists locally in an IndexedDB-backed SQLite database — no account or server needed.
+Drill is a local-first study application for spaced-repetition review, multiple-choice quizzes, flashcards, and generated math exercises. It uses `ts-fsrs` for scheduling and stores card state in an IndexedDB-backed SQLite database.
 
-Built with SolidJS, TypeScript, and Vite.
+The application runs in the browser and does not require an account or application server.
 
-## Quick Start
+## Quick start
 
 ```bash
 npm install
@@ -27,19 +27,19 @@ Open `http://localhost:3000`. Pick a built-in project from the Review tab or dro
 
 The landing screen with four tabs:
 
-- **Review** — select a project to study, view recent projects, see deck stats (new / learning / due)
-- **Stats** — cross-project review history, retention charts, streak tracking
-- **Create** — build new study projects from source material (supports Gemini API for AI-assisted question generation)
-- **Parameters** — tune FSRS settings (desired retention, new cards per session, leech threshold, max interval)
+- **Review**: select a project to study, view recent projects, see deck stats (new / learning / due)
+- **Stats**: cross-project review history, retention charts, streak tracking
+- **Create**: build new study projects from source material (supports Gemini API for AI-assisted question generation)
+- **Parameters**: tune FSRS settings (desired retention, new cards per session, leech threshold, max interval)
 
-### Study Modes
+### Study modes
 
-- **MCQ quizzes** — multiple choice with instant feedback, explanations, and image lookup
-- **Passage-based quizzes** — reading comprehension with shared context passages
-- **Flashcards** — 3D flip cards with Again/Hard/Good/Easy rating (FSRS scheduling)
-- **Math drills** — randomly generated problems with step-by-step solutions (conversion, average, percent, decimal)
+- **MCQ quizzes**: multiple choice with instant feedback, explanations, and image lookup
+- **Passage-based quizzes**: reading comprehension with shared context passages
+- **Flashcards**: 3D flip cards with Again/Hard/Good/Easy rating (FSRS scheduling)
+- **Math drills**: randomly generated problems with step-by-step solutions (conversion, average, percent, decimal)
 
-### Spaced Repetition
+### Spaced repetition
 
 Cards are scheduled using the [FSRS algorithm](https://github.com/open-spaced-repetition/ts-fsrs) (Free Spaced Repetition Scheduler). Key concepts:
 
@@ -49,22 +49,22 @@ Cards are scheduled using the [FSRS algorithm](https://github.com/open-spaced-re
 - **Cram mode** reviews all cards in a section by weakest stability, ignoring due dates
 - **Easy mode** auto-rates cards as Good for faster review sessions
 
-### Sidebar Tools
+### Sidebar tools
 
-- **Activity chart** — per-section or combined review history with cumulative score graph
-- **Glossary** — context-aware term panel with relevance scoring and search filtering
-- **AI assistant** — insights, targeted review suggestions, and question generation (requires local Claude CLI)
-- **Notes** — quick timestamped notes per project (press `/`)
+- **Activity chart**: per-section or combined review history with cumulative score graph
+- **Glossary**: context-aware term panel with relevance scoring and search filtering
+- **AI assistant**: insights, targeted review suggestions, and question generation (requires local Claude CLI)
+- **Notes**: quick timestamped notes per project (press `/`)
 
-### Other
+### Other features
 
-- **Offline-first** — SQLite database runs in a Web Worker (wa-sqlite with IndexedDB backing). No server required
-- **Customizable keybinds** — rebind any keyboard shortcut from the Keys panel
-- **Zen mode** — hides score bar and progress indicators for distraction-free study
-- **Backup/restore** — export and import project data as JSON
-- **PWA support** — installable as a standalone app with offline caching
+- **Offline-first**: SQLite database runs in a Web Worker (wa-sqlite with IndexedDB backing). No server required
+- **Customizable keybinds**: rebind any keyboard shortcut from the Keys panel
+- **Zen mode**: hides score bar and progress indicators for distraction-free study
+- **Backup/restore**: export and import project data as JSON
+- **PWA support**: installable as a standalone app with offline caching
 
-## Keyboard Shortcuts
+## Keyboard shortcuts
 
 All shortcuts can be rebound via the **Keys** button in the header.
 
@@ -101,13 +101,13 @@ All shortcuts can be rebound via the **Keys** button in the header.
 |-------------|--------|
 | `/` | Open quick note |
 
-## Creating Projects
+## Create projects
 
 Create a `.json` file following the format in [`projects/README.md`](projects/README.md), then either:
 - Drop it onto the dashboard
 - Use "Open Project File" in the Review tab
 
-See [`projects/example-chemistry.json`](projects/example-chemistry.json) for a working example. Custom projects are stored in localStorage. For detailed guidance on generating projects with LLMs, see [`GENERATING_PROJECTS.md`](GENERATING_PROJECTS.md).
+See [`projects/README.md`](projects/README.md) for the required JSON shape. Custom projects are stored in localStorage. For guidance on generating projects with LLMs, see [`GENERATING_PROJECTS.md`](GENERATING_PROJECTS.md).
 
 ## Architecture
 
@@ -141,15 +141,15 @@ src/
 └── utils/                           # shuffle, formatting helpers
 ```
 
-### Key Design Decisions
+### Design decisions
 
-- **Two-phase UI**: `appPhase` signal switches between `'launcher'` (dashboard) and `'study'` — no router needed
+- **Two-phase UI**: `appPhase` signal switches between `'launcher'` (dashboard) and `'study'`: no router needed
 - **Worker-based persistence**: All database operations run in a Web Worker via wa-sqlite. Messages are serialized through a promise chain to prevent race conditions
 - **Session factories**: `createQuizSession()` and `createMathSession()` produce independent signal bundles per section, stored in a `sectionHandlers` Map for keyboard routing
-- **Module-level state**: Stores export signals directly rather than using context providers — simpler for a single-page app with no nested routing
+- **Module-level state**: Stores export signals directly rather than using context providers: simpler for a single-page app with no nested routing
 - **Feature folders**: Each feature is self-contained with its own component(s), store, and CSS. Adding or modifying a feature means touching only its folder
 
-## Tech Stack
+## Technology
 
 | Library | Purpose |
 |---------|---------|
@@ -159,7 +159,7 @@ src/
 | [KaTeX](https://katex.org/) | LaTeX math rendering |
 | [Vite](https://vite.dev/) | Build tool + dev server |
 
-## Browser Requirements
+## Browser requirements
 
 Requires a modern browser with Web Worker, SharedArrayBuffer, and IndexedDB support. The dev server sets the required COOP/COEP headers automatically via `vite.config.ts`.
 

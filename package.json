@@ -2,7 +2,7 @@
   "name": "drill",
   "version": "2.0.0",
   "private": true,
-  "description": "Spaced repetition study app using FSRS. MCQ quizzes, flashcards, and math drills with offline-first SQLite persistence.",
+  "description": "Local-first spaced-repetition drills with FSRS scheduling and SQLite storage.",
   "type": "module",
   "scripts": {
     "dev": "vite",

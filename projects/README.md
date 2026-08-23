@@ -21,8 +21,8 @@ Create a local `.json` file, then load it via "Open Project File" or drag and dr
 ```
 
 - **config** is optional (defaults shown above). `desired_retention` is 0–1, higher = more reviews. `max_interval` caps the longest review gap in days (default: 365). `imageSearchSuffix` is appended to Google Images queries.
-- **sections** — array of section objects (at least one required)
-- **glossary** — optional array of `{ "term": "...", "def": "..." }` objects shown in the sidebar. Add `"hasImage": true` to include a Google Images link.
+- **sections**: array of section objects (at least one required)
+- **glossary**: optional array of `{ "term": "...", "def": "..." }` objects shown in the sidebar. Add `"hasImage": true` to include a Google Images link.
 
 ## Section Types
 
@@ -107,7 +107,7 @@ Generates random problems with step-by-step solutions. Available generators: `co
 - Keep answer options similar in character count and detail; the longest and shortest visible options should stay within 12 characters, and the correct answer must not be the longest or most specific option
 - Section IDs: lowercase, no spaces (e.g. `"elements"`, `"ch5-reactions"`)
 - Keep explanations to 1–2 sentences
-- Use `imageName` for visual subjects — creates a Google Images link
+- Use `imageName` for visual subjects: creates a Google Images link
 - Passage-quiz is best for content that shares context (readings, case studies, legal text)
 
 For detailed guidance on generating projects with LLMs, see [`GENERATING_PROJECTS.md`](../GENERATING_PROJECTS.md).
