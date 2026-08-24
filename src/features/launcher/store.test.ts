@@ -62,7 +62,7 @@ vi.mock('../quiz/helpers.ts', () => ({
 }));
 
 import { openProject, openStartupProject, isLoading, loadError, getProjectConfig } from './store.ts';
-import { appPhase, activeProject, activeTab } from '../../core/store/app.ts';
+import { appPhase, activeProject, activeTab, setAppPhase, setActiveProject, setActiveTab } from '../../core/store/app.ts';
 import { initWorker, workerApi } from '../../core/hooks/useWorker.ts';
 import { fetchAutosave, restoreBackup } from '../backup/backup.ts';
 import { loadKeybinds } from '../settings/keybinds.ts';
@@ -83,6 +83,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+  setAppPhase('launcher');
+  setActiveProject(null);
+  setActiveTab(null);
   vi.mocked(initWorker).mockResolvedValue(undefined);
   vi.mocked(workerApi.getProjectCardCount).mockResolvedValue(5);
   // Retained for the rest of the launcher surface.
@@ -224,6 +227,24 @@ describe('openProject', () => {
         ['sec1'],
         expect.arrayContaining([expect.objectContaining({ sectionId: 'sec1', cardId: 'sec1-0', cardType: 'mcq' })]),
       );
+
+      dispose();
+    });
+  });
+
+  it('normal startup stays on the launcher instead of reopening the last deck', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error('local project file probe should be skipped'));
+    vi.stubGlobal('fetch', fetchMock);
+    try { localStorage.setItem('last-project', 'registry-project'); } catch {}
+
+    await createRoot(async (dispose) => {
+      await openStartupProject();
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(workerApi.loadProject).not.toHaveBeenCalled();
+      expect(appPhase()).toBe('launcher');
+      expect(activeProject()).toBeNull();
+      expect(activeTab()).toBeNull();
 
       dispose();
     });

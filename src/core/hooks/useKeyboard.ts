@@ -165,11 +165,12 @@ function handleFlashcardKeyboard(e: KeyboardEvent, session: FlashView) {
     return;
   }
 
-  // 1-4 keys to rate when flipped
+  // Rating keys when flipped. Flashcard Again/Good are independently configurable;
+  // Hard/Easy keep using the shared 2/4 rating keys.
   if (isFlipped) {
-    if (matchesKey(e, 'answer1')) { e.preventDefault(); session.rateFlash(1).catch(() => {}); return; }
+    if (matchesKey(e, 'flashAgain')) { e.preventDefault(); session.rateFlash(1).catch(() => {}); return; }
     if (matchesKey(e, 'answer2')) { e.preventDefault(); session.rateFlash(2).catch(() => {}); return; }
-    if (matchesKey(e, 'answer3')) { e.preventDefault(); session.rateFlash(3).catch(() => {}); return; }
+    if (matchesKey(e, 'flashGood')) { e.preventDefault(); session.rateFlash(3).catch(() => {}); return; }
     if (matchesKey(e, 'answer4')) { e.preventDefault(); session.rateFlash(4).catch(() => {}); return; }
   }
 

@@ -31,6 +31,7 @@ interface ProjectFileSummary {
 const [isLoading, setIsLoading] = createSignal(false);
 const [loadError, setLoadError] = createSignal<string | null>(null);
 const [failedSlug, setFailedSlug] = createSignal<string | null>(null);
+const autoOpenLastProject = import.meta.env.VITE_STUDY_AUTO_OPEN_LAST_PROJECT === '1';
 
 export { isLoading, loadError, setLoadError, failedSlug, setFailedSlug };
 
@@ -297,6 +298,8 @@ export async function openStartupProject() {
     if (fallback) await openRegistryProject(fallback.slug);
     return;
   }
+
+  if (!autoOpenLastProject) return;
 
   const last = getLastProject();
   if (last && await openRecentProjectAsync(last, true)) return;

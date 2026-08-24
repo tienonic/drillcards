@@ -80,6 +80,7 @@ Multiple sections create separate tabs in the UI, which gets crowded. Put all qu
 - No "all of the above" or "none of the above"
 - No absolutes ("always", "never") unless that's genuinely the answer
 - Every question must have an `explanation`
+- Card text must be the study prompt or answer only. Do not include source/deck preambles in visible fields: no `Connect eBook Ch4:`, `MGT Ch6 slide visual drill:`, `Source:`, `Final guide:`, source IDs, page IDs, coverage labels, `source point 1`, or `Which [course] final concept fits this clue:` in `q`, `correct`, `wrong[]`, `explanation`, `flashcard.front`, or `flashcard.back`.
 - For art history slide/image IDs, style/movement/culture is required ID content: include it in feedback and in flashcard answers, not just in surrounding notes
 - For art history, every in-scope artwork/object/image from the source ledger must be covered, explicitly excluded, or listed as a source gap before the deck is called exam-ready.
 - Distribute the correct answer position randomly (don't always put it first)
@@ -343,6 +344,8 @@ You cannot define custom math generators via JSON. Only the four keys above are 
 **Structure:**
 - Exactly 3 wrong answers per question (4 options total)
 - The question stem must be a complete question on its own — it should make sense without reading the options
+- The question stem must not start with source or deck metadata. Bad: `Connect eBook Ch4: what did SOX respond to?`; good: `What did the Sarbanes-Oxley Act primarily respond to?`
+- Answer choices must not contain source labels or source-point suffixes. Bad: `Kota Reliquary, Gabon - source point 1`; good: `Kota Reliquary, Gabon`.
 - **Answer-length parity is critical.** All 4 options must be similar in character count, grammar, and detail level. Keep the longest and shortest visible options within 12 characters. The correct answer must NOT be the longest, most qualified, or most specific option. If the correct answer needs a qualifier ("because X"), add comparable qualifiers to the wrong answers too. Agents generating questions must enforce this — it is the #1 source of guessable questions
 - **Term-in-context MCQs need matched options.** If the stem gives a context clue and asks for the term, each option should be the same kind of term or same kind of short explanation. Do not make the answer obvious by giving it a full sentence while the distractors are short labels.
 - Distribute correct answer positions randomly — don't default to putting the correct answer first in the `correct` field (the app shuffles at display time, but consistent patterns in source data can indicate quality issues)
@@ -373,6 +376,7 @@ Aim for variety across cognitive levels, not just "remember" questions.
 ### Flashcard Design
 
 - **One fact per card.** If you're tempted to put a list on the back, split it into multiple cards. "Name the 4 chambers of the heart" is a bad card; four cards each asking "What chamber is in the upper-left of the heart?" are better.
+- Flashcard fronts and backs must not show source/deck metadata. Put the term, image prompt, or recall question on the front, and the answer on the back. Keep source anchors and source-point labels outside visible card fields.
 - **Minimum information principle.** The answer should be short — a word, phrase, or single sentence. Not a paragraph.
 - **Include contrast cards.** If two concepts are easily confused, make cards that specifically ask how they differ. "How does mitosis differ from meiosis?" with a focused, short answer.
 - **Why cards.** For every factual card ("What does X do?"), consider adding a companion card ("Why does X do that?" or "What happens if X fails?").

@@ -5,7 +5,8 @@ export type KeyAction =
   | 'answer1' | 'answer2' | 'answer3' | 'answer4'
   | 'skip' | 'undo' | 'suspend' | 'bury'
   | 'viewImage' | 'copyCard' | 'goBack' | 'forward'
-  | 'flipCard' | 'flipAlt' | 'note' | 'mathSubmit';
+  | 'flipCard' | 'flipAlt' | 'flashAgain' | 'flashGood'
+  | 'note' | 'mathSubmit';
 
 export interface Binding {
   key: string;
@@ -32,6 +33,8 @@ export const ACTION_META: Record<KeyAction, { name: string; context: KeyContext 
   forward:   { name: 'Forward',       context: 'mcq' },
   flipCard:  { name: 'Flip Card',     context: 'flashcard' },
   flipAlt:   { name: 'Flip (alt)',    context: 'flashcard' },
+  flashAgain:{ name: 'Again',         context: 'flashcard' },
+  flashGood: { name: 'Good',          context: 'flashcard' },
   note:      { name: 'Open Note',     context: 'global' },
   mathSubmit:{ name: 'Skip / Next',   context: 'math' },
 };
@@ -51,6 +54,8 @@ export const DEFAULT_KEYBINDS: KeybindMap = {
   forward:    { key: 'd', label: 'D' },
   flipCard:   { key: 'Space', code: 'Space', label: 'Space' },
   flipAlt:    { key: 'f', label: 'F' },
+  flashAgain: { key: '1', label: '1' },
+  flashGood:  { key: '3', label: '3' },
   note:       { key: '/', label: '/' },
   mathSubmit: { key: 'd', label: 'D' },
 };

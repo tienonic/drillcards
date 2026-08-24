@@ -14,14 +14,14 @@ Be direct, under 600 words. Use markdown headers and bullet points.`;
 const GENERATE_SYSTEM = `Output ONLY a JSON array. Each element: { "q": "question text", "correct": "correct answer", "wrong": ["wrong1", "wrong2", "wrong3"], "explanation": "brief explanation" }.
 Questions test recall not recognition. Wrong answers must be plausible. Vary types: definition, application, comparison, cause/effect. Explanations under 60 words. Generate exactly the number requested.
 For art history slide/image ID material, include the work's style, movement, or culture in the tested fact or explanation when the source provides it. Do not leave style implicit.
-Use source anchors only to decide coverage. Do not include source IDs, page IDs, deck IDs, coverage labels, "Source:", "Final guide:", or "Which [course] final concept fits this clue:" in q, correct, wrong, or explanation text.
+Use source anchors only to decide coverage. Do not include source IDs, page IDs, deck IDs, coverage labels, source-point suffixes like "source point 1", chapter/source preambles like "Connect eBook Ch4:", "MGT Ch6 slide visual drill:", "Source:", "Final guide:", or "Which [course] final concept fits this clue:" in q, correct, wrong, or explanation text.
 ${SOURCE_COVERAGE_INSTRUCTIONS}
 ${ANSWER_BALANCE_INSTRUCTIONS}`;
 
 const TARGETED_SYSTEM = `Output ONLY a JSON array. Each element: { "q": "question text", "correct": "correct answer", "wrong": ["wrong1", "wrong2", "wrong3"], "explanation": "brief explanation" }.
 Focus on the student's weakest areas. Generate questions that reinforce concepts they're struggling with — target low-accuracy sections, high-lapse cards, and unstable knowledge. Wrong answers must be plausible. Explanations under 60 words.
 For art history slide/image ID material, include the work's style, movement, or culture in the tested fact or explanation when the source provides it. Do not leave style implicit.
-Use source anchors only to decide coverage. Do not include source IDs, page IDs, deck IDs, coverage labels, "Source:", "Final guide:", or "Which [course] final concept fits this clue:" in q, correct, wrong, or explanation text.
+Use source anchors only to decide coverage. Do not include source IDs, page IDs, deck IDs, coverage labels, source-point suffixes like "source point 1", chapter/source preambles like "Connect eBook Ch4:", "MGT Ch6 slide visual drill:", "Source:", "Final guide:", or "Which [course] final concept fits this clue:" in q, correct, wrong, or explanation text.
 ${ANSWER_BALANCE_INSTRUCTIONS}`;
 
 export function formatPerformanceSummary(summary: PerformanceSummary): string {

@@ -167,7 +167,7 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
     setQuestionContext([resolved.card.front, resolved.card.back].join(' '));
   }
 
-  async function pickNextFlash() {
+  async function pickNextFlash(staleRetries = 0) {
     if (d.cramMode()) { await d.cramPickNext(); return; }
     const p = d.project();
     if (!p || allFlashcards.length === 0 || allFlashCardIds.length === 0) return;
@@ -193,6 +193,11 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
 
     const resolved = resolve(result.cardId);
     if (!resolved) {
+      if (staleRetries < 5) {
+        await d.api.suspendCard(result.cardId).catch(() => {});
+        await pickNextFlash(staleRetries + 1);
+        return;
+      }
       setFlashError();
       return;
     }

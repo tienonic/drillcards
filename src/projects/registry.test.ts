@@ -60,7 +60,7 @@ describe('buildProjectRegistry', () => {
     await expect(registry[0].loader()).resolves.toMatchObject({ name: 'Example Art History Drill' });
   });
 
-  it('can add local project bindings to the normal app registry', () => {
+  it('uses local project bindings as the direct normal app registry', () => {
     const registry = buildProjectRegistry(undefined, false, [
       { name: 'Local Practice Deck', file: 'local-practice.json' },
       { name: 'Local Review Deck', file: 'local-review.json' },
@@ -69,12 +69,10 @@ describe('buildProjectRegistry', () => {
     expect(registry.map(entry => entry.name)).toEqual([
       'Local Practice Deck',
       'Local Review Deck',
-      'Example Art History Drill',
     ]);
     expect(registry.map(entry => entry.slug)).toEqual([
       'local-practice-deck',
       'local-review-deck',
-      'example-art-history-drill',
     ]);
     expect(registry.every(entry => entry.folder === '')).toBe(true);
   });

@@ -21,8 +21,8 @@ const TIPS: Record<KeyContext, { action: string; keys: (map: Record<KeyAction, {
   ],
   flashcard: [
     { action: 'Flip Card', keys: (m) => `${m.flipCard.label} / ${m.flipAlt.label}` },
-    { action: 'Rate', keys: (m) => `${m.answer1.label}-${m.answer4.label}` },
-    { action: 'Flip / Rate Good', keys: (m) => m.skip.label },
+    { action: 'Again / Good', keys: (m) => `${m.flashAgain.label} / ${m.flashGood.label}` },
+    { action: 'Hard / Easy', keys: (m) => `${m.answer2.label} / ${m.answer4.label}` },
   ],
   math: [
     { action: 'Submit', keys: () => 'Enter' },

@@ -2,6 +2,7 @@ import type { ProjectData, Project, ProjectConfig, Section } from './types.ts';
 import { getGlobalFSRSDefaults } from '../core/store/config.ts';
 import { getCardTypeEntry } from './cardTypeRegistry.ts';
 import { normalizeProjectData } from './textNormalization.ts';
+import { cleanProjectStudyCopy } from './studyCopy.ts';
 
 function buildDefaultConfig(): ProjectConfig {
   const fsrs = getGlobalFSRSDefaults();
@@ -23,7 +24,7 @@ function buildCardIds(section: Section): void {
 }
 
 export function loadProject(data: ProjectData): Project {
-  const normalizedData = normalizeProjectData(data);
+  const normalizedData = cleanProjectStudyCopy(normalizeProjectData(data));
   const config: ProjectConfig = { ...buildDefaultConfig(), ...normalizedData.config };
   const sections: Section[] = normalizedData.sections.map(s => {
     const section: Section = { ...s, cardIds: [], flashCardIds: [] };

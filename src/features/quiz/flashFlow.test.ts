@@ -96,6 +96,29 @@ describe('createFlashFlow with injected API', () => {
     });
   });
 
+  it('skips stale scheduled flashcard IDs instead of stranding the UI', async () => {
+    await createRoot(async dispose => {
+      const api = createFakeProjectApi({
+        pickNext: vi.fn()
+          .mockResolvedValueOnce({ cardId: 'sec1-flash-9' })
+          .mockResolvedValueOnce({ cardId: 'sec1-flash-0' }),
+        suspendCard: vi.fn().mockResolvedValue(undefined),
+      });
+      const s = createSignals();
+      const deps = makeDeps(api);
+      const flow = createFlashFlow(s, deps);
+
+      await flow.pickNextFlash();
+
+      expect(api.suspendCard).toHaveBeenCalledWith('sec1-flash-9');
+      expect(api.pickNext).toHaveBeenCalledTimes(2);
+      expect(s.state()).toBe('answering');
+      expect(s.flashCardId()).toBe('sec1-flash-0');
+      expect(s.flashFront()).toBe('Term');
+      dispose();
+    });
+  });
+
   it('rateFlash uses the canonical review operation without a second activity write', async () => {
     await createRoot(async dispose => {
       const api = createFakeProjectApi({

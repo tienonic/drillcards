@@ -189,7 +189,11 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
     const p = project();
     if (!p) return;
     await guard.withActing(async () => {
-      await mcq.pickNextCardImpl();
+      if (flashMode()) {
+        await flash.pickNextFlash();
+      } else {
+        await mcq.pickNextCardImpl();
+      }
       if (state() !== 'done') return;
 
       if (await pickOverrideCard()) {

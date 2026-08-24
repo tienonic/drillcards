@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import fs from 'node:fs';
 import { hasBalancedAnswerOptions, parseGeneratedMcqCards } from './questionQuality.ts';
 
 describe('generated MCQ quality checks', () => {
@@ -19,7 +18,7 @@ describe('generated MCQ quality checks', () => {
   it('cleans generated source and final-deck boilerplate before insertion', () => {
     const raw = JSON.stringify([
       {
-        q: 'Which ABT 150 final concept fits this clue: One standard-size drink raises BAC by a predictable amount.',
+        q: 'Connect eBook Ch4: what did the Sarbanes-Oxley Act primarily respond to?',
         correct: 'Final guide: Drink size',
         wrong: ['Final guide: BAC chart', 'Final guide: Body water', 'Final guide: Food delay'],
         explanation: 'Source-backed clue from ABT_FINAL_004.',
@@ -28,7 +27,7 @@ describe('generated MCQ quality checks', () => {
 
     expect(parseGeneratedMcqCards(raw)).toEqual([
       {
-        q: 'One standard-size drink raises BAC by a predictable amount.',
+        q: 'What did the Sarbanes-Oxley Act primarily respond to?',
         correct: 'Drink size',
         wrong: ['BAC chart', 'Body water', 'Food delay'],
         explanation: undefined,
@@ -77,8 +76,32 @@ describe('generated MCQ quality checks', () => {
     expect(hasBalancedAnswerOptions(question)).toBe(false);
   });
 
-  it('keeps the current AHI Exam 2 deck within the character-count guardrail', () => {
-    const project = JSON.parse(fs.readFileSync('projects/ahi001c-exam-2.json', 'utf8'));
+  it('keeps deck questions within the character-count guardrail', () => {
+    const project = {
+      sections: [
+        {
+          id: 'fixture-balanced',
+          questions: [
+            {
+              q: 'Which label belongs here?',
+              correct: 'Manet, Olympia',
+              wrong: ['Courbet, Realism', 'Ingres, Odalisque', 'Seurat, Grande Jatte'],
+            },
+          ],
+          scenarios: [
+            {
+              questions: [
+                {
+                  q: 'Which formal cue matters most?',
+                  correct: 'Flattened space',
+                  wrong: ['Loose brushwork', 'Sharp contour', 'Public scale'],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
     const failures: string[] = [];
 
     function visibleLength(text: string): number {

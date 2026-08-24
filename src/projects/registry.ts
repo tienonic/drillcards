@@ -19,9 +19,9 @@ export function buildProjectRegistry(
   localProjects: LocalProjectBinding[] = [],
 ): RegistryEntry[] {
   if (singleDeckMode) return generatedProject ? [buildGeneratedEntry(generatedProject)] : [];
+  if (localProjects.length > 0) return buildLocalProjectEntries(localProjects);
 
   return [
-    ...buildLocalProjectEntries(localProjects),
     buildExampleEntry(),
   ];
 }

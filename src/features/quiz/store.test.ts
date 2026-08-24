@@ -169,4 +169,54 @@ describe('QuizSession interface completeness', () => {
       dispose();
     });
   });
+
+  it('Study More in flash mode continues with flashcards instead of blanking on MCQ state', async () => {
+    await createRoot(async dispose => {
+      const section: Section = {
+        ...mockSection(),
+        flashcards: [{ front: 'Term', back: 'Definition' }],
+        flashCardIds: ['sec1-flash-0'],
+      };
+      const pickNext = vi.fn()
+        .mockResolvedValueOnce({ cardId: null })
+        .mockResolvedValueOnce({ cardId: 'sec1-flash-0' });
+      const api = createFakeProjectApi({
+        pickNext,
+        countDue: vi.fn().mockResolvedValue({ due: 0, newCount: 1, total: 1 }),
+      });
+
+      setActiveProject({
+        name: 'Flash Study More Test',
+        slug: 'flash-study-more-test',
+        version: 1,
+        config: {
+          desired_retention: 0.9,
+          new_per_session: 1,
+          leech_threshold: 8,
+          max_interval: 90,
+          imageSearchSuffix: '',
+        },
+        sections: [section],
+        glossary: [],
+      });
+
+      const session = createQuizSession(section, api);
+      session.toggleFlashMode();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(session.flashMode()).toBe(true);
+      expect(session.state()).toBe('done');
+
+      await session.studyMore();
+
+      expect(pickNext).toHaveBeenNthCalledWith(1, ['sec1'], 1, 'flashcard');
+      expect(pickNext).toHaveBeenNthCalledWith(2, ['sec1'], 1, 'flashcard');
+      expect(session.state()).toBe('answering');
+      expect(session.flashCardId()).toBe('sec1-flash-0');
+      expect(session.flashFront()).toBe('Term');
+      expect(session.cardId()).toBe(null);
+      dispose();
+    });
+  });
 });

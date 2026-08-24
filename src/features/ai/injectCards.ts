@@ -1,6 +1,7 @@
 import { setAppPhase } from '../../core/store/app.ts';
 import { registerAndActivateSection } from './sectionInjector.ts';
 import { normalizeProjectText, normalizeTextEncoding } from '../../projects/textNormalization.ts';
+import { cleanAnswerLabel, cleanExplanation, cleanFlashBack, cleanFlashFront, cleanQuestionPrompt } from '../../projects/studyCopy.ts';
 import type { Section, Question } from '../../projects/types.ts';
 
 export interface GeneratedCard {
@@ -19,10 +20,10 @@ export async function injectGeneratedCards(
 
   const sectionId = 'gen-' + Date.now();
   const mcqQuestions: Question[] = cards.map(q => ({
-    q: normalizeTextEncoding(q.q),
-    correct: normalizeTextEncoding(q.correct),
-    wrong: q.wrong.map(normalizeTextEncoding),
-    explanation: q.explanation ? normalizeTextEncoding(q.explanation) : undefined,
+    q: cleanQuestionPrompt(normalizeTextEncoding(q.q)) ?? normalizeTextEncoding(q.q),
+    correct: cleanAnswerLabel(normalizeTextEncoding(q.correct)) ?? normalizeTextEncoding(q.correct),
+    wrong: q.wrong.map(wrong => cleanAnswerLabel(normalizeTextEncoding(wrong)) ?? normalizeTextEncoding(wrong)),
+    explanation: q.explanation ? cleanExplanation(normalizeTextEncoding(q.explanation)) : undefined,
   }));
   const cardIds = mcqQuestions.map((_, i) => `${sectionId}-${i}`);
 
@@ -44,7 +45,10 @@ export async function injectFlashcards(
   if (cards.length === 0) return;
 
   const sectionId = 'diy-' + Date.now();
-  const flashcards = normalizeProjectText(cards.map(c => ({ front: c.front, back: c.back })));
+  const flashcards = normalizeProjectText(cards.map(c => ({
+    front: cleanFlashFront(c.front) ?? c.front,
+    back: cleanFlashBack(c.back) ?? c.back,
+  })));
   const flashCardIds = flashcards.map((_, i) => `${sectionId}-flash-${i}`);
 
   const newSection: Section = {
