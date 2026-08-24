@@ -22,11 +22,15 @@ describe('Vite dev middleware security boundaries', () => {
   });
 
   it('resolves accepted exports beneath the configured exports root', () => {
-    const root = 'C:\\study-tool\\exports';
-    const target = resolveExportTarget(root, 'spanish-ag-plant', 'autosave.json');
-    expect(target).toBe('C:\\study-tool\\exports\\spanish-ag-plant\\autosave.json');
-    expect(resolveExportTarget(root, '../private', 'autosave.json')).toBeNull();
-    expect(resolveExportTarget(root, 'spanish-ag-plant', '..\\private.json')).toBeNull();
+    const windowsRoot = 'C:\\study-tool\\exports';
+    const windowsTarget = resolveExportTarget(windowsRoot, 'spanish-ag-plant', 'autosave.json');
+    expect(windowsTarget).toBe('C:\\study-tool\\exports\\spanish-ag-plant\\autosave.json');
+    expect(resolveExportTarget(windowsRoot, '../private', 'autosave.json')).toBeNull();
+    expect(resolveExportTarget(windowsRoot, 'spanish-ag-plant', '..\\private.json')).toBeNull();
+
+    const posixRoot = '/opt/study-tool/exports';
+    const posixTarget = resolveExportTarget(posixRoot, 'spanish-ag-plant', 'autosave.json');
+    expect(posixTarget).toBe('/opt/study-tool/exports/spanish-ag-plant/autosave.json');
   });
 
   it('limits project routes and AI models to explicit allowlists', () => {

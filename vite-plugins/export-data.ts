@@ -1,4 +1,4 @@
-import { resolve, sep } from 'path';
+import { posix, resolve, sep, win32 } from 'path';
 import { readFileSync, mkdirSync, writeFileSync, existsSync } from 'fs';
 
 const PROJECT_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -15,9 +15,14 @@ export function isAppOwnedExportFileName(value: unknown): value is string {
 
 export function resolveExportTarget(exportsRoot: string, slug: unknown, fileName: unknown): string | null {
   if (!isValidExportSlug(slug) || !isAppOwnedExportFileName(fileName)) return null;
-  const root = resolve(exportsRoot);
-  const target = resolve(root, slug, fileName);
-  return target.startsWith(root + sep) ? target : null;
+  const pathApi = posix.isAbsolute(exportsRoot)
+    ? posix
+    : win32.isAbsolute(exportsRoot)
+      ? win32
+      : { resolve, sep };
+  const root = pathApi.resolve(exportsRoot);
+  const target = pathApi.resolve(root, slug, fileName);
+  return target.startsWith(root + pathApi.sep) ? target : null;
 }
 
 export function exportPlugin() {
