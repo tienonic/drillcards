@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createFakeProjectApi } from '../quiz/testUtils.ts';
-import { pickNextScheduled, resetScheduledNewCount } from './goalScheduling.ts';
+import { pickNextScheduled, resetScheduledNewCount, reviewQuotaKey } from './goalScheduling.ts';
 
 describe('goal scheduling API bridge', () => {
   it('keeps legacy deck quotas scoped by section and card type', async () => {
@@ -12,6 +12,7 @@ describe('goal scheduling API bridge', () => {
 
     expect(api.pickNext).toHaveBeenCalledWith(['a'], 20, 'flashcard');
     expect(api.resetNewCount).toHaveBeenCalledWith(['a'], 'flashcard');
+    expect(reviewQuotaKey(project)).toBeUndefined();
   });
 
   it('uses one project-wide quota for a finite goal across section switches', async () => {
@@ -26,5 +27,6 @@ describe('goal scheduling API bridge', () => {
     expect(api.pickNext).toHaveBeenNthCalledWith(1, ['general'], 20, 'flashcard', 'finite-deck|study-goal', goal);
     expect(api.pickNext).toHaveBeenNthCalledWith(2, ['travel'], 20, 'flashcard', 'finite-deck|study-goal', goal);
     expect(api.resetNewCount).toHaveBeenCalledWith(['travel'], 'flashcard', 'finite-deck|study-goal');
+    expect(reviewQuotaKey(project)).toBe('finite-deck|study-goal');
   });
 });

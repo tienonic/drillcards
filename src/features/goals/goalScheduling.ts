@@ -15,6 +15,10 @@ export function hasFiniteStudyGoal(project: GoalSchedulingProject): boolean {
   return Boolean(project.config.study_goal?.target_date);
 }
 
+export function reviewQuotaKey(project: GoalSchedulingProject): string | undefined {
+  return hasFiniteStudyGoal(project) ? studyGoalQuotaKey(project.slug) : undefined;
+}
+
 export function pickNextScheduled(
   api: ProjectApi,
   project: GoalSchedulingProject,

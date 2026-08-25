@@ -84,7 +84,7 @@ describe('project-scoped card actions', () => {
 
       await expect(pickNext(ctx, 'project-a', ['sec1'], 20, 'flashcard', 'project-a|study-goal', goal))
         .resolves.toEqual({ cardId: 'next-priority-card' });
-      expect(ctx.incrementNewToday).toHaveBeenCalledWith('project-a', 'project-a|study-goal');
+      expect(ctx.incrementNewToday).not.toHaveBeenCalled();
 
       const cappedCtx = context({
         queryOne: vi.fn()
@@ -143,6 +143,26 @@ describe('project-scoped card actions', () => {
     const undoInsert = vi.mocked(ctx.run).mock.calls.find(([sql]) => String(sql).includes('INSERT INTO undo_stack'));
     expect(undoInsert).toBeTruthy();
     expect(undoInsert![1]).toEqual(['project-a', 'same-card', 'operation-1', 'operation-1', JSON.stringify(before)]);
+  });
+
+  it('counts finite-goal quota only when a new card is actually rated', async () => {
+    const before = {
+      card_id: 'new-card', project_id: 'project-a', section_id: 'sec1', fsrs_state: 0,
+      due: '2026-07-16T17:00:00.000Z', stability: 0, difficulty: 0,
+      elapsed_days: 0, scheduled_days: 0, learning_steps: 0, reps: 0, lapses: 0,
+      last_review: null, suspended: 0, buried: 0, leech: 0,
+    };
+    const next = { ...before, state: 1, due: new Date('2026-07-16T17:10:00.000Z') } as unknown as Card;
+    const ctx = context({
+      queryOne: vi.fn().mockResolvedValue(before),
+      cardToFSRS: vi.fn().mockReturnValue({ ...next, state: 0 }),
+      fsrsEngine: (() => ({ repeat: () => ({ 3: { card: next } }) })) as WorkerContext['fsrsEngine'],
+    });
+
+    await reviewCard(ctx, 'new-card', 'project-a', 'sec1', 3, 'project-a|study-goal');
+
+    expect(ctx.incrementNewToday).toHaveBeenCalledOnce();
+    expect(ctx.incrementNewToday).toHaveBeenCalledWith('project-a', 'project-a|study-goal');
   });
 
   it('undo restores only the requested project and deletes the exact paired log/activity', async () => {

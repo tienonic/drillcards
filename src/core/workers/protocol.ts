@@ -17,7 +17,7 @@ export type WorkerRequest =
   | { type: 'PICK_NEXT_OVERRIDE'; projectId: string; sectionIds: string[]; cardType?: PickCardType; excludeIds?: string[] }
   | { type: 'RESET_NEW_COUNT'; projectId: string; sectionIds: string[]; cardType?: PickCardType; quotaKey?: string }
   | { type: 'PREVIEW_RATINGS'; projectId: string; cardId: string }
-  | { type: 'REVIEW_CARD'; cardId: string; projectId: string; sectionId: string; rating: number }
+  | { type: 'REVIEW_CARD'; cardId: string; projectId: string; sectionId: string; rating: number; quotaKey?: string }
   | { type: 'UNDO_REVIEW'; projectId: string }
   | { type: 'SUSPEND_CARD'; projectId: string; cardId: string }
   | { type: 'BURY_CARD'; projectId: string; cardId: string }

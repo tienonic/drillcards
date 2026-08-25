@@ -87,7 +87,10 @@ export async function pickNext(
       [projectId, ...sectionIds, ...typeFilter.params],
     );
     if (row) {
-      await ctx.incrementNewToday(projectId, key);
+      // Legacy daily limits reserve on selection. Finite-goal limits count a new card
+      // only after the learner rates it, so hidden/preloaded sections and reloads do
+      // not consume exposure quota without an actual study action.
+      if (!studyGoal?.target_date) await ctx.incrementNewToday(projectId, key);
       return { cardId: row.card_id as string };
     }
   }
@@ -161,6 +164,7 @@ export async function reviewCard(
   projectId: string,
   sectionId: string,
   rating: number,
+  quotaKey?: string,
 ): Promise<{
   card: { state: number; due: string; stability: number; difficulty: number };
   isLeech: boolean;
@@ -170,6 +174,7 @@ export async function reviewCard(
   if (!row) throw new Error(`Card not found: ${cardId}`);
 
   const card = ctx.cardToFSRS(row);
+  const introductionKey = card.state === State.New ? quotaKey?.trim() : undefined;
 
   // Apply FSRS (pure computation, before transaction)
   const result: IPreview = ctx.fsrsEngine().repeat(card, new Date());
@@ -203,6 +208,7 @@ export async function reviewCard(
     }
 
     await ctx.saveCardFromFSRS(projectId, cardId, newCard, newLapses);
+    if (introductionKey) await ctx.incrementNewToday(projectId, introductionKey);
 
     await ctx.run(
       `INSERT INTO review_log (id, card_id, project_id, rating, review_time, section_id) VALUES (?, ?, ?, ?, ?, ?)`,

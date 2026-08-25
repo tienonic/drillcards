@@ -50,6 +50,10 @@ Cards are scheduled using the [FSRS algorithm](https://github.com/open-spaced-re
 - **Cram mode** reviews all cards in a section by weakest stability, ignoring due dates
 - **Easy mode** auto-rates cards as Good for faster review sessions
 
+The current scheduler is FSRS-6 from `ts-fsrs` 5.2.3, as pinned in `package-lock.json`. It uses the library's built-in 21 weights, enables short-term learning, disables fuzz, and applies each deck's desired retention and maximum interval. The app does not optimize weights from local review history.
+
+SQLite schema version 4 persists the complete FSRS-6 card state, including `learning_steps`. The migration initializes that field to `0` on older cards without rewriting review times, stability, difficulty, repetitions, lapses, or due dates. Review logs remain a compact event history for app statistics and undo; they are not an optimizer dataset. Treat a future `ts-fsrs` update as a scheduler migration and verify card fields, learning and relearning transitions, backups, and deterministic simulations before changing the lockfile.
+
 ### Sidebar tools
 
 - **Activity chart**: per-section or combined review history with cumulative score graph

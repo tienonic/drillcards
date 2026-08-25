@@ -83,9 +83,9 @@ export const workerApi = {
   previewRatings: (projectId: string, cardId: string) =>
     sendWorkerMessage<{ labels: Record<number, string> }>({ type: 'PREVIEW_RATINGS', projectId, cardId }),
 
-  reviewCard: (cardId: string, projectId: string, sectionId: string, rating: number) =>
+  reviewCard: (cardId: string, projectId: string, sectionId: string, rating: number, quotaKey?: string) =>
     sendWorkerMessage<{ card: { state: number; due: string; stability: number; difficulty: number }; isLeech: boolean; lapses: number }>({
-      type: 'REVIEW_CARD', cardId, projectId, sectionId, rating,
+      type: 'REVIEW_CARD', cardId, projectId, sectionId, rating, quotaKey,
     }),
 
   undoReview: (projectId: string) =>
@@ -204,7 +204,7 @@ export interface ProjectApi {
   getStudyProgress: (desiredRetention: number, quotaKey?: string) => Promise<StudyProgress>;
   getSectionStats: () => Promise<{ section_id: string; new: number; learning: number; due: number; total: number }[]>;
   deleteProject: () => Promise<{ ok: boolean }>;
-  reviewCard: (cardId: string, sectionId: string, rating: number) => Promise<{ card: { state: number; due: string; stability: number; difficulty: number }; isLeech: boolean; lapses: number }>;
+  reviewCard: (cardId: string, sectionId: string, rating: number, quotaKey?: string) => Promise<{ card: { state: number; due: string; stability: number; difficulty: number }; isLeech: boolean; lapses: number }>;
   previewRatings: (cardId: string) => ReturnType<typeof workerApi.previewRatings>;
   suspendCard: (cardId: string) => ReturnType<typeof workerApi.suspendCard>;
   buryCard: (cardId: string) => ReturnType<typeof workerApi.buryCard>;
@@ -236,7 +236,7 @@ export function forProject(slug: string): ProjectApi {
     getStudyProgress: (desiredRetention, quotaKey?) => workerApi.getStudyProgress(slug, desiredRetention, quotaKey),
     getSectionStats: () => workerApi.getSectionStats(slug),
     deleteProject: () => workerApi.deleteProject(slug),
-    reviewCard: (cardId, sectionId, rating) => workerApi.reviewCard(cardId, slug, sectionId, rating),
+    reviewCard: (cardId, sectionId, rating, quotaKey?) => workerApi.reviewCard(cardId, slug, sectionId, rating, quotaKey),
     previewRatings: (cardId) => workerApi.previewRatings(slug, cardId),
     suspendCard: (cardId) => workerApi.suspendCard(slug, cardId),
     buryCard: (cardId) => workerApi.buryCard(slug, cardId),

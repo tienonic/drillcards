@@ -210,7 +210,7 @@ async function handleMessage(request: WorkerRequest): Promise<unknown> {
     case 'PICK_NEXT_OVERRIDE': return cardH.pickNextOverride(ctx, request.projectId, request.sectionIds, request.cardType, request.excludeIds);
     case 'RESET_NEW_COUNT': return cardH.resetNewCount(ctx, request.projectId, request.sectionIds, request.cardType, request.quotaKey);
     case 'PREVIEW_RATINGS': return cardH.previewRatings(ctx, request.projectId, request.cardId);
-    case 'REVIEW_CARD': return cardH.reviewCard(ctx, request.cardId, request.projectId, request.sectionId, request.rating);
+    case 'REVIEW_CARD': return cardH.reviewCard(ctx, request.cardId, request.projectId, request.sectionId, request.rating, request.quotaKey);
     case 'UNDO_REVIEW': return cardH.undoReview(ctx, request.projectId);
     case 'SUSPEND_CARD': return cardH.suspendCard(ctx, request.projectId, request.cardId);
     case 'BURY_CARD': return cardH.buryCard(ctx, request.projectId, request.cardId);

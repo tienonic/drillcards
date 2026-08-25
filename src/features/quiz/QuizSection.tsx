@@ -10,23 +10,35 @@ import { FlashcardArea } from './FlashcardArea.tsx';
 
 export function QuizSection(props: { section: Section }) {
   const session = createQuizSession(props.section, forProject(activeProject()!.slug));
+  let started = false;
+  let disposed = false;
+
+  function startSession() {
+    if (started || disposed) return;
+    started = true;
+    session.pickNextCard().then(() => {
+      // If still idle after resolve, retry once the worker has settled.
+      if (!disposed && session.state() === 'idle') setTimeout(() => {
+        if (!disposed) session.pickNextCard().catch(() => {});
+      }, 300);
+    }).catch(() => {
+      setTimeout(() => {
+        if (!disposed) session.pickNextCard().catch(() => {});
+      }, 300);
+    });
+  }
 
   onMount(() => {
     sectionHandlers.set(props.section.id, { kind: 'quiz', session });
     bumpHandlerVersion();
-    session.pickNextCard().then(() => {
-      // If still idle after resolve, retry
-      if (session.state() === 'idle') setTimeout(() => session.pickNextCard().catch(() => {}), 300);
-    }).catch(() => {
-      setTimeout(() => session.pickNextCard().catch(() => {}), 300);
-    });
   });
-  onCleanup(() => { session.stopPronunciation(); sectionHandlers.delete(props.section.id); bumpHandlerVersion(); });
+  onCleanup(() => { disposed = true; session.stopPronunciation(); sectionHandlers.delete(props.section.id); bumpHandlerVersion(); });
 
   // Reset timer when this section becomes the active tab — prevents stale elapsed time
   // from background timer inflating the rating in easy mode (all sections mount simultaneously)
   createEffect(() => {
     if (activeTab() !== props.section.id) return;
+    startSession();
     if (untrack(() => session.state()) === 'answering') session.timer.start();
   });
 

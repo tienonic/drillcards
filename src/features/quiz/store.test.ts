@@ -139,6 +139,36 @@ describe('QuizSession interface completeness', () => {
     });
   });
 
+  it('counts a finite-goal quiz rating against the project-wide exposure quota', async () => {
+    await createRoot(async dispose => {
+      const section = mockSection();
+      const goal = { target_date: '2026-09-01', weekend_multiplier: 2 };
+      const api = createFakeProjectApi({
+        pickNext: vi.fn().mockResolvedValue({ cardId: 'sec1-0' }),
+      });
+      setActiveProject({
+        name: 'Finite quiz', slug: 'finite-quiz', version: 1,
+        config: {
+          desired_retention: 0.9, new_per_session: 1, leech_threshold: 8,
+          max_interval: 90, imageSearchSuffix: '', study_goal: goal,
+        },
+        sections: [section], glossary: [],
+      });
+
+      const session = createQuizSession(section, api);
+      await session.pickNextCard();
+      await session.skip();
+
+      expect(api.pickNext).toHaveBeenCalledWith(
+        ['sec1'], 1, 'mcq', 'finite-quiz|study-goal', goal,
+      );
+      expect(api.reviewCard).toHaveBeenCalledWith(
+        'sec1-0', 'sec1', 1, 'finite-quiz|study-goal',
+      );
+      dispose();
+    });
+  });
+
   it('cramMode starts as false', () => {
     createRoot(dispose => {
       const session = createQuizSession(mockSection());

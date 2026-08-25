@@ -16,7 +16,7 @@ import type { Section } from '../../projects/types.ts';
 import type { Flashcard } from '../../projects/types.ts';
 import type { QuizState, QuizSession } from './types.ts';
 import { playPronunciation, stopPronunciation } from '../listening/playback.ts';
-import { resetScheduledNewCount } from '../goals/goalScheduling.ts';
+import { resetScheduledNewCount, reviewQuotaKey } from '../goals/goalScheduling.ts';
 export type { QuizSession } from './types.ts';
 
 export function createQuizSession(section: Section, api: ProjectApi, sourceSections?: Section[]): QuizSession {
@@ -103,7 +103,10 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
     }
 
     const owner = ownerSection(cId);
-    const result = await api.reviewCard(cId, owner.id, rating);
+    const quotaKey = reviewQuotaKey(p);
+    const result = quotaKey === undefined
+      ? await api.reviewCard(cId, owner.id, rating)
+      : await api.reviewCard(cId, owner.id, rating, quotaKey);
     pushChartEntry(rating, rating !== 1);
     autoSave(p.slug);
 

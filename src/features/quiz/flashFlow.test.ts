@@ -142,6 +142,35 @@ describe('createFlashFlow with injected API', () => {
     });
   });
 
+  it('counts a finite-goal flashcard rating against the project-wide exposure quota', async () => {
+    await createRoot(async dispose => {
+      const goal = { target_date: '2026-09-01', weekend_multiplier: 2 };
+      const api = createFakeProjectApi({
+        pickNext: vi.fn()
+          .mockResolvedValueOnce({ cardId: 'sec1-flash-0' })
+          .mockResolvedValueOnce({ cardId: null }),
+        reviewCard: vi.fn().mockResolvedValue({ card: {}, isLeech: false, lapses: 0 }),
+      });
+      const s = createSignals();
+      const deps = {
+        ...makeDeps(api),
+        project: () => ({ slug: 'finite-proj', config: { new_per_session: 10, study_goal: goal } }),
+      };
+      const flow = createFlashFlow(s, deps);
+
+      await flow.pickNextFlash();
+      await flow.rateFlash(3);
+
+      expect(api.pickNext).toHaveBeenNthCalledWith(
+        1, ['sec1'], 10, 'flashcard', 'finite-proj|study-goal', goal,
+      );
+      expect(api.reviewCard).toHaveBeenCalledWith(
+        'sec1-flash-0', 'sec1', 3, 'finite-proj|study-goal',
+      );
+      dispose();
+    });
+  });
+
   it('rateFlash in cram mode skips reviewCard', async () => {
     await createRoot(async dispose => {
       const api = createFakeProjectApi({

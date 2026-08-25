@@ -10,7 +10,7 @@ import type { Guard } from './guard.ts';
 import type { HistoryPosition } from './historyNav.ts';
 import type { Flashcard, Section } from '../../projects/types.ts';
 import type { StudyGoalConfig } from '../../projects/types.ts';
-import { pickNextScheduled } from '../goals/goalScheduling.ts';
+import { pickNextScheduled, reviewQuotaKey } from '../goals/goalScheduling.ts';
 import type { QuizState } from './types.ts';
 import { stopPronunciation } from '../listening/playback.ts';
 
@@ -253,7 +253,9 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
         return;
       }
 
-      await d.api.reviewCard(fId, ownerSectionId(fId), rating);
+      const quotaKey = reviewQuotaKey(p);
+      if (quotaKey === undefined) await d.api.reviewCard(fId, ownerSectionId(fId), rating);
+      else await d.api.reviewCard(fId, ownerSectionId(fId), rating, quotaKey);
       pushChartEntry(rating, rating !== 1);
       autoSave(p.slug);
       await pickNextFlash();
