@@ -8,6 +8,7 @@ import { DiyEditorModal } from './DiyEditorModal.tsx';
 import { flowConfigs, type FlowConfig } from './flowConfigs.ts';
 import { getGeminiKey, setGeminiKey } from './gemini.ts';
 import { nextMenuIndex, typeaheadMenuIndex } from '../../components/overlays/menuNavigation.ts';
+import { calculateViewportShift, type ViewportLike } from '../../components/overlays/anchoredPosition.ts';
 
 export function CreateTab() {
   const menu = createPopupMenu();
@@ -18,6 +19,9 @@ export function CreateTab() {
   const [diyOpen, setDiyOpen] = createSignal(false);
   const [apiKey, setApiKey] = createSignal(getGeminiKey() ?? '');
   const triggerRefs = new Map<string, HTMLButtonElement>();
+  const topMenuRefs = new Map<string, HTMLDivElement>();
+  const positionFrames = new Map<string, number>();
+  const positionTimers = new Map<string, ReturnType<typeof setTimeout>>();
   let typeahead = '';
   let typeaheadTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -32,13 +36,59 @@ export function CreateTab() {
 
   function openTopMenu(key: string, e: MouseEvent) {
     e.stopPropagation();
+    const opening = !menu.isOpen(key);
     menu.toggleOnly(key);
+    if (opening) scheduleTopMenuPosition(key);
   }
 
   function openSubMenu(key: string, e: MouseEvent | PointerEvent) {
     if ((e.target as Element).closest('.db-submenu-l2')) return;
     e.stopPropagation();
     menu.openBranch('ai', key);
+    scheduleTopMenuPosition('ai');
+  }
+
+  function currentViewport(): ViewportLike {
+    const visual = window.visualViewport;
+    return visual
+      ? { left: visual.offsetLeft, top: visual.offsetTop, width: visual.width, height: visual.height }
+      : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+  }
+
+  function positionTopMenu(key: string) {
+    const container = topMenuRefs.get(key);
+    if (!container || !menu.isOpen(key)) return;
+    container.style.setProperty('--db-menu-shift-x', '0px');
+    container.style.setProperty('--db-menu-shift-y', '0px');
+    const surface = container.getBoundingClientRect();
+    const shift = calculateViewportShift(surface, currentViewport());
+    const scaleX = container.offsetWidth > 0 ? surface.width / container.offsetWidth : 1;
+    const scaleY = container.offsetHeight > 0 ? surface.height / container.offsetHeight : 1;
+    const localX = scaleX > 0 ? shift.x / scaleX : shift.x;
+    const localY = scaleY > 0 ? shift.y / scaleY : shift.y;
+    container.style.setProperty('--db-menu-shift-x', `${localX}px`);
+    container.style.setProperty('--db-menu-shift-y', `${localY}px`);
+  }
+
+  function scheduleTopMenuPosition(key: string) {
+    const pendingFrame = positionFrames.get(key);
+    if (pendingFrame !== undefined) cancelAnimationFrame(pendingFrame);
+    const pendingTimer = positionTimers.get(key);
+    if (pendingTimer !== undefined) clearTimeout(pendingTimer);
+    positionFrames.set(key, requestAnimationFrame(() => {
+      positionFrames.delete(key);
+      positionTopMenu(key);
+      positionTimers.set(key, setTimeout(() => {
+        positionTimers.delete(key);
+        positionTopMenu(key);
+      }, 220));
+    }));
+  }
+
+  function repositionOpenMenus() {
+    for (const key of topMenuRefs.keys()) {
+      if (menu.isOpen(key)) scheduleTopMenuPosition(key);
+    }
   }
 
   function handleKeyChange(e: Event) {
@@ -53,20 +103,22 @@ export function CreateTab() {
   }
 
   function focusFirst(menuId: string) {
-    queueMicrotask(() => {
+    setTimeout(() => {
       const container = document.getElementById(menuId);
       if (container) directMenuItems(container)[0]?.focus();
-    });
+    }, 0);
   }
 
   function handleTriggerKeyDown(key: string, menuId: string, event: KeyboardEvent) {
     if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       menu.openOnly(key);
+      scheduleTopMenuPosition(key);
       focusFirst(menuId);
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       menu.openOnly(key);
+      scheduleTopMenuPosition(key);
       queueMicrotask(() => {
         const container = document.getElementById(menuId);
         const items = container ? directMenuItems(container) : [];
@@ -75,6 +127,13 @@ export function CreateTab() {
     } else if (event.key === 'Escape' && menu.isOpen(key)) {
       event.preventDefault();
       menu.closeAll();
+    }
+  }
+
+  function handleTriggerKeyUp(key: string, menuId: string, event: KeyboardEvent) {
+    if ((event.key === 'Enter' || event.key === ' ') && menu.isOpen(key)) {
+      event.preventDefault();
+      focusFirst(menuId);
     }
   }
 
@@ -131,8 +190,18 @@ export function CreateTab() {
       closeMenus();
     };
     document.addEventListener('pointerdown', closeOnOutsidePointer);
+    window.addEventListener('resize', repositionOpenMenus);
+    window.visualViewport?.addEventListener('resize', repositionOpenMenus);
+    window.visualViewport?.addEventListener('scroll', repositionOpenMenus);
     onCleanup(() => {
       document.removeEventListener('pointerdown', closeOnOutsidePointer);
+      window.removeEventListener('resize', repositionOpenMenus);
+      window.visualViewport?.removeEventListener('resize', repositionOpenMenus);
+      window.visualViewport?.removeEventListener('scroll', repositionOpenMenus);
+      for (const frame of positionFrames.values()) cancelAnimationFrame(frame);
+      positionFrames.clear();
+      for (const timer of positionTimers.values()) clearTimeout(timer);
+      positionTimers.clear();
       if (typeaheadTimer) clearTimeout(typeaheadTimer);
     });
   });
@@ -142,11 +211,11 @@ export function CreateTab() {
       <div class="db-create-menu">
         {/* Import */}
         <div class="db-create-item">
-          <button type="button" ref={element => triggerRefs.set('import', element)} class="db-create-item-trigger" aria-haspopup="menu" aria-expanded={menu.isOpen('import')} aria-controls="create-import-menu" onKeyDown={(event) => handleTriggerKeyDown('import', 'create-import-menu', event)} onClick={(e) => openTopMenu('import', e)}>
+          <button type="button" ref={element => triggerRefs.set('import', element)} class="db-create-item-trigger" aria-haspopup="menu" aria-expanded={menu.isOpen('import')} aria-controls="create-import-menu" onKeyDown={(event) => handleTriggerKeyDown('import', 'create-import-menu', event)} onKeyUp={(event) => handleTriggerKeyUp('import', 'create-import-menu', event)} onClick={(e) => openTopMenu('import', e)}>
             <span class="db-create-item-label">Import</span>
             <span class="db-create-item-sub">Decks & files</span>
           </button>
-          <div id="create-import-menu" role="menu" aria-label="Import" onKeyDown={(event) => handleMenuKeyDown('import', event)} class={`db-submenu ${menu.isOpen('import') ? 'db-submenu--open' : ''}`}>
+          <div ref={element => topMenuRefs.set('import', element)} id="create-import-menu" role="menu" aria-label="Import" onKeyDown={(event) => handleMenuKeyDown('import', event)} class={`db-submenu db-submenu-top ${menu.isOpen('import') ? 'db-submenu--open' : ''}`}>
             <button type="button" role="menuitem" data-menu-item class="db-submenu-action" onClick={() => { setBrowserOpen(true); closeMenus(); }}>
               <span>Browse decks</span>
               <span class="db-submenu-action-sub">Select from your deck library</span>
@@ -164,11 +233,11 @@ export function CreateTab() {
 
         {/* Manual */}
         <div class="db-create-item">
-          <button type="button" ref={element => triggerRefs.set('manual', element)} class="db-create-item-trigger" aria-haspopup="menu" aria-expanded={menu.isOpen('manual')} aria-controls="create-manual-menu" onKeyDown={(event) => handleTriggerKeyDown('manual', 'create-manual-menu', event)} onClick={(e) => openTopMenu('manual', e)}>
+          <button type="button" ref={element => triggerRefs.set('manual', element)} class="db-create-item-trigger" aria-haspopup="menu" aria-expanded={menu.isOpen('manual')} aria-controls="create-manual-menu" onKeyDown={(event) => handleTriggerKeyDown('manual', 'create-manual-menu', event)} onKeyUp={(event) => handleTriggerKeyUp('manual', 'create-manual-menu', event)} onClick={(e) => openTopMenu('manual', e)}>
             <span class="db-create-item-label">Manual</span>
             <span class="db-create-item-sub">Your own cards</span>
           </button>
-          <div id="create-manual-menu" role="menu" aria-label="Manual creation" onKeyDown={(event) => handleMenuKeyDown('manual', event)} class={`db-submenu ${menu.isOpen('manual') ? 'db-submenu--open' : ''}`}>
+          <div ref={element => topMenuRefs.set('manual', element)} id="create-manual-menu" role="menu" aria-label="Manual creation" onKeyDown={(event) => handleMenuKeyDown('manual', event)} class={`db-submenu db-submenu-top ${menu.isOpen('manual') ? 'db-submenu--open' : ''}`}>
             <button type="button" role="menuitem" data-menu-item class="db-submenu-action" onClick={() => { setDiyOpen(true); closeMenus(); }}>
               <span>DIY flashcards</span>
               <span class="db-submenu-action-sub">Create front/back card pairs</span>
@@ -182,11 +251,11 @@ export function CreateTab() {
 
         {/* AI-Powered */}
         <div class="db-create-item">
-          <button type="button" ref={element => triggerRefs.set('ai', element)} class="db-create-item-trigger" aria-haspopup="menu" aria-expanded={menu.isOpen('ai')} aria-controls="create-ai-menu" onKeyDown={(event) => handleTriggerKeyDown('ai', 'create-ai-menu', event)} onClick={(e) => openTopMenu('ai', e)}>
+          <button type="button" ref={element => triggerRefs.set('ai', element)} class="db-create-item-trigger" aria-haspopup="menu" aria-expanded={menu.isOpen('ai')} aria-controls="create-ai-menu" onKeyDown={(event) => handleTriggerKeyDown('ai', 'create-ai-menu', event)} onKeyUp={(event) => handleTriggerKeyUp('ai', 'create-ai-menu', event)} onClick={(e) => openTopMenu('ai', e)}>
             <span class="db-create-item-label">AI-powered</span>
             <span class="db-create-item-sub">Gemini-generated</span>
           </button>
-          <div id="create-ai-menu" role="menu" aria-label="AI-powered creation" onKeyDown={(event) => handleMenuKeyDown('ai', event)} class={`db-submenu ${menu.isOpen('ai') ? 'db-submenu--open' : ''}`}>
+          <div ref={element => topMenuRefs.set('ai', element)} id="create-ai-menu" role="menu" aria-label="AI-powered creation" onKeyDown={(event) => handleMenuKeyDown('ai', event)} class={`db-submenu db-submenu-top ${menu.isOpen('ai') ? 'db-submenu--open' : ''}`}>
             <div
               class="db-submenu-group"
             >

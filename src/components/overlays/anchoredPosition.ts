@@ -21,9 +21,36 @@ export interface AnchoredPosition {
   vertical: 'top' | 'bottom' | 'clamped';
 }
 
+export interface ViewportShift {
+  x: number;
+  y: number;
+}
+
 function clamp(value: number, min: number, max: number): number {
   if (max < min) return min;
   return Math.max(min, Math.min(max, value));
+}
+
+/** Shift an already-anchored surface just enough to remain in the visual viewport. */
+export function calculateViewportShift(
+  surface: RectLike,
+  viewport: ViewportLike,
+  margin = 8,
+): ViewportShift {
+  const minLeft = viewport.left + margin;
+  const minTop = viewport.top + margin;
+  const maxRight = viewport.left + viewport.width - margin;
+  const maxBottom = viewport.top + viewport.height - margin;
+  let x = 0;
+  let y = 0;
+
+  if (surface.left < minLeft) x = minLeft - surface.left;
+  else if (surface.right > maxRight) x = maxRight - surface.right;
+  if (surface.top < minTop) y = minTop - surface.top;
+  else if (surface.bottom > maxBottom) y = maxBottom - surface.bottom;
+
+  const contain = (shift: number) => shift < 0 ? Math.floor(shift) : Math.ceil(shift);
+  return { x: contain(x), y: contain(y) };
 }
 
 /** Place a side panel within the current visual viewport, flipping before clamping. */

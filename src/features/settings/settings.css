@@ -357,6 +357,10 @@
 }
 
 @media (max-width: 600px) {
+  body:has(.settings-backdrop) .header-menu {
+    visibility: hidden;
+  }
+
   .settings-dropdown,
   .keybinds-modal {
     width: calc(100vw - 16px);
@@ -364,5 +368,16 @@
 
   .settings-dropdown {
     overflow-y: auto;
+  }
+
+  .settings-timer-sections {
+    flex-wrap: wrap;
+  }
+
+  .settings-timer-sections .preset-btn {
+    flex: 1 1 120px;
+    min-width: 0;
+    min-height: 48px;
+    overflow-wrap: anywhere;
   }
 }

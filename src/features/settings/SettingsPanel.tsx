@@ -354,7 +354,7 @@ export function SettingsPanel() {
               <button type="button" class="settings-save-btn" onClick={handleSave}>{saved() ? 'Saved' : 'Save'}</button>
               <div class="settings-backup-divider" />
               <div class="settings-hint" style={{ "margin-bottom": "4px" }}>Timer per section</div>
-              <div class="preset-row">
+              <div class="preset-row settings-timer-sections">
                 <For each={activeProject()?.sections ?? []}>
                   {(sec) => <button type="button" class={`preset-btn${selectedTimerSection() === sec.id ? ' active' : ''}`} onClick={() => selectTimerSection(sec.id)}>{sec.name}</button>}
                 </For>
