@@ -1,31 +1,29 @@
 import { createSignal } from 'solid-js';
 
-export function createHoverMenu() {
+export function createPopupMenu() {
   const [openItems, setOpenItems] = createSignal<Set<string>>(new Set());
-  let closeTimer: ReturnType<typeof setTimeout> | null = null;
 
-  function enter(key: string) {
-    if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+  function open(key: string) {
     setOpenItems(prev => { const s = new Set(prev); s.add(key); return s; });
   }
 
-  function leave(key: string) {
-    setOpenItems(prev => { const s = new Set(prev); s.delete(key); return s; });
-    scheduleClose();
+  function openOnly(key: string) {
+    setOpenItems(new Set([key]));
   }
 
-  function scheduleClose() {
-    if (closeTimer) clearTimeout(closeTimer);
-    closeTimer = setTimeout(() => {
-      if (openItems().size === 0) {
-        setOpenItems(new Set<string>());
-      }
-      closeTimer = null;
-    }, 50);
+  function toggleOnly(key: string) {
+    setOpenItems(prev => prev.has(key) ? new Set<string>() : new Set([key]));
+  }
+
+  function openBranch(parentKey: string, childKey: string) {
+    setOpenItems(new Set([parentKey, childKey]));
+  }
+
+  function close(key: string) {
+    setOpenItems(prev => { const s = new Set(prev); s.delete(key); return s; });
   }
 
   function closeAll() {
-    if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
     setOpenItems(new Set<string>());
   }
 
@@ -33,5 +31,5 @@ export function createHoverMenu() {
     return openItems().has(key);
   }
 
-  return { openItems, enter, leave, closeAll, isOpen };
+  return { openItems, open, openOnly, openBranch, toggleOnly, close, closeAll, isOpen };
 }

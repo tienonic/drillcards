@@ -3,7 +3,7 @@
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 100;
+  z-index: 450;
   pointer-events: none;
 }
 
@@ -12,7 +12,7 @@
   top: 4px;
   left: 4px;
   width: 48px;
-  height: 28px;
+  height: 48px;
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: 4px;
@@ -24,8 +24,9 @@
   font-size: 0.85rem;
   color: var(--color-text-light);
   transition: background 0.15s, opacity 0.3s;
-  z-index: 101;
+  z-index: 451;
   opacity: 0.25;
+  font-family: var(--font-ui);
 }
 
 .header-pull:hover,
@@ -37,19 +38,23 @@
 /* Vertical dropdown menu */
 .header-menu {
   position: fixed;
-  top: 36px;
+  top: 60px;
   left: 4px;
-  width: 200px;
+  width: min(280px, calc(100vw - 8px));
+  max-height: calc(100dvh - 68px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: 4px;
   box-shadow: 0 4px 16px var(--shadow-overlay);
-  z-index: 100;
+  z-index: 451;
   display: flex;
   flex-direction: column;
   padding: 8px 0;
   pointer-events: auto;
-  font-family: var(--font-body);
+  font-family: var(--font-ui);
+  box-sizing: border-box;
 }
 
 .header-menu-label {
@@ -68,7 +73,8 @@
   align-items: center;
   gap: 6px;
   width: 100%;
-  padding: 6px 14px;
+  min-height: 48px;
+  padding: 10px 14px;
   background: none;
   border: none;
   color: var(--color-text-light);
@@ -77,22 +83,31 @@
   cursor: pointer;
   text-align: left;
   transition: background 0.1s;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
 }
 
 .header-menu-item:hover,
 .tips-btn:hover { background: var(--color-bg); color: var(--color-text); }
+
+.header-menu-item:focus-visible,
+.tips-btn:focus-visible,
+.header-pull:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
 
 .header-menu-check {
   cursor: pointer;
   user-select: none;
 }
 
-.header-menu-check input[type="checkbox"] {
-  width: 12px;
-  height: 12px;
-  margin: 0;
-  cursor: pointer;
-  accent-color: var(--color-text-light);
+.header-checkmark {
+  flex: 0 0 16px;
+  width: 16px;
+  color: var(--color-primary);
+  font-weight: 700;
+  text-align: center;
 }
 
 .header-menu-divider {

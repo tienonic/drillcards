@@ -1,5 +1,5 @@
 import { createSignal, onCleanup, onMount } from 'solid-js';
-import { createHoverMenu } from './createHoverMenu.ts';
+import { createPopupMenu } from './createHoverMenu.ts';
 import { ProjectBrowserModal } from './ProjectBrowserModal.tsx';
 import { ProjectFilePickerModal } from './ProjectFilePickerModal.tsx';
 import { CreateFlowModal } from './CreateFlowModal.tsx';
@@ -7,15 +7,19 @@ import { SourceMaterialModal } from './SourceMaterialModal.tsx';
 import { DiyEditorModal } from './DiyEditorModal.tsx';
 import { flowConfigs, type FlowConfig } from './flowConfigs.ts';
 import { getGeminiKey, setGeminiKey } from './gemini.ts';
+import { nextMenuIndex, typeaheadMenuIndex } from '../../components/overlays/menuNavigation.ts';
 
 export function CreateTab() {
-  const menu = createHoverMenu();
+  const menu = createPopupMenu();
   const [browserOpen, setBrowserOpen] = createSignal(false);
   const [filePickerOpen, setFilePickerOpen] = createSignal(false);
   const [sourceOpen, setSourceOpen] = createSignal(false);
   const [activeFlow, setActiveFlow] = createSignal<FlowConfig | null>(null);
   const [diyOpen, setDiyOpen] = createSignal(false);
   const [apiKey, setApiKey] = createSignal(getGeminiKey() ?? '');
+  const triggerRefs = new Map<string, HTMLButtonElement>();
+  let typeahead = '';
+  let typeaheadTimer: ReturnType<typeof setTimeout> | undefined;
 
   function openFlow(id: string) {
     closeMenus();
@@ -28,13 +32,13 @@ export function CreateTab() {
 
   function openTopMenu(key: string, e: MouseEvent) {
     e.stopPropagation();
-    menu.closeAll();
-    menu.enter(key);
+    menu.toggleOnly(key);
   }
 
   function openSubMenu(key: string, e: MouseEvent | PointerEvent) {
     if ((e.target as Element).closest('.db-submenu-l2')) return;
-    menu.enter(key);
+    e.stopPropagation();
+    menu.openBranch('ai', key);
   }
 
   function handleKeyChange(e: Event) {
@@ -43,96 +47,163 @@ export function CreateTab() {
     setGeminiKey(val);
   }
 
+  function directMenuItems(container: HTMLElement): HTMLElement[] {
+    return [...container.querySelectorAll<HTMLElement>('[data-menu-item]')]
+      .filter(item => item.closest('[role="menu"]') === container && !item.hasAttribute('disabled'));
+  }
+
+  function focusFirst(menuId: string) {
+    queueMicrotask(() => {
+      const container = document.getElementById(menuId);
+      if (container) directMenuItems(container)[0]?.focus();
+    });
+  }
+
+  function handleTriggerKeyDown(key: string, menuId: string, event: KeyboardEvent) {
+    if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      menu.openOnly(key);
+      focusFirst(menuId);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      menu.openOnly(key);
+      queueMicrotask(() => {
+        const container = document.getElementById(menuId);
+        const items = container ? directMenuItems(container) : [];
+        items.at(-1)?.focus();
+      });
+    } else if (event.key === 'Escape' && menu.isOpen(key)) {
+      event.preventDefault();
+      menu.closeAll();
+    }
+  }
+
+  function handleMenuKeyDown(key: string, event: KeyboardEvent, parentKey?: string) {
+    if (parentKey) event.stopPropagation();
+    const container = event.currentTarget as HTMLElement;
+    const items = directMenuItems(container);
+    const current = items.indexOf(document.activeElement as HTMLElement);
+    if (event.key === 'Escape' || (event.key === 'ArrowLeft' && parentKey)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (parentKey) {
+        menu.close(key);
+        queueMicrotask(() => triggerRefs.get(parentKey)?.focus());
+      } else {
+        menu.closeAll();
+        queueMicrotask(() => triggerRefs.get(key)?.focus());
+      }
+      return;
+    }
+    if (event.key === 'Tab') {
+      menu.closeAll();
+      return;
+    }
+    const active = items[current];
+    if (event.key === 'ArrowRight' && active?.getAttribute('aria-haspopup') === 'menu') {
+      event.preventDefault();
+      active.click();
+      const childId = active.getAttribute('aria-controls');
+      if (childId) focusFirst(childId);
+      return;
+    }
+    const next = nextMenuIndex(event.key, current, items.length);
+    if (next !== null) {
+      event.preventDefault();
+      items[next]?.focus();
+      return;
+    }
+    if (event.key.length !== 1 || event.ctrlKey || event.altKey || event.metaKey) return;
+    typeahead += event.key.toLocaleLowerCase();
+    if (typeaheadTimer) clearTimeout(typeaheadTimer);
+    typeaheadTimer = setTimeout(() => { typeahead = ''; typeaheadTimer = undefined; }, 500);
+    const repeated = [...typeahead].every(character => character === typeahead[0]);
+    const match = typeaheadMenuIndex(items.map(item => item.textContent ?? ''), repeated ? typeahead[0] : typeahead, current);
+    if (match !== null) {
+      event.preventDefault();
+      items[match]?.focus();
+    }
+  }
+
   onMount(() => {
     const closeOnOutsidePointer = (e: PointerEvent) => {
       if ((e.target as Element | null)?.closest('.db-create')) return;
       closeMenus();
     };
     document.addEventListener('pointerdown', closeOnOutsidePointer);
-    onCleanup(() => document.removeEventListener('pointerdown', closeOnOutsidePointer));
+    onCleanup(() => {
+      document.removeEventListener('pointerdown', closeOnOutsidePointer);
+      if (typeaheadTimer) clearTimeout(typeaheadTimer);
+    });
   });
 
   return (
-    <div class="db-create" onMouseLeave={() => menu.closeAll()}>
+    <div class="db-create">
       <div class="db-create-menu">
         {/* Import */}
-        <div
-          class="db-create-item"
-          onMouseEnter={() => menu.enter('import')}
-          onMouseLeave={() => menu.leave('import')}
-        >
-          <button type="button" class="db-create-item-trigger" onClick={(e) => openTopMenu('import', e)}>
+        <div class="db-create-item">
+          <button type="button" ref={element => triggerRefs.set('import', element)} class="db-create-item-trigger" aria-haspopup="menu" aria-expanded={menu.isOpen('import')} aria-controls="create-import-menu" onKeyDown={(event) => handleTriggerKeyDown('import', 'create-import-menu', event)} onClick={(e) => openTopMenu('import', e)}>
             <span class="db-create-item-label">Import</span>
             <span class="db-create-item-sub">Decks & files</span>
           </button>
-          <div class={`db-submenu ${menu.isOpen('import') ? 'db-submenu--open' : ''}`}>
-            <button type="button" class="db-submenu-action" onClick={() => { setBrowserOpen(true); closeMenus(); }}>
-              <span>Browse Decks</span>
+          <div id="create-import-menu" role="menu" aria-label="Import" onKeyDown={(event) => handleMenuKeyDown('import', event)} class={`db-submenu ${menu.isOpen('import') ? 'db-submenu--open' : ''}`}>
+            <button type="button" role="menuitem" data-menu-item class="db-submenu-action" onClick={() => { setBrowserOpen(true); closeMenus(); }}>
+              <span>Browse decks</span>
               <span class="db-submenu-action-sub">Select from your deck library</span>
             </button>
-            <button type="button" class="db-submenu-action" onClick={() => { closeMenus(); setFilePickerOpen(true); }}>
-              <span>Open File (.json)</span>
+            <button type="button" role="menuitem" data-menu-item class="db-submenu-action" onClick={() => { closeMenus(); setFilePickerOpen(true); }}>
+              <span>Open file (.json)</span>
               <span class="db-submenu-action-sub">Import a project file</span>
             </button>
-            <button type="button" class="db-submenu-action" onClick={() => { setSourceOpen(true); closeMenus(); }}>
-              <span>Source Material</span>
+            <button type="button" role="menuitem" data-menu-item class="db-submenu-action" onClick={() => { setSourceOpen(true); closeMenus(); }}>
+              <span>Source material</span>
               <span class="db-submenu-action-sub">Paste text to generate cards</span>
             </button>
           </div>
         </div>
 
         {/* Manual */}
-        <div
-          class="db-create-item"
-          onMouseEnter={() => menu.enter('manual')}
-          onMouseLeave={() => menu.leave('manual')}
-        >
-          <button type="button" class="db-create-item-trigger" onClick={(e) => openTopMenu('manual', e)}>
+        <div class="db-create-item">
+          <button type="button" ref={element => triggerRefs.set('manual', element)} class="db-create-item-trigger" aria-haspopup="menu" aria-expanded={menu.isOpen('manual')} aria-controls="create-manual-menu" onKeyDown={(event) => handleTriggerKeyDown('manual', 'create-manual-menu', event)} onClick={(e) => openTopMenu('manual', e)}>
             <span class="db-create-item-label">Manual</span>
             <span class="db-create-item-sub">Your own cards</span>
           </button>
-          <div class={`db-submenu ${menu.isOpen('manual') ? 'db-submenu--open' : ''}`}>
-            <button type="button" class="db-submenu-action" onClick={() => { setDiyOpen(true); closeMenus(); }}>
-              <span>DIY Flashcards</span>
+          <div id="create-manual-menu" role="menu" aria-label="Manual creation" onKeyDown={(event) => handleMenuKeyDown('manual', event)} class={`db-submenu ${menu.isOpen('manual') ? 'db-submenu--open' : ''}`}>
+            <button type="button" role="menuitem" data-menu-item class="db-submenu-action" onClick={() => { setDiyOpen(true); closeMenus(); }}>
+              <span>DIY flashcards</span>
               <span class="db-submenu-action-sub">Create front/back card pairs</span>
             </button>
-            <button type="button" class="db-submenu-action" onClick={() => { fetch('/__open-folder?path=GENERATING_PROJECTS.md').catch(() => {}); closeMenus(); }}>
-              <span>LLM Prompt Guide</span>
+            <button type="button" role="menuitem" data-menu-item class="db-submenu-action" onClick={() => { fetch('/__open-folder?path=GENERATING_PROJECTS.md').catch(() => {}); closeMenus(); }}>
+              <span>LLM prompt guide</span>
               <span class="db-submenu-action-sub">Open GENERATING_PROJECTS.md</span>
             </button>
           </div>
         </div>
 
         {/* AI-Powered */}
-        <div
-          class="db-create-item"
-          onMouseEnter={() => menu.enter('ai')}
-          onMouseLeave={() => menu.leave('ai')}
-        >
-          <button type="button" class="db-create-item-trigger" onClick={(e) => openTopMenu('ai', e)}>
-            <span class="db-create-item-label">AI-Powered</span>
+        <div class="db-create-item">
+          <button type="button" ref={element => triggerRefs.set('ai', element)} class="db-create-item-trigger" aria-haspopup="menu" aria-expanded={menu.isOpen('ai')} aria-controls="create-ai-menu" onKeyDown={(event) => handleTriggerKeyDown('ai', 'create-ai-menu', event)} onClick={(e) => openTopMenu('ai', e)}>
+            <span class="db-create-item-label">AI-powered</span>
             <span class="db-create-item-sub">Gemini-generated</span>
           </button>
-          <div class={`db-submenu ${menu.isOpen('ai') ? 'db-submenu--open' : ''}`}>
+          <div id="create-ai-menu" role="menu" aria-label="AI-powered creation" onKeyDown={(event) => handleMenuKeyDown('ai', event)} class={`db-submenu ${menu.isOpen('ai') ? 'db-submenu--open' : ''}`}>
             <div
               class="db-submenu-group"
-              onMouseEnter={() => menu.enter('ai-lang')}
-              onMouseLeave={() => menu.leave('ai-lang')}
-              onPointerDown={(e) => openSubMenu('ai-lang', e)}
-              onClick={(e) => openSubMenu('ai-lang', e)}
             >
-              <span class="db-submenu-item-label">Language</span>
-              <span class="db-submenu-item-sub">E.g., Spanish</span>
-              <div class={`db-submenu db-submenu-l2 ${menu.isOpen('ai-lang') ? 'db-submenu--open' : ''}`}>
-                <button type="button" class="db-submenu-action" onClick={() => openFlow('translation')}>
+              <button type="button" ref={element => triggerRefs.set('ai-lang', element)} role="menuitem" data-menu-item class="db-submenu-group-trigger" aria-haspopup="menu" aria-expanded={menu.isOpen('ai-lang')} aria-controls="create-ai-language-menu" onPointerDown={(e) => openSubMenu('ai-lang', e)} onClick={(e) => openSubMenu('ai-lang', e)}>
+                <span class="db-submenu-item-label">Language</span>
+                <span class="db-submenu-item-sub">E.g., Spanish</span>
+              </button>
+              <div id="create-ai-language-menu" role="menu" aria-label="Language" onKeyDown={(event) => handleMenuKeyDown('ai-lang', event, 'ai-lang')} class={`db-submenu db-submenu-l2 ${menu.isOpen('ai-lang') ? 'db-submenu--open' : ''}`}>
+                <button type="button" role="menuitem" data-menu-item class="db-submenu-action" onClick={() => openFlow('translation')}>
                   <span>Translation</span>
                   <span class="db-submenu-action-sub">Generate bilingual flashcards</span>
                 </button>
-                <button type="button" class="db-submenu-action" onClick={() => openFlow('conversation')}>
+                <button type="button" role="menuitem" data-menu-item class="db-submenu-action" onClick={() => openFlow('conversation')}>
                   <span>Conversation</span>
                   <span class="db-submenu-action-sub">Target language Q&A</span>
                 </button>
-                <button type="button" class="db-submenu-action" onClick={() => openFlow('language_checkit')}>
+                <button type="button" role="menuitem" data-menu-item class="db-submenu-action" onClick={() => openFlow('language_checkit')}>
                   <span>CheckIt</span>
                   <span class="db-submenu-action-sub">Spot intentional errors</span>
                 </button>
@@ -140,19 +211,17 @@ export function CreateTab() {
             </div>
             <div
               class="db-submenu-group"
-              onMouseEnter={() => menu.enter('ai-acad')}
-              onMouseLeave={() => menu.leave('ai-acad')}
-              onPointerDown={(e) => openSubMenu('ai-acad', e)}
-              onClick={(e) => openSubMenu('ai-acad', e)}
             >
-              <span class="db-submenu-item-label">Academic</span>
-              <span class="db-submenu-item-sub">E.g., Physics</span>
-              <div class={`db-submenu db-submenu-l2 ${menu.isOpen('ai-acad') ? 'db-submenu--open' : ''}`}>
-                <button type="button" class="db-submenu-action" onClick={() => openFlow('academic_qa')}>
+              <button type="button" ref={element => triggerRefs.set('ai-acad', element)} role="menuitem" data-menu-item class="db-submenu-group-trigger" aria-haspopup="menu" aria-expanded={menu.isOpen('ai-acad')} aria-controls="create-ai-academic-menu" onPointerDown={(e) => openSubMenu('ai-acad', e)} onClick={(e) => openSubMenu('ai-acad', e)}>
+                <span class="db-submenu-item-label">Academic</span>
+                <span class="db-submenu-item-sub">E.g., Physics</span>
+              </button>
+              <div id="create-ai-academic-menu" role="menu" aria-label="Academic" onKeyDown={(event) => handleMenuKeyDown('ai-acad', event, 'ai-acad')} class={`db-submenu db-submenu-l2 ${menu.isOpen('ai-acad') ? 'db-submenu--open' : ''}`}>
+                <button type="button" role="menuitem" data-menu-item class="db-submenu-action" onClick={() => openFlow('academic_qa')}>
                   <span>Q&A</span>
                   <span class="db-submenu-action-sub">Traditional flashcards</span>
                 </button>
-                <button type="button" class="db-submenu-action" onClick={() => openFlow('academic_checkit')}>
+                <button type="button" role="menuitem" data-menu-item class="db-submenu-action" onClick={() => openFlow('academic_checkit')}>
                   <span>CheckIt</span>
                   <span class="db-submenu-action-sub">Spot intentional errors</span>
                 </button>

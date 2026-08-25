@@ -569,13 +569,29 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 0.2rem;
-  padding: 0;
+  min-width: 112px;
+  min-height: 48px;
+  padding: 0.25rem 0.5rem;
   background: transparent;
   border: 0;
+  border-radius: 6px;
   color: inherit;
   font: inherit;
   cursor: pointer;
+}
+
+.db-create-item-trigger:hover,
+.db-create-item-trigger:focus-visible {
+  background: var(--color-warm-bg);
+  outline: none;
+}
+
+.db-create-item-trigger:focus-visible,
+.db-submenu-action:focus-visible,
+.db-submenu-group-trigger:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-primary);
 }
 
 .db-create-item--clickable {
@@ -615,6 +631,8 @@
   border-radius: 10px;
   padding: 0.4rem;
   min-width: 200px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - 16px);
   box-shadow: 0 4px 16px var(--shadow-overlay);
 }
 
@@ -633,6 +651,16 @@
 
 .db-submenu-l2.db-submenu--open {
   transform: translateX(4px) scale(1);
+}
+
+.db-create-item:last-child .db-submenu-l2 {
+  left: auto;
+  right: 100%;
+  transform: translateX(0) scale(0.97);
+}
+
+.db-create-item:last-child .db-submenu-l2.db-submenu--open {
+  transform: translateX(-4px) scale(1);
 }
 
 @media (max-width: 900px), (hover: none) {
@@ -660,8 +688,12 @@
   .db-submenu-l2 {
     position: static;
     display: none;
+    left: auto;
+    right: auto;
     min-width: 0;
     width: 100%;
+    max-height: min(320px, calc(100dvh - 32px));
+    overflow-y: auto;
     margin-top: 0.35rem;
     box-shadow: none;
     transform: none;
@@ -675,13 +707,34 @@
 
 .db-submenu-group {
   position: relative;
-  padding: 0.4rem 0.6rem;
   border-radius: 6px;
   cursor: default;
 }
 
 .db-submenu-group:hover {
   background: var(--color-warm-bg);
+}
+
+.db-submenu-group-trigger {
+  display: flex;
+  min-height: 48px;
+  width: 100%;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.4rem 0.6rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.db-submenu-group-trigger:hover,
+.db-submenu-group-trigger:focus-visible {
+  background: var(--color-warm-bg);
+  outline: none;
 }
 
 .db-submenu-item-label {
@@ -701,7 +754,9 @@
 .db-submenu-action {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   width: 100%;
+  min-height: 48px;
   padding: 0.4rem 0.6rem;
   background: transparent;
   border: none;
@@ -716,6 +771,11 @@
 
 .db-submenu-action:hover {
   background: var(--color-warm-bg);
+}
+
+.db-submenu-action:focus-visible {
+  background: var(--color-warm-bg);
+  outline: none;
 }
 
 .db-submenu-action-sub {
