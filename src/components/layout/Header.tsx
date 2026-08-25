@@ -10,13 +10,35 @@ import { SettingsPanel } from '../../features/settings/SettingsPanel.tsx';
 import { KeybindsPanel } from '../../features/settings/KeybindsPanel.tsx';
 import { TipsPanel } from '../../features/settings/TipsPanel.tsx';
 import { nextMenuIndex, typeaheadMenuIndex } from '../overlays/menuNavigation.ts';
+import type { ViewportLike } from '../overlays/anchoredPosition.ts';
+import { calculateHeaderMenuBounds } from './headerMenuBounds.ts';
 
 export function Header() {
   const project = activeProject;
   let triggerRef!: HTMLButtonElement;
   let menuRef!: HTMLDivElement;
+  let visualViewport: VisualViewport | null = null;
   let typeahead = '';
   let typeaheadTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function currentViewport(): ViewportLike {
+    const visual = window.visualViewport;
+    return visual
+      ? { left: visual.offsetLeft, top: visual.offsetTop, width: visual.width, height: visual.height }
+      : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+  }
+
+  function updateViewportBounds() {
+    if (!triggerRef?.isConnected) return;
+    const bounds = calculateHeaderMenuBounds(currentViewport());
+    triggerRef.style.left = `${bounds.triggerLeft}px`;
+    triggerRef.style.top = `${bounds.triggerTop}px`;
+    if (!menuRef?.isConnected) return;
+    menuRef.style.left = `${bounds.menuLeft}px`;
+    menuRef.style.top = `${bounds.menuTop}px`;
+    menuRef.style.width = `${bounds.menuWidth}px`;
+    menuRef.style.maxHeight = `${bounds.menuMaxHeight}px`;
+  }
 
   function menuItems(): HTMLElement[] {
     if (!menuRef) return [];
@@ -25,11 +47,15 @@ export function Header() {
   }
 
   function focusMenuItem(index: number) {
-    queueMicrotask(() => menuItems()[index]?.focus());
+    queueMicrotask(() => {
+      updateViewportBounds();
+      menuItems()[index]?.focus();
+    });
   }
 
   function openMenu(focusIndex?: number) {
     setHeaderVisible(true);
+    queueMicrotask(updateViewportBounds);
     if (focusIndex !== undefined) focusMenuItem(focusIndex);
   }
 
@@ -66,7 +92,10 @@ export function Header() {
     } else if (event.key === 'ArrowUp' || event.key === 'End') {
       event.preventDefault();
       setHeaderVisible(true);
-      queueMicrotask(() => focusMenuItem(menuItems().length - 1));
+      queueMicrotask(() => {
+        updateViewportBounds();
+        focusMenuItem(menuItems().length - 1);
+      });
     } else if (event.key === 'Escape' && headerVisible()) {
       event.preventDefault();
       closeMenu(true);
@@ -117,9 +146,19 @@ export function Header() {
     closeMenu(false);
   };
 
-  onMount(() => document.addEventListener('mousedown', clickOutsideHandler));
+  onMount(() => {
+    visualViewport = window.visualViewport;
+    document.addEventListener('mousedown', clickOutsideHandler);
+    window.addEventListener('resize', updateViewportBounds);
+    visualViewport?.addEventListener('resize', updateViewportBounds);
+    visualViewport?.addEventListener('scroll', updateViewportBounds);
+    queueMicrotask(updateViewportBounds);
+  });
   onCleanup(() => {
     document.removeEventListener('mousedown', clickOutsideHandler);
+    window.removeEventListener('resize', updateViewportBounds);
+    visualViewport?.removeEventListener('resize', updateViewportBounds);
+    visualViewport?.removeEventListener('scroll', updateViewportBounds);
     if (typeaheadTimer) clearTimeout(typeaheadTimer);
   });
 

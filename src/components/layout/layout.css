@@ -39,8 +39,8 @@
 .header-menu {
   position: fixed;
   top: 60px;
-  left: 4px;
-  width: min(280px, calc(100vw - 8px));
+  left: 8px;
+  width: min(280px, calc(100vw - 16px));
   max-height: calc(100dvh - 68px);
   overflow-y: auto;
   overscroll-behavior: contain;
