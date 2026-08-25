@@ -5,7 +5,7 @@ import { createFakeProjectApi } from './testUtils.ts';
 import type { FlashSignals } from './flashFlow.ts';
 import type { McqSignals } from './mcqFlow.ts';
 import type { Guard } from './guard.ts';
-import type { Question, Section } from '../../projects/types.ts';
+import type { Flashcard, Question, Section } from '../../projects/types.ts';
 import type { QuizState } from './types.ts';
 
 vi.mock('../glossary/store.ts', () => ({
@@ -132,11 +132,12 @@ function createFlashSignals(): FlashSignals {
   const [flashBackImage, setFlashBackImage] = createSignal('');
   const [flashDefFirst] = createSignal(false);
   const [ratingLabels, setRatingLabels] = createSignal<Record<number, string>>({});
+  const [, setActiveFlashcard] = createSignal<Flashcard | null>(null);
   return {
     state, setState, flashCardId, setFlashCardId, flashFlipped, setFlashFlipped,
     flashFront, setFlashFront, flashBack, setFlashBack, flashTitle, setFlashTitle,
     flashFrontImage, setFlashFrontImage, flashBackImage, setFlashBackImage,
-    flashDefFirst, ratingLabels, setRatingLabels,
+    flashDefFirst, ratingLabels, setRatingLabels, setActiveFlashcard,
   };
 }
 

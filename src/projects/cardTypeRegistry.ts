@@ -27,13 +27,13 @@ function buildMcqCardIds(section: Section): void {
   section.cardIds = [];
   section.flashCardIds = [];
   if (section.questions) {
-    section.questions.forEach((_, i) => {
-      section.cardIds.push(`${section.id}-${i}`);
+    section.questions.forEach((question, i) => {
+      section.cardIds.push(`${section.id}-${question.id ?? i}`);
     });
   }
   if (section.flashcards) {
-    section.flashcards.forEach((_, i) => {
-      section.flashCardIds.push(`${section.id}-flash-${i}`);
+    section.flashcards.forEach((flashcard, i) => {
+      section.flashCardIds.push(`${section.id}-flash-${flashcard.id ?? i}`);
     });
   }
 }
@@ -43,14 +43,14 @@ function buildPassageCardIds(section: Section): void {
   section.flashCardIds = [];
   if (section.scenarios) {
     section.scenarios.forEach((s, si) => {
-      s.questions.forEach((_, qi) => {
-        section.cardIds.push(`${section.id}-${si}-${qi}`);
+      s.questions.forEach((question, qi) => {
+        section.cardIds.push(`${section.id}-${question.id ?? `${si}-${qi}`}`);
       });
     });
   }
   if (section.flashcards) {
-    section.flashcards.forEach((_, i) => {
-      section.flashCardIds.push(`${section.id}-flash-${i}`);
+    section.flashcards.forEach((flashcard, i) => {
+      section.flashCardIds.push(`${section.id}-flash-${flashcard.id ?? i}`);
     });
   }
 }
@@ -59,14 +59,16 @@ function buildMathCardIds(section: Section): void {
   section.cardIds = [];
   section.flashCardIds = [];
   if (section.flashcards) {
-    section.flashcards.forEach((_, i) => {
-      section.flashCardIds.push(`${section.id}-flash-${i}`);
+    section.flashcards.forEach((flashcard, i) => {
+      section.flashCardIds.push(`${section.id}-flash-${flashcard.id ?? i}`);
     });
   }
 }
 
 function lookupMcq(section: Section, cardId: string): LookupResult | null {
   if (!section.questions) return null;
+  const explicit = section.questions.find(question => question.id && cardId === `${section.id}-${question.id}`);
+  if (explicit) return { question: explicit };
   const idx = parseInt(cardId.slice(section.id.length + 1), 10);
   if (isNaN(idx)) return null;
   const q = section.questions[idx];
@@ -75,6 +77,17 @@ function lookupMcq(section: Section, cardId: string): LookupResult | null {
 
 function lookupPassage(section: Section, cardId: string): LookupResult | null {
   if (!section.scenarios) return null;
+  for (const [scenarioIdx, scenario] of section.scenarios.entries()) {
+    const questionIdx = scenario.questions.findIndex(question => question.id && cardId === `${section.id}-${question.id}`);
+    if (questionIdx >= 0) {
+      return {
+        question: scenario.questions[questionIdx],
+        scenarioIdx,
+        questionIdx,
+        passage: buildPassage(section, scenarioIdx),
+      };
+    }
+  }
   const suffix = cardId.slice(section.id.length + 1);
   const parts = suffix.split('-');
   if (parts.length < 2) return null;
@@ -85,15 +98,16 @@ function lookupPassage(section: Section, cardId: string): LookupResult | null {
   if (!scenario) return null;
   const q = scenario.questions[qi];
   if (!q) return null;
-  return {
-    question: q,
-    scenarioIdx: si,
-    questionIdx: qi,
-    passage: (scenario.image ? `<img src="${(imgSrc(scenario.image) ?? '').replace(/"/g, '&quot;')}" alt="" class="card-image" loading="lazy" crossorigin="anonymous" />` : '')
-      + scenario.passage + (scenario.source
-      ? `<span class="source">${scenario.source.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`
-      : ''),
-  };
+  return { question: q, scenarioIdx: si, questionIdx: qi, passage: buildPassage(section, si) };
+}
+
+function buildPassage(section: Section, scenarioIdx: number): string {
+  const scenario = section.scenarios?.[scenarioIdx];
+  if (!scenario) return '';
+  return (scenario.image ? `<img src="${(imgSrc(scenario.image) ?? '').replace(/"/g, '&quot;')}" alt="" class="card-image" loading="lazy" crossorigin="anonymous" />` : '')
+    + scenario.passage + (scenario.source
+    ? `<span class="source">${scenario.source.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`
+    : '');
 }
 
 export const cardTypeRegistry: Record<Section['type'], CardTypeEntry> = {

@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import SQLiteESMFactory from 'wa-sqlite/dist/wa-sqlite.mjs';
 import { Factory, type SQLiteAPI } from 'wa-sqlite';
 import type { WorkerContext } from './workerContext.ts';
-import { migrateToV3 } from './schema.ts';
+import { migrateToV3, migrateToV4 } from './schema.ts';
 import { loadProject } from './handlers/project.ts';
 import { countDue } from './handlers/card.ts';
 import { getDeckStats } from './handlers/stats.ts';
@@ -46,7 +46,7 @@ async function tableCounts(sqlite: SQLiteAPI, db: number, tables: string[]) {
   return counts;
 }
 
-describe('transactional v2 to v3 study-memory migration', () => {
+describe('transactional v2 to current study-memory migration', () => {
   let sqlite: SQLiteAPI;
   let db: number;
 
@@ -86,7 +86,8 @@ describe('transactional v2 to v3 study-memory migration', () => {
 
     await sqlite.exec(db, 'BEGIN');
     await migrateToV3(sqlite, db);
-    await sqlite.exec(db, 'PRAGMA user_version = 3');
+    await migrateToV4(sqlite, db);
+    await sqlite.exec(db, 'PRAGMA user_version = 4');
     await sqlite.exec(db, 'COMMIT');
 
     const after = await tableCounts(sqlite, db, durableTables);
@@ -98,6 +99,8 @@ describe('transactional v2 to v3 study-memory migration', () => {
     expect(cardColumns.find(column => column.name === 'card_id')?.pk).toBe(2);
     expect(cardColumns.some(column => column.name === 'in_deck')).toBe(true);
     expect(cardColumns.some(column => column.name === 'buried_until')).toBe(true);
+    expect(cardColumns.some(column => column.name === 'priority')).toBe(true);
+    expect(cardColumns.some(column => column.name === 'learning_steps')).toBe(true);
 
     const run = (sql: string, params: unknown[] = []) => sqlite.run(db, sql, params);
     const queryAll = (sql: string, params: unknown[] = []) => rows(sqlite, db, sql, params);
@@ -110,7 +113,7 @@ describe('transactional v2 to v3 study-memory migration', () => {
     } as unknown as WorkerContext;
 
     await loadProject(ctx, 'project-a', ['new-sec'], [
-      { sectionId: 'new-sec', cardId: 'same-card', cardType: 'flashcard' },
+      { sectionId: 'new-sec', cardId: 'same-card', cardType: 'flashcard', priority: 2 },
       { sectionId: 'new-sec', cardId: 'new-card', cardType: 'flashcard' },
     ]);
     await loadProject(ctx, 'project-b', ['new-sec'], [
@@ -122,7 +125,8 @@ describe('transactional v2 to v3 study-memory migration', () => {
     expect(projectACards.find(card => card.card_id === 'stale-card')?.in_deck).toBe(0);
     expect(projectACards.find(card => card.card_id === 'stale-card')?.buried).toBe(0);
     expect(projectACards.find(card => card.card_id === 'same-card')).toMatchObject({
-      in_deck: 1, section_id: 'new-sec', card_type: 'flashcard', stability: 4.5, reps: 3,
+      in_deck: 1, section_id: 'new-sec', card_type: 'flashcard', priority: 2,
+      stability: 4.5, learning_steps: 0, reps: 3,
     });
     expect((await rows(sqlite, db, `SELECT COUNT(*) AS count FROM cards WHERE card_id = 'same-card'`))[0].count).toBe(2);
 
@@ -140,8 +144,9 @@ describe('transactional v2 to v3 study-memory migration', () => {
     await sqlite.exec(db, 'BEGIN');
     try {
       await migrateToV3(sqlite, db);
+      await migrateToV4(sqlite, db);
       await sqlite.exec(db, 'SELECT * FROM intentionally_missing_table');
-      await sqlite.exec(db, 'PRAGMA user_version = 3');
+      await sqlite.exec(db, 'PRAGMA user_version = 4');
       await sqlite.exec(db, 'COMMIT');
       throw new Error('Expected the injected migration failure');
     } catch {

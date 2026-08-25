@@ -1,4 +1,5 @@
-import type { WorkerRequest, WorkerResponse, WorkerMessage, CardRow, ReviewLogRow, ScoreRow, ActivityRow, NoteRow, HotkeyRow, PickCardType, StudyCardType } from '../workers/protocol.ts';
+import type { WorkerRequest, WorkerResponse, WorkerMessage, CardRow, ReviewLogRow, ScoreRow, ActivityRow, NoteRow, HotkeyRow, PickCardType, CardRegistration, StudyProgress } from '../workers/protocol.ts';
+import type { StudyGoalConfig } from '../../projects/types.ts';
 
 let worker: Worker | null = null;
 let msgId = 0;
@@ -67,17 +68,17 @@ export function terminateWorker(): void {
 }
 
 export const workerApi = {
-  loadProject: (projectId: string, sectionIds: string[], cardIds: { sectionId: string; cardId: string; cardType: StudyCardType }[]) =>
+  loadProject: (projectId: string, sectionIds: string[], cardIds: CardRegistration[]) =>
     sendWorkerMessage({ type: 'LOAD_PROJECT', projectId, sectionIds, cardIds }),
 
-  pickNext: (projectId: string, sectionIds: string[], newPerSession: number, cardType?: PickCardType) =>
-    sendWorkerMessage<{ cardId: string | null }>({ type: 'PICK_NEXT', projectId, sectionIds, newPerSession, cardType }),
+  pickNext: (projectId: string, sectionIds: string[], newPerSession: number, cardType?: PickCardType, quotaKey?: string, studyGoal?: StudyGoalConfig) =>
+    sendWorkerMessage<{ cardId: string | null }>({ type: 'PICK_NEXT', projectId, sectionIds, newPerSession, cardType, quotaKey, studyGoal }),
 
   pickNextOverride: (projectId: string, sectionIds: string[], cardType?: PickCardType, excludeIds?: string[]) =>
     sendWorkerMessage<{ cardId: string | null }>({ type: 'PICK_NEXT_OVERRIDE', projectId, sectionIds, cardType, excludeIds }),
 
-  resetNewCount: (projectId: string, sectionIds: string[], cardType?: PickCardType) =>
-    sendWorkerMessage({ type: 'RESET_NEW_COUNT', projectId, sectionIds, cardType }),
+  resetNewCount: (projectId: string, sectionIds: string[], cardType?: PickCardType, quotaKey?: string) =>
+    sendWorkerMessage({ type: 'RESET_NEW_COUNT', projectId, sectionIds, cardType, quotaKey }),
 
   previewRatings: (projectId: string, cardId: string) =>
     sendWorkerMessage<{ labels: Record<number, string> }>({ type: 'PREVIEW_RATINGS', projectId, cardId }),
@@ -166,6 +167,9 @@ export const workerApi = {
   getRetention: (projectId: string) =>
     sendWorkerMessage<{ retention: number | null }>({ type: 'GET_RETENTION', projectId }),
 
+  getStudyProgress: (projectId: string, desiredRetention: number, quotaKey?: string) =>
+    sendWorkerMessage<StudyProgress>({ type: 'GET_STUDY_PROGRESS', projectId, desiredRetention, quotaKey }),
+
   getSectionStats: (projectId: string) =>
     sendWorkerMessage<{ section_id: string; new: number; learning: number; due: number; total: number }[]>({ type: 'GET_SECTION_STATS', projectId }),
 
@@ -178,8 +182,8 @@ export const workerApi = {
 
 /** Project-scoped API — pre-binds projectId to all project-scoped methods */
 export interface ProjectApi {
-  loadProject: (sectionIds: string[], cardIds: { sectionId: string; cardId: string; cardType: StudyCardType }[]) => Promise<unknown>;
-  pickNext: (sectionIds: string[], newPerSession: number, cardType?: PickCardType) => Promise<{ cardId: string | null }>;
+  loadProject: (sectionIds: string[], cardIds: CardRegistration[]) => Promise<unknown>;
+  pickNext: (sectionIds: string[], newPerSession: number, cardType?: PickCardType, quotaKey?: string, studyGoal?: StudyGoalConfig) => Promise<{ cardId: string | null }>;
   pickNextOverride: (sectionIds: string[], cardType?: PickCardType, excludeIds?: string[]) => Promise<{ cardId: string | null }>;
   unburyAll: () => Promise<unknown>;
   countDue: (sectionIds: string[], cardType?: PickCardType) => Promise<{ due: number; newCount: number; total: number }>;
@@ -197,6 +201,7 @@ export interface ProjectApi {
   importProjectData: (cards: CardRow[], review_log: ReviewLogRow[], scores: ScoreRow[], activity: ActivityRow[], notes: NoteRow[]) => Promise<unknown>;
   getDeckStats: () => Promise<{ new: number; learning: number; due: number }>;
   getRetention: () => Promise<{ retention: number | null }>;
+  getStudyProgress: (desiredRetention: number, quotaKey?: string) => Promise<StudyProgress>;
   getSectionStats: () => Promise<{ section_id: string; new: number; learning: number; due: number; total: number }[]>;
   deleteProject: () => Promise<{ ok: boolean }>;
   reviewCard: (cardId: string, sectionId: string, rating: number) => Promise<{ card: { state: number; due: string; stability: number; difficulty: number }; isLeech: boolean; lapses: number }>;
@@ -204,13 +209,13 @@ export interface ProjectApi {
   suspendCard: (cardId: string) => ReturnType<typeof workerApi.suspendCard>;
   buryCard: (cardId: string) => ReturnType<typeof workerApi.buryCard>;
   undoReview: () => ReturnType<typeof workerApi.undoReview>;
-  resetNewCount: (sectionIds: string[], cardType?: PickCardType) => ReturnType<typeof workerApi.resetNewCount>;
+  resetNewCount: (sectionIds: string[], cardType?: PickCardType, quotaKey?: string) => ReturnType<typeof workerApi.resetNewCount>;
 }
 
 export function forProject(slug: string): ProjectApi {
   return {
     loadProject: (sectionIds, cardIds) => workerApi.loadProject(slug, sectionIds, cardIds),
-    pickNext: (sectionIds, newPerSession, cardType?) => workerApi.pickNext(slug, sectionIds, newPerSession, cardType),
+    pickNext: (sectionIds, newPerSession, cardType?, quotaKey?, studyGoal?) => workerApi.pickNext(slug, sectionIds, newPerSession, cardType, quotaKey, studyGoal),
     pickNextOverride: (sectionIds, cardType?, excludeIds?) => workerApi.pickNextOverride(slug, sectionIds, cardType, excludeIds),
     unburyAll: () => workerApi.unburyAll(slug),
     countDue: (sectionIds, cardType?) => workerApi.countDue(slug, sectionIds, cardType),
@@ -228,6 +233,7 @@ export function forProject(slug: string): ProjectApi {
     importProjectData: (cards, review_log, scores, activity, notes) => workerApi.importProjectData(slug, cards, review_log, scores, activity, notes),
     getDeckStats: () => workerApi.getDeckStats(slug),
     getRetention: () => workerApi.getRetention(slug),
+    getStudyProgress: (desiredRetention, quotaKey?) => workerApi.getStudyProgress(slug, desiredRetention, quotaKey),
     getSectionStats: () => workerApi.getSectionStats(slug),
     deleteProject: () => workerApi.deleteProject(slug),
     reviewCard: (cardId, sectionId, rating) => workerApi.reviewCard(cardId, slug, sectionId, rating),
@@ -235,6 +241,6 @@ export function forProject(slug: string): ProjectApi {
     suspendCard: (cardId) => workerApi.suspendCard(slug, cardId),
     buryCard: (cardId) => workerApi.buryCard(slug, cardId),
     undoReview: () => workerApi.undoReview(slug),
-    resetNewCount: (sectionIds, cardType?) => workerApi.resetNewCount(slug, sectionIds, cardType),
+    resetNewCount: (sectionIds, cardType?, quotaKey?) => workerApi.resetNewCount(slug, sectionIds, cardType, quotaKey),
   };
 }

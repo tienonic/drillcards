@@ -215,6 +215,18 @@ describe('resolveFlashCard', () => {
     expect(result!.card.front).toBe('Term B');
   });
 
+  it('resolves an explicit stable flashcard ID after reordering', () => {
+    const section = flashSection({
+      flashcards: [
+        { id: 'gracias', front: 'gracias', back: 'thank you' },
+        { id: 'hola', front: 'hola', back: 'hello' },
+      ],
+      flashCardIds: ['sec1-flash-gracias', 'sec1-flash-hola'],
+    });
+    const result = resolveFlashCard(section, 'sec1-flash-hola');
+    expect(result).toEqual({ idx: 1, card: section.flashcards![1] });
+  });
+
   it('returns null for wrong prefix', () => {
     const section = flashSection();
     expect(resolveFlashCard(section, 'other-flash-0')).toBeNull();

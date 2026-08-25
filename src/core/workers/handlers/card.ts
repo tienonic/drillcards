@@ -3,6 +3,8 @@ import { Rating, State, type Card, type Grade, type IPreview, type RecordLogItem
 import { formatInterval, isLeech, newTodayKey } from '../helpers.ts';
 import type { PickCardType } from '../protocol.ts';
 import { localDateKey, nextLocalDateKey } from '../burial.ts';
+import { buildExposurePlan } from '../../../features/goals/studyPlan.ts';
+import type { StudyGoalConfig } from '../../../projects/types.ts';
 
 function cardTypeFilter(cardType?: PickCardType): { sql: string; params: string[] } {
   if (!cardType) return { sql: '', params: [] };
@@ -16,6 +18,8 @@ export async function pickNext(
   sectionIds: string[],
   newPerSession: number,
   cardType?: PickCardType,
+  quotaKey?: string,
+  studyGoal?: StudyGoalConfig,
 ): Promise<{ cardId: string | null }> {
   await ctx.checkNewDay();
   const placeholders = sectionIds.map(() => '?').join(',');
@@ -44,16 +48,42 @@ export async function pickNext(
   );
   if (row) return { cardId: row.card_id as string };
 
-  // 3. New cards (capped per section+cardType, persisted in daily_new)
-  const key = newTodayKey(projectId, sectionIds, cardType);
+  // 3. New cards (capped per local day and persisted in daily_new).
+  // A finite goal uses one project-wide key so switching sections cannot multiply exposure.
+  const key = quotaKey?.trim() || newTodayKey(projectId, sectionIds, cardType);
   const used = await ctx.getNewTodayCount(projectId, key);
-  if (used < newPerSession) {
+  let dailyLimit = Math.max(0, Math.floor(newPerSession));
+  if (studyGoal?.target_date) {
+    const unseenRow = await ctx.queryOne(
+      `SELECT COUNT(*) as cnt FROM cards
+       WHERE project_id = ? AND in_deck = 1 AND suspended = 0 AND fsrs_state = 0`,
+      [projectId],
+    );
+    try {
+      const plan = buildExposurePlan({
+        today: localDateKey(),
+        startDate: studyGoal.start_date,
+        targetDate: studyGoal.target_date,
+        weekendMultiplier: studyGoal.weekend_multiplier,
+        unseen: (unseenRow?.cnt as number) ?? 0,
+        introducedToday: used,
+        due: 0,
+      });
+      if (plan.status !== 'deadline-passed' && plan.status !== 'not-configured') {
+        dailyLimit = plan.dailyLimit;
+      }
+    } catch {
+      // A stale invalid saved goal must not make the deck unusable. The validated daily
+      // setting remains the safe fallback until the goal is corrected in Settings.
+    }
+  }
+  if (used < dailyLimit) {
     row = await ctx.queryOne(
       `SELECT card_id FROM cards
        WHERE project_id = ? AND in_deck = 1 AND section_id IN (${placeholders})
        AND suspended = 0 AND buried = 0
        AND fsrs_state = 0${typeFilter.sql}
-       ORDER BY RANDOM() LIMIT 1`,
+       ORDER BY priority ASC, card_id ASC LIMIT 1`,
       [projectId, ...sectionIds, ...typeFilter.params],
     );
     if (row) {
@@ -87,7 +117,7 @@ export async function pickNextOverride(
     `SELECT card_id FROM cards
      WHERE project_id = ? AND in_deck = 1 AND section_id IN (${placeholders})
      AND suspended = 0 AND buried = 0${typeFilter.sql}${excludeFilter}
-     ORDER BY stability ASC, RANDOM() LIMIT 1`,
+    ORDER BY stability ASC, priority ASC, card_id ASC LIMIT 1`,
     [projectId, ...sectionIds, ...typeFilter.params, ...excludeParam],
   );
   return row ? { cardId: row.card_id as string } : { cardId: null };
@@ -98,9 +128,10 @@ export async function resetNewCount(
   projectId: string,
   sectionIds: string[],
   cardType?: PickCardType,
+  quotaKey?: string,
 ): Promise<{ ok: boolean }> {
   const today = localDateKey();
-  const key = newTodayKey(projectId, sectionIds, cardType);
+  const key = quotaKey?.trim() || newTodayKey(projectId, sectionIds, cardType);
   await ctx.run(`DELETE FROM daily_new WHERE project_id = ? AND date = ? AND key = ?`, [projectId, today, key]);
   return { ok: true };
 }
@@ -238,7 +269,7 @@ export async function undoReview(
   try {
     await ctx.run(
       `UPDATE cards SET fsrs_state = ?, due = ?, stability = ?, difficulty = ?,
-       elapsed_days = ?, scheduled_days = ?, reps = ?, lapses = ?,
+       elapsed_days = ?, scheduled_days = ?, learning_steps = ?, reps = ?, lapses = ?,
        last_review = ?, suspended = ?, buried = ?, buried_until = ?, leech = ?, updated_at = datetime('now')
        WHERE project_id = ? AND card_id = ? AND in_deck = 1`,
       [
@@ -248,6 +279,7 @@ export async function undoReview(
         prevState.difficulty,
         prevState.elapsed_days,
         prevState.scheduled_days,
+        prevState.learning_steps ?? 0,
         prevState.reps,
         prevState.lapses,
         prevState.last_review,

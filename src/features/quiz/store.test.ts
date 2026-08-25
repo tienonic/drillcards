@@ -109,6 +109,36 @@ describe('QuizSession interface completeness', () => {
     });
   });
 
+  it('starts and picks in flash mode for a flashcard-only section', async () => {
+    await createRoot(async dispose => {
+      const section: Section = {
+        id: 'words', name: 'Words', type: 'mc-quiz', cardIds: [],
+        flashcards: [{ id: 'palabra', front: 'palabra', back: 'word' }],
+        flashCardIds: ['words-flash-palabra'],
+      };
+      const api = createFakeProjectApi({
+        pickNext: vi.fn().mockResolvedValue({ cardId: 'words-flash-palabra' }),
+      });
+      setActiveProject({
+        name: 'Vocabulary', slug: 'vocabulary', version: 1,
+        config: {
+          desired_retention: 0.9, new_per_session: 1, leech_threshold: 8,
+          max_interval: 90, imageSearchSuffix: '', listening: { enabled: false },
+        },
+        sections: [section], glossary: [],
+      });
+
+      const session = createQuizSession(section, api);
+      expect(session.flashMode()).toBe(true);
+      await session.pickNextCard();
+
+      expect(api.pickNext).toHaveBeenCalledWith(['words'], 1, 'flashcard');
+      expect(session.flashCardId()).toBe('words-flash-palabra');
+      expect(session.flashFront()).toBe('palabra');
+      dispose();
+    });
+  });
+
   it('cramMode starts as false', () => {
     createRoot(dispose => {
       const session = createQuizSession(mockSection());

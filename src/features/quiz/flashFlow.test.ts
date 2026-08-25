@@ -17,7 +17,7 @@ vi.mock('../backup/backup.ts', () => ({
 
 import { createFlashFlow } from './flashFlow.ts';
 import type { FlashSignals } from './flashFlow.ts';
-import type { Section } from '../../projects/types.ts';
+import type { Flashcard, Section } from '../../projects/types.ts';
 
 function mockSection(): Section {
   return {
@@ -45,12 +45,13 @@ function createSignals(): FlashSignals {
   const [flashBackImage, setFlashBackImage] = createSignal('');
   const [flashDefFirst] = createSignal(false);
   const [ratingLabels, setRatingLabels] = createSignal<Record<number, string>>({});
+  const [, setActiveFlashcard] = createSignal<Flashcard | null>(null);
   return {
     state, setState, flashCardId, setFlashCardId,
     flashFlipped, setFlashFlipped, flashFront, setFlashFront,
     flashBack, setFlashBack, flashTitle, setFlashTitle, flashFrontImage, setFlashFrontImage,
     flashBackImage, setFlashBackImage, flashDefFirst,
-    ratingLabels, setRatingLabels,
+    ratingLabels, setRatingLabels, setActiveFlashcard,
   };
 }
 

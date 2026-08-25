@@ -95,6 +95,7 @@ describe('cardToFSRS', () => {
       difficulty: 3.2,
       elapsed_days: 10,
       scheduled_days: 14,
+      learning_steps: 1,
       reps: 5,
       lapses: 2,
       fsrs_state: 2,
@@ -105,6 +106,7 @@ describe('cardToFSRS', () => {
     expect(card.difficulty).toBe(3.2);
     expect(card.elapsed_days).toBe(10);
     expect(card.scheduled_days).toBe(14);
+    expect(card.learning_steps).toBe(1);
     expect(card.reps).toBe(5);
     expect(card.lapses).toBe(2);
     expect(card.state).toBe(2);
@@ -137,6 +139,15 @@ describe('cardToFSRS', () => {
       reps: 0, lapses: 0, fsrs_state: 0, last_review: null,
     });
     expect(card.last_review).toBeUndefined();
+  });
+
+  it('defaults learning_steps for cards created before the FSRS-6 field was persisted', () => {
+    const card = cardToFSRS({
+      due: '2025-01-15T10:00:00.000Z',
+      stability: 0, difficulty: 0, elapsed_days: 0, scheduled_days: 0,
+      reps: 0, lapses: 0, fsrs_state: 1, last_review: null,
+    });
+    expect(card.learning_steps).toBe(0);
   });
 });
 

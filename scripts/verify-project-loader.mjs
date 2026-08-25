@@ -3,7 +3,7 @@ import path from 'node:path';
 import { createServer } from 'vite';
 
 function usage() {
-  console.error('Usage: node scripts/verify-project-loader.mjs <deck.json> [--expected-slug <slug>] [--mcqs <count>] [--flashcards <count>]');
+  console.error('Usage: node scripts/verify-project-loader.mjs <deck.json> [--expected-slug <slug>] [--sections <count>] [--mcqs <count>] [--flashcards <count>]');
 }
 
 function fail(errors) {
@@ -13,15 +13,17 @@ function fail(errors) {
 }
 
 function parseArgs(argv) {
-  const values = { deckPath: '', expectedSlug: '', mcqs: 40, flashcards: 50 };
+  const values = { deckPath: '', expectedSlug: '', sections: 1, mcqs: 40, flashcards: 50 };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--expected-slug') values.expectedSlug = argv[++index] ?? '';
+    else if (arg === '--sections') values.sections = Number(argv[++index]);
     else if (arg === '--mcqs') values.mcqs = Number(argv[++index]);
     else if (arg === '--flashcards') values.flashcards = Number(argv[++index]);
     else if (!arg.startsWith('-') && !values.deckPath) values.deckPath = arg;
     else throw new Error(`Unknown or incomplete argument: ${arg}`);
   }
+  if (!Number.isInteger(values.sections) || values.sections < 1) throw new Error('--sections must be a positive integer');
   if (!Number.isInteger(values.mcqs) || values.mcqs < 0) throw new Error('--mcqs must be a nonnegative integer');
   if (!Number.isInteger(values.flashcards) || values.flashcards < 0) throw new Error('--flashcards must be a nonnegative integer');
   return values;
@@ -71,7 +73,7 @@ try {
   if (validationErrors.length !== 0) errors.push(`Production validateProject returned: ${validationErrors.join('; ')}`);
   if (args.expectedSlug && first.slug !== args.expectedSlug) errors.push(`Expected slug "${args.expectedSlug}", found "${first.slug}"`);
   if (first.slug !== second.slug) errors.push('Independent loads returned different slugs');
-  if (first.sections.length !== 1 || second.sections.length !== 1) errors.push('Independent loads did not return exactly one section');
+  if (first.sections.length !== args.sections || second.sections.length !== args.sections) errors.push(`Independent loads did not return exactly ${args.sections} section(s)`);
 
   const firstCardIds = first.sections.flatMap(section => section.cardIds);
   const secondCardIds = second.sections.flatMap(section => section.cardIds);
@@ -96,6 +98,7 @@ try {
       validationErrors,
       slug: first.slug,
       independentLoads: 2,
+      sections: first.sections.length,
       mcqIds: firstCardIds.length,
       flashIds: firstFlashIds.length,
       orderedIdsIdentical: true,

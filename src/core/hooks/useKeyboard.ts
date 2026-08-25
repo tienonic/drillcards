@@ -129,6 +129,12 @@ function isHistoryForwardKey(e: KeyboardEvent): boolean {
 }
 
 function handleFlashcardKeyboard(e: KeyboardEvent, session: FlashView) {
+  if (matchesKey(e, 'replayPronunciation')) {
+    e.preventDefault();
+    session.playPronunciation().catch(() => {});
+    return;
+  }
+
   if (matchesKey(e, 'copyCard')) {
     e.preventDefault();
     const parts: string[] = [];

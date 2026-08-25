@@ -14,16 +14,14 @@ export function QuizSection(props: { section: Section }) {
   onMount(() => {
     sectionHandlers.set(props.section.id, { kind: 'quiz', session });
     bumpHandlerVersion();
-    if (!session.flashMode()) {
-      session.pickNextCard().then(() => {
-        // If still idle after resolve, retry
-        if (session.state() === 'idle') setTimeout(() => session.pickNextCard().catch(() => {}), 300);
-      }).catch(() => {
-        setTimeout(() => session.pickNextCard().catch(() => {}), 300);
-      });
-    }
+    session.pickNextCard().then(() => {
+      // If still idle after resolve, retry
+      if (session.state() === 'idle') setTimeout(() => session.pickNextCard().catch(() => {}), 300);
+    }).catch(() => {
+      setTimeout(() => session.pickNextCard().catch(() => {}), 300);
+    });
   });
-  onCleanup(() => { sectionHandlers.delete(props.section.id); bumpHandlerVersion(); });
+  onCleanup(() => { session.stopPronunciation(); sectionHandlers.delete(props.section.id); bumpHandlerVersion(); });
 
   // Reset timer when this section becomes the active tab — prevents stale elapsed time
   // from background timer inflating the rating in easy mode (all sections mount simultaneously)

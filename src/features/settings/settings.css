@@ -5,10 +5,19 @@
   z-index: 500;
 }
 
-.settings-dropdown {
+.anchored-dialog-panel {
   position: fixed;
-  left: 210px;
-  width: 220px;
+  z-index: 501;
+  box-sizing: border-box;
+}
+
+.anchored-dialog-panel:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.settings-dropdown {
+  width: 320px;
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: 2px;
@@ -16,6 +25,19 @@
   z-index: 501;
   box-shadow: 0 2px 8px var(--shadow-soft);
   font-family: var(--font-ui);
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+}
+
+.settings-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  margin: -8px -8px 4px 0;
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .settings-export-btn {
@@ -53,6 +75,68 @@
   text-align: right;
 }
 
+.settings-date-field input { width: 118px; }
+
+.settings-section-title {
+  margin-bottom: 4px;
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.settings-progress {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.settings-progress div {
+  min-width: 0;
+  padding: 5px 6px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+}
+
+.settings-progress span,
+.settings-progress strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.settings-progress span {
+  color: var(--color-text-light);
+  font-size: 0.62rem;
+  line-height: 1.25;
+}
+
+.settings-progress strong {
+  margin-top: 2px;
+  color: var(--color-text);
+  font-size: 0.78rem;
+}
+
+.settings-plan,
+.settings-goal-error {
+  margin: 6px 0;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.settings-plan-high,
+.settings-plan-extreme,
+.settings-goal-error {
+  border-color: var(--color-accent);
+  background: var(--color-accent-light);
+  color: var(--color-accent-dark);
+}
+
 .preset-row {
   display: flex;
   gap: 4px;
@@ -61,6 +145,7 @@
 
 .preset-btn {
   flex: 1;
+  min-height: 36px;
   padding: 5px 4px;
   border: 1px solid var(--color-border);
   border-radius: 2px;
@@ -93,6 +178,7 @@
 
 .settings-save-btn {
   width: 100%;
+  min-height: 36px;
   padding: 6px;
   background: var(--color-primary);
   color: white;
@@ -113,6 +199,7 @@
 
 .settings-backup-btn {
   width: 100%;
+  min-height: 36px;
   padding: 6px;
   background: var(--color-bg);
   color: var(--color-text);
@@ -148,12 +235,7 @@
   display: flex;
   flex-direction: column;
   box-shadow: 0 2px 8px var(--shadow-soft);
-}
-
-.keybinds-modal.panel-fixed {
-  position: fixed;
-  left: 210px;
-  z-index: 501;
+  overflow: hidden;
 }
 
 .keybinds-header {
@@ -173,7 +255,10 @@
   font-size: 1.2rem;
   color: var(--color-text-light);
   cursor: pointer;
-  padding: 0 4px;
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  padding: 0;
   line-height: 1;
 }
 
@@ -273,12 +358,8 @@
 
 @media (max-width: 600px) {
   .settings-dropdown,
-  .keybinds-modal.panel-fixed {
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    width: auto;
-    max-height: none;
+  .keybinds-modal {
+    width: calc(100vw - 16px);
   }
 
   .settings-dropdown {

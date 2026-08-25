@@ -8,7 +8,7 @@ import {
 import { cardToFSRS, uuidv7 } from './helpers.ts';
 import type { WorkerContext } from './workerContext.ts';
 import { localDateKey, releaseExpiredBuried } from './burial.ts';
-import { SCHEMA, SCHEMA_VERSION, migrateToV3 } from './schema.ts';
+import { SCHEMA, SCHEMA_VERSION, migrateToV3, migrateToV4 } from './schema.ts';
 
 // Handler imports
 import * as cardH from './handlers/card.ts';
@@ -39,6 +39,7 @@ const migrations: Record<number, () => Promise<void>> = {
     `);
   },
   3: async () => migrateToV3(sqlite3!, db),
+  4: async () => migrateToV4(sqlite3!, db),
 };
 
 async function applyMigrations() {
@@ -112,12 +113,12 @@ async function queryOne(sql: string, params?: unknown[]): Promise<Record<string,
 async function saveCardFromFSRS(projectId: string, cardId: string, card: Card, lapses?: number) {
   await run(
     `UPDATE cards SET fsrs_state = ?, due = ?, stability = ?, difficulty = ?,
-     elapsed_days = ?, scheduled_days = ?, reps = ?, lapses = COALESCE(?, lapses),
+     elapsed_days = ?, scheduled_days = ?, learning_steps = ?, reps = ?, lapses = COALESCE(?, lapses),
      last_review = ?, updated_at = datetime('now')
      WHERE project_id = ? AND card_id = ? AND in_deck = 1`,
     [
       card.state, card.due.toISOString(), card.stability, card.difficulty,
-      card.elapsed_days, card.scheduled_days, card.reps,
+      card.elapsed_days, card.scheduled_days, card.learning_steps, card.reps,
       lapses ?? null,
       card.last_review ? card.last_review.toISOString() : null,
       projectId, cardId,
@@ -205,9 +206,9 @@ async function handleMessage(request: WorkerRequest): Promise<unknown> {
     }
 
     // Card scheduling / FSRS
-    case 'PICK_NEXT': return cardH.pickNext(ctx, request.projectId, request.sectionIds, request.newPerSession, request.cardType);
+    case 'PICK_NEXT': return cardH.pickNext(ctx, request.projectId, request.sectionIds, request.newPerSession, request.cardType, request.quotaKey, request.studyGoal);
     case 'PICK_NEXT_OVERRIDE': return cardH.pickNextOverride(ctx, request.projectId, request.sectionIds, request.cardType, request.excludeIds);
-    case 'RESET_NEW_COUNT': return cardH.resetNewCount(ctx, request.projectId, request.sectionIds, request.cardType);
+    case 'RESET_NEW_COUNT': return cardH.resetNewCount(ctx, request.projectId, request.sectionIds, request.cardType, request.quotaKey);
     case 'PREVIEW_RATINGS': return cardH.previewRatings(ctx, request.projectId, request.cardId);
     case 'REVIEW_CARD': return cardH.reviewCard(ctx, request.cardId, request.projectId, request.sectionId, request.rating);
     case 'UNDO_REVIEW': return cardH.undoReview(ctx, request.projectId);
@@ -235,6 +236,7 @@ async function handleMessage(request: WorkerRequest): Promise<unknown> {
     case 'GET_PERFORMANCE_CARDS': return statsH.getPerformanceCards(ctx, request.projectId);
     case 'GET_ALL_PROJECT_IDS': return statsH.getAllProjectIds(ctx);
     case 'GET_RETENTION': return statsH.getRetention(ctx, request.projectId);
+    case 'GET_STUDY_PROGRESS': return statsH.getStudyProgress(ctx, request.projectId, request.desiredRetention, request.quotaKey);
 
     // Import/Export
     case 'EXPORT_PROJECT_DATA': return importExportH.exportProjectData(ctx, request.projectId);

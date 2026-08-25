@@ -13,7 +13,10 @@ import { bumpHandlerVersion, switchToSection } from '../../core/store/sections.t
 import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 import type { PickCardType } from '../../core/workers/protocol.ts';
 import type { Section } from '../../projects/types.ts';
+import type { Flashcard } from '../../projects/types.ts';
 import type { QuizState, QuizSession } from './types.ts';
+import { playPronunciation, stopPronunciation } from '../listening/playback.ts';
+import { resetScheduledNewCount } from '../goals/goalScheduling.ts';
 export type { QuizSession } from './types.ts';
 
 export function createQuizSession(section: Section, api: ProjectApi, sourceSections?: Section[]): QuizSession {
@@ -46,8 +49,11 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
   const [ratingLabels, setRatingLabels] = createSignal<Record<number, string>>({});
   const [score, setScore] = createSignal({ correct: 0, attempted: 0 });
   const [dueCount, setDueCount] = createSignal({ due: 0, newCount: 0, total: 0 });
-  const [flashMode, setFlashMode] = createSignal(false);
+  const startsInFlashMode = allSections.every(candidate => candidate.cardIds.length === 0)
+    && allSections.some(candidate => candidate.flashCardIds.length > 0);
+  const [flashMode, setFlashMode] = createSignal(startsInFlashMode);
   const [flashCardId, setFlashCardId] = createSignal<string | null>(null);
+  const [activeFlashcard, setActiveFlashcard] = createSignal<Flashcard | null>(null);
   const [flashFlipped, setFlashFlipped] = createSignal(false);
   const [flashFront, setFlashFront] = createSignal('');
   const [flashBack, setFlashBack] = createSignal('');
@@ -58,6 +64,9 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
   const [passage, setPassage] = createSignal('');
   const [leechWarning, setLeechWarning] = createSignal(false);
   const [skipped, setSkipped] = createSignal(false);
+  const [pronunciationPlaying, setPronunciationPlaying] = createSignal(false);
+  const [pronunciationPlayed, setPronunciationPlayed] = createSignal(false);
+  const [pronunciationError, setPronunciationError] = createSignal<string | null>(null);
   const timer = useTimer();
   const guard = createGuard();
 
@@ -145,10 +154,45 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
     { state, setState, flashCardId, setFlashCardId, flashFlipped, setFlashFlipped,
       flashFront, setFlashFront, flashBack, setFlashBack, flashTitle, setFlashTitle,
       flashFrontImage, setFlashFrontImage, flashBackImage, setFlashBackImage,
-      flashDefFirst, ratingLabels, setRatingLabels },
+      flashDefFirst, ratingLabels, setRatingLabels, setActiveFlashcard },
     { section, sourceSections, project, guard, timer, refreshDue,
       cramMode: cram.cramMode, cramMarkSeen: cram.markSeen, cramPickNext: cram.pickNextCram, cramRate: cram.rateCram, api },
   );
+
+  async function playCurrentPronunciation(): Promise<void> {
+    const card = activeFlashcard();
+    const config = project()?.config.listening;
+    if (!card || !config?.enabled) return;
+    setPronunciationPlaying(true);
+    setPronunciationError(null);
+    try {
+      const result = await playPronunciation(config, card);
+      if (activeFlashcard() === card && result.played) setPronunciationPlayed(true);
+    } catch (error) {
+      if (activeFlashcard() === card) {
+        setPronunciationError(error instanceof Error ? error.message : 'Pronunciation playback failed.');
+      }
+    } finally {
+      if (activeFlashcard() === card) setPronunciationPlaying(false);
+    }
+  }
+
+  function stopCurrentPronunciation(): void {
+    stopPronunciation();
+    setPronunciationPlaying(false);
+  }
+
+  createEffect(() => {
+    const card = activeFlashcard();
+    const config = project()?.config.listening;
+    stopCurrentPronunciation();
+    batch(() => { setPronunciationPlayed(false); setPronunciationError(null); });
+    if (card && config?.enabled && config.autoplay) {
+      queueMicrotask(() => {
+        if (activeFlashcard() === card) playCurrentPronunciation().catch(() => {});
+      });
+    }
+  });
 
   // --- Effects ---
   createEffect(() => {
@@ -169,7 +213,8 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
   async function pickNextCard() {
     await guard.withActing(async () => {
       try {
-        await mcq.pickNextCardImpl();
+        if (flashMode()) await flash.pickNextFlash();
+        else await mcq.pickNextCardImpl();
       } catch (err) {
         console.error(`[quiz:${section.id}] pickNextCard error:`, err);
         if (state() === 'idle') setState('done');
@@ -181,6 +226,7 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
     if (guard.isActing() || modeSwitch) return;
     modeSwitch = true;
     const next = !flashMode();
+    stopCurrentPronunciation();
     batch(() => { setFlashMode(next); bumpHandlerVersion(); });
     (next ? flash.pickNextFlash() : pickNextCard()).catch(() => {}).finally(() => { modeSwitch = false; });
   }
@@ -246,7 +292,8 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
       setActiveProject({ ...p, config: { ...p.config, new_per_session: count } });
     }
     await guard.withActing(async () => {
-      await api.resetNewCount(allSectionIds, sectionCardType());
+      if (p) await resetScheduledNewCount(api, p, allSectionIds, sectionCardType());
+      else await api.resetNewCount(allSectionIds, sectionCardType());
       if (flashMode()) {
         await flash.pickNextFlash();
       } else {
@@ -280,7 +327,12 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
       const mcqType = sectionToCardType(section.type);
       const cardRegs = [
         ...section.cardIds.map(id => ({ sectionId: section.id, cardId: id, cardType: mcqType })),
-        ...section.flashCardIds.map(id => ({ sectionId: section.id, cardId: id, cardType: 'flashcard' as const })),
+        ...section.flashCardIds.map((id, index) => ({
+          sectionId: section.id,
+          cardId: id,
+          cardType: 'flashcard' as const,
+          priority: section.flashcards?.[index]?.priority,
+        })),
       ];
       await api.loadProject([section.id], cardRegs);
       mcq.histNav.reset();
@@ -299,7 +351,7 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
 
   return {
     state, cardId, question, options, selected, isCorrect, ratingLabels,
-    score, dueCount, flashMode, flashCardId, flashFlipped, flashFront, flashBack, flashTitle,
+    score, dueCount, flashMode, flashCardId, activeFlashcard, flashFlipped, flashFront, flashBack, flashTitle,
     flashFrontImage, flashBackImage,
     flashDefFirst, passage, historyReview: mcq.histNav.historyReview, historyPosition: activeHistoryPosition,
     leechWarning, skipped, currentImageLink: mcq.currentImageLink, currentImageLinks: mcq.currentImageLinks,
@@ -314,6 +366,11 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
     bury: mcq.bury,
     flipFlash: flash.flipFlash,
     rateFlash: flash.rateFlash,
+    playPronunciation: playCurrentPronunciation,
+    stopPronunciation: stopCurrentPronunciation,
+    pronunciationPlaying,
+    pronunciationPlayed,
+    pronunciationError,
     toggleFlashMode,
     setFlashDefFirst: (v: boolean) => {
       setFlashDefFirst(v);

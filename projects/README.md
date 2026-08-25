@@ -13,14 +13,21 @@ Create a local `.json` file, then load it via "Open Project File" or drag and dr
     "new_per_session": 20,
     "leech_threshold": 8,
     "max_interval": 365,
-    "imageSearchSuffix": ""
+    "imageSearchSuffix": "",
+    "listening": { "enabled": false },
+    "study_goal": {
+      "start_date": "2030-01-07",
+      "target_date": "2030-01-15",
+      "weekend_multiplier": 2
+    }
   },
   "sections": [],
   "glossary": []
 }
 ```
 
-- **config** is optional (defaults shown above). `desired_retention` is 0–1, higher = more reviews. `max_interval` caps the longest review gap in days (default: 365). `imageSearchSuffix` is appended to Google Images queries.
+- **config** is optional (defaults shown above). `desired_retention` is a retrieval-probability target; a higher value creates more reviews. It is not a progress percentage. `new_per_session` is the legacy JSON name for the local-day new-card limit. `max_interval` caps the longest review gap in days (default: 365). `imageSearchSuffix` is appended to Google Images queries. Listening defaults to disabled and is deck-specific.
+- **study_goal** is optional and deck-specific. Calendar dates use `YYYY-MM-DD`. The weekend multiplier can range from 1 through 4; `2` assigns twice the unseen-card exposure to Saturday and Sunday. The planner recalculates from the current unseen count after missed days. It never rewrites review history or treats exposure as durable retention.
 - **sections**: array of section objects (at least one required)
 - **glossary**: optional array of `{ "term": "...", "def": "..." }` objects shown in the sidebar. Add `"hasImage": true` to include a Google Images link.
 
@@ -57,6 +64,20 @@ Every section needs `id` (unique lowercase string), `name`, and `type`.
 **Question fields:** `q`, `correct`, `wrong` (exactly 3) are required. `explanation` and `imageName` are optional.
 
 **Flashcards:** Set `hasFlashcards: true` and add a `flashcards` array with `front`/`back` pairs. `back` supports HTML (`<strong>`, `<br>`, `<em>`).
+
+A section may contain flashcards without placeholder quiz questions. It opens directly in flashcard mode. Vocabulary decks can add stable `id` and `priority` values plus `lemma`, `display_form`, `pronunciation_en`, `meaning_en`, `usage_note`, `part_of_speech`, `grammar`, `tags`, `source_refs`, and `audio_text`. If one vocabulary field is present, all required vocabulary fields must be present. Keep provenance in `source_refs`, not in visible `front` or `back` copy.
+
+Generated decks, source extracts, audio, private validators, and audit manifests remain local-only. Keep one-off release profiles outside tracked source.
+
+For a listening-enabled local deck, pre-generate immutable audio with an installed `edge-tts` Python module:
+
+```bash
+npm run audio:generate -- path/to/source-deck.json \
+  --output-deck path/to/deck-with-audio.json \
+  --cache-root audio-cache
+```
+
+The deck's listening config must specify `provider: "cached-audio"`, a voice, rate, and the exact version reported by `edge-tts --version`. The generator refuses a version mismatch. The cache key includes normalized text, voice, rate, pronunciation override, and engine version. `audio-cache/` and its manifest are ignored by Git. At runtime the local dev server serves only confined `.mp3`, `.ogg`, or `.wav` paths from that cache.
 
 **Images:** Set `hasImages: true` to show "View Image" links using each question's `imageName`.
 

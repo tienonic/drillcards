@@ -6,6 +6,7 @@ import { aiBridgePlugin } from './vite-plugins/ai-bridge.ts';
 import { debugLogPlugin } from './vite-plugins/debug-log.ts';
 import { exportPlugin } from './vite-plugins/export-data.ts';
 import { imgProxyPlugin } from './vite-plugins/img-proxy.ts';
+import { localAudioCachePlugin } from './vite-plugins/local-audio-cache.ts';
 
 const coopCoepHeaders = {
   'Cross-Origin-Opener-Policy': 'same-origin',
@@ -20,6 +21,7 @@ export default defineConfig({
     aiBridgePlugin(),
     exportPlugin(),
     imgProxyPlugin(),
+    localAudioCachePlugin(),
   ],
   server: {
     port: 3000,

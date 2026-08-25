@@ -29,12 +29,11 @@ export function MergedQuizView() {
   onMount(() => {
     sectionHandlers.set(MERGED_TAB_ID, { kind: 'quiz', session });
     bumpHandlerVersion();
-    if (!session.flashMode()) {
-      session.pickNextCard().catch(() => {});
-    }
+    session.pickNextCard().catch(() => {});
   });
 
   onCleanup(() => {
+    session.stopPronunciation();
     sectionHandlers.delete(MERGED_TAB_ID);
     bumpHandlerVersion();
   });

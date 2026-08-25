@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Card } from 'ts-fsrs';
 import type { WorkerContext } from '../workerContext.ts';
-import { buryCard, previewRatings, resetNewCount, reviewCard, suspendCard, undoReview } from './card.ts';
+import { buryCard, pickNext, previewRatings, resetNewCount, reviewCard, suspendCard, undoReview } from './card.ts';
 import { resetSection } from './score.ts';
 
 function context(overrides: Partial<WorkerContext> = {}): WorkerContext {
@@ -44,6 +44,61 @@ describe('project-scoped card actions', () => {
       expect.stringContaining('project_id = ? AND date = ? AND key = ?'),
       ['project-a', expect.any(String), 'project-a|sec1,sec2|quiz'],
     );
+  });
+
+  it('uses an explicit project-wide quota key for finite goals', async () => {
+    const ctx = context();
+    await resetNewCount(ctx, 'project-a', ['sec1'], 'flashcard', 'project-a|study-goal');
+
+    expect(ctx.run).toHaveBeenCalledWith(
+      expect.stringContaining('project_id = ? AND date = ? AND key = ?'),
+      ['project-a', expect.any(String), 'project-a|study-goal'],
+    );
+  });
+
+  it('introduces new cards in deterministic deck-priority order', async () => {
+    const queryOne = vi.fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ card_id: 'priority-card' });
+    const ctx = context({ queryOne });
+
+    await expect(pickNext(ctx, 'project-a', ['sec1'], 20, 'flashcard'))
+      .resolves.toEqual({ cardId: 'priority-card' });
+
+    expect(queryOne.mock.calls[2][0]).toContain('ORDER BY priority ASC, card_id ASC');
+    expect(ctx.incrementNewToday).toHaveBeenCalledWith('project-a', 'project-a|sec1|flashcard');
+  });
+
+  it('holds a finite daily exposure limit steady as unseen cards are introduced', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2030, 0, 7, 12));
+    try {
+      const queryOne = vi.fn()
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ cnt: 89 })
+        .mockResolvedValueOnce({ card_id: 'next-priority-card' });
+      const ctx = context({ queryOne, getNewTodayCount: vi.fn().mockResolvedValue(11) });
+      const goal = { start_date: '2030-01-07', target_date: '2030-01-15', weekend_multiplier: 1 };
+
+      await expect(pickNext(ctx, 'project-a', ['sec1'], 20, 'flashcard', 'project-a|study-goal', goal))
+        .resolves.toEqual({ cardId: 'next-priority-card' });
+      expect(ctx.incrementNewToday).toHaveBeenCalledWith('project-a', 'project-a|study-goal');
+
+      const cappedCtx = context({
+        queryOne: vi.fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({ cnt: 88 }),
+        getNewTodayCount: vi.fn().mockResolvedValue(12),
+      });
+      await expect(pickNext(cappedCtx, 'project-a', ['sec2'], 20, 'flashcard', 'project-a|study-goal', goal))
+        .resolves.toEqual({ cardId: null });
+      expect(cappedCtx.incrementNewToday).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('section reset removes exact merged quota keys containing the section and leaves others alone', async () => {
@@ -94,12 +149,14 @@ describe('project-scoped card actions', () => {
     const snapshot = JSON.stringify({
       project_id: 'project-a', card_id: 'same-card', fsrs_state: 0, due: '2026-07-16T17:00:00.000Z',
       stability: 0, difficulty: 0, elapsed_days: 0, scheduled_days: 0, reps: 0, lapses: 0,
-      last_review: null, suspended: 0, buried: 0, leech: 0,
+      learning_steps: 1, last_review: null, suspended: 0, buried: 0, leech: 0,
     });
     const ctx = context({ queryOne: vi.fn().mockResolvedValue({ id: 7, project_id: 'project-a', card_id: 'same-card', review_log_id: 'operation-1', activity_id: 'operation-1', prev_state: snapshot }) });
 
     await expect(undoReview(ctx, 'project-a')).resolves.toEqual({ undone: true, cardId: 'same-card' });
     expect(ctx.run).toHaveBeenCalledWith(expect.stringContaining('WHERE project_id = ? AND card_id = ?'), expect.arrayContaining(['project-a', 'same-card']));
+    const restore = vi.mocked(ctx.run).mock.calls.find(([sql]) => String(sql).includes('UPDATE cards SET fsrs_state'));
+    expect(restore?.[1]).toContain(1);
     expect(ctx.run).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM review_log WHERE id = ? AND project_id = ?'), ['operation-1', 'project-a']);
     expect(ctx.run).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM activity WHERE id = ? AND project_id = ?'), ['operation-1', 'project-a']);
   });

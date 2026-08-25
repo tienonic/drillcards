@@ -1,12 +1,21 @@
+import type { StudyGoalConfig } from '../../projects/types.ts';
+
 export type StudyCardType = 'mcq' | 'passage' | 'flashcard';
 export type PickCardType = StudyCardType | 'quiz';
 
+export interface CardRegistration {
+  sectionId: string;
+  cardId: string;
+  cardType: StudyCardType;
+  priority?: number;
+}
+
 export type WorkerRequest =
   | { type: 'INIT' }
-  | { type: 'LOAD_PROJECT'; projectId: string; sectionIds: string[]; cardIds: { sectionId: string; cardId: string; cardType: StudyCardType }[] }
-  | { type: 'PICK_NEXT'; projectId: string; sectionIds: string[]; newPerSession: number; cardType?: PickCardType }
+  | { type: 'LOAD_PROJECT'; projectId: string; sectionIds: string[]; cardIds: CardRegistration[] }
+  | { type: 'PICK_NEXT'; projectId: string; sectionIds: string[]; newPerSession: number; cardType?: PickCardType; quotaKey?: string; studyGoal?: StudyGoalConfig }
   | { type: 'PICK_NEXT_OVERRIDE'; projectId: string; sectionIds: string[]; cardType?: PickCardType; excludeIds?: string[] }
-  | { type: 'RESET_NEW_COUNT'; projectId: string; sectionIds: string[]; cardType?: PickCardType }
+  | { type: 'RESET_NEW_COUNT'; projectId: string; sectionIds: string[]; cardType?: PickCardType; quotaKey?: string }
   | { type: 'PREVIEW_RATINGS'; projectId: string; cardId: string }
   | { type: 'REVIEW_CARD'; cardId: string; projectId: string; sectionId: string; rating: number }
   | { type: 'UNDO_REVIEW'; projectId: string }
@@ -34,6 +43,7 @@ export type WorkerRequest =
   | { type: 'GET_DECK_STATS'; projectId: string }
   | { type: 'GET_PROJECT_CARD_COUNT'; projectId: string }
   | { type: 'GET_RETENTION'; projectId: string }
+  | { type: 'GET_STUDY_PROGRESS'; projectId: string; desiredRetention: number; quotaKey?: string }
   | { type: 'GET_SECTION_STATS'; projectId: string }
   | { type: 'GET_ALL_PROJECT_IDS' }
   | { type: 'DELETE_PROJECT'; projectId: string };
@@ -61,6 +71,7 @@ export interface CardRow {
   difficulty: number;
   elapsed_days: number;
   scheduled_days: number;
+  learning_steps?: number;
   reps: number;
   lapses: number;
   last_review: string | null;
@@ -69,7 +80,20 @@ export interface CardRow {
   buried_until?: string | null;
   leech: number;
   in_deck?: number;
+  priority?: number;
   updated_at: string;
+}
+
+export interface StudyProgress {
+  total: number;
+  unseen: number;
+  exposed: number;
+  learning: number;
+  recognized: number;
+  due: number;
+  estimatedRetrievability: number | null;
+  durableRetention: number;
+  introducedToday: number;
 }
 
 export interface ReviewLogRow {

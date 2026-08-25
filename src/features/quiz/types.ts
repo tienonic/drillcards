@@ -1,4 +1,4 @@
-import type { Question } from '../../projects/types.ts';
+import type { Flashcard, Question } from '../../projects/types.ts';
 import type { HistoryEntry, HistoryPosition } from './historyNav.ts';
 import type { QuizState } from './sessionState.ts';
 
@@ -48,12 +48,18 @@ export interface FlashView {
   flashFrontImage: () => string;
   flashBackImage: () => string;
   flashCardId: () => string | null;
+  activeFlashcard: () => Flashcard | null;
   dueCount: () => { due: number; newCount: number; total: number };
   historyPosition: () => HistoryPosition;
   ratingLabels: () => Record<number, string>;
+  pronunciationPlaying: () => boolean;
+  pronunciationPlayed: () => boolean;
+  pronunciationError: () => string | null;
 
   flipFlash: () => void;
   rateFlash: (rating: number) => Promise<void>;
+  playPronunciation: () => Promise<void>;
+  stopPronunciation: () => void;
   goBackHistory: () => void;
   advanceFromHistory: () => void;
   studyMore: () => Promise<void>;

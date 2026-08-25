@@ -59,8 +59,8 @@ export async function importProjectData(
       const buriedUntil = typeof c.buried_until === 'string' ? c.buried_until : null;
       const buried = c.buried === 1 && buriedUntil !== null && buriedUntil > localDateKey() ? 1 : 0;
       await ctx.run(
-        `INSERT INTO cards (project_id, card_id, section_id, card_type, fsrs_state, due, stability, difficulty, elapsed_days, scheduled_days, reps, lapses, last_review, suspended, buried, buried_until, leech, in_deck, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO cards (project_id, card_id, section_id, card_type, fsrs_state, due, stability, difficulty, elapsed_days, scheduled_days, learning_steps, reps, lapses, last_review, suspended, buried, buried_until, leech, in_deck, priority, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           projectId,
           c.card_id,
@@ -72,6 +72,7 @@ export async function importProjectData(
           c.difficulty,
           c.elapsed_days,
           c.scheduled_days,
+          c.learning_steps && Number.isInteger(c.learning_steps) && c.learning_steps >= 0 ? c.learning_steps : 0,
           c.reps,
           c.lapses,
           c.last_review,
@@ -80,6 +81,7 @@ export async function importProjectData(
           buried ? buriedUntil : null,
           c.leech === 1 ? 1 : 0,
           c.in_deck === 0 ? 0 : 1,
+          c.priority && Number.isInteger(c.priority) && c.priority >= 1 ? c.priority : 100,
           c.updated_at,
         ],
       );

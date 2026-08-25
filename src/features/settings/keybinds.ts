@@ -6,6 +6,7 @@ export type KeyAction =
   | 'skip' | 'undo' | 'suspend' | 'bury'
   | 'viewImage' | 'copyCard' | 'goBack' | 'forward'
   | 'flipCard' | 'flipAlt' | 'flashAgain' | 'flashGood'
+  | 'replayPronunciation'
   | 'note' | 'mathSubmit';
 
 export interface Binding {
@@ -19,24 +20,25 @@ type KeybindMap = Record<KeyAction, Binding>;
 export type KeyContext = 'global' | 'mcq' | 'flashcard' | 'math';
 
 export const ACTION_META: Record<KeyAction, { name: string; context: KeyContext }> = {
-  answer1:   { name: 'Answer/Rate 1', context: 'mcq' },
-  answer2:   { name: 'Answer/Rate 2', context: 'mcq' },
-  answer3:   { name: 'Answer/Rate 3', context: 'mcq' },
-  answer4:   { name: 'Answer/Rate 4', context: 'mcq' },
+  answer1:   { name: 'Answer/rate 1', context: 'mcq' },
+  answer2:   { name: 'Answer/rate 2', context: 'mcq' },
+  answer3:   { name: 'Answer/rate 3', context: 'mcq' },
+  answer4:   { name: 'Answer/rate 4', context: 'mcq' },
   skip:      { name: 'Skip',          context: 'mcq' },
   undo:      { name: 'Undo',          context: 'mcq' },
   suspend:   { name: 'Suspend',       context: 'mcq' },
   bury:      { name: 'Bury',          context: 'mcq' },
-  viewImage: { name: 'View Image',    context: 'mcq' },
-  copyCard:  { name: 'Copy Card',     context: 'global' },
-  goBack:    { name: 'Go Back',       context: 'mcq' },
+  viewImage: { name: 'View image',    context: 'mcq' },
+  copyCard:  { name: 'Copy card',     context: 'global' },
+  goBack:    { name: 'Go back',       context: 'mcq' },
   forward:   { name: 'Forward',       context: 'mcq' },
-  flipCard:  { name: 'Flip Card',     context: 'flashcard' },
+  flipCard:  { name: 'Flip card',     context: 'flashcard' },
   flipAlt:   { name: 'Flip (alt)',    context: 'flashcard' },
   flashAgain:{ name: 'Again',         context: 'flashcard' },
   flashGood: { name: 'Good',          context: 'flashcard' },
-  note:      { name: 'Open Note',     context: 'global' },
-  mathSubmit:{ name: 'Skip / Next',   context: 'math' },
+  replayPronunciation: { name: 'Play pronunciation', context: 'flashcard' },
+  note:      { name: 'Open note',     context: 'global' },
+  mathSubmit:{ name: 'Skip / next',   context: 'math' },
 };
 
 export const DEFAULT_KEYBINDS: KeybindMap = {
@@ -56,6 +58,7 @@ export const DEFAULT_KEYBINDS: KeybindMap = {
   flipAlt:    { key: 'f', label: 'F' },
   flashAgain: { key: '1', label: '1' },
   flashGood:  { key: '3', label: '3' },
+  replayPronunciation: { key: 'p', label: 'P' },
   note:       { key: '/', label: '/' },
   mathSubmit: { key: 'd', label: 'D' },
 };
@@ -143,7 +146,7 @@ export function findConflict(action: KeyAction, binding: Binding): KeyAction | n
 
 export const CONTEXT_LABELS: Record<KeyContext, string> = {
   global: 'Global',
-  mcq: 'MCQ / Quiz',
+  mcq: 'MCQ / quiz',
   flashcard: 'Flashcard',
   math: 'Math',
 };

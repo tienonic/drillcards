@@ -10,6 +10,8 @@ import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 import type { PickCardType } from '../../core/workers/protocol.ts';
 import type { Guard } from './guard.ts';
 import type { Section, Question } from '../../projects/types.ts';
+import type { StudyGoalConfig } from '../../projects/types.ts';
+import { pickNextScheduled } from '../goals/goalScheduling.ts';
 import type { QuizState } from './types.ts';
 
 export interface McqSignals {
@@ -41,7 +43,7 @@ export interface McqSignals {
 export interface McqDeps {
   section: Section;
   sourceSections?: Section[];
-  project: () => { slug: string; config: { new_per_session: number; imageSearchSuffix: string } } | null;
+  project: () => { slug: string; config: { new_per_session: number; imageSearchSuffix: string; study_goal?: StudyGoalConfig } } | null;
   guard: Guard;
   timer: { start: () => void; stop: () => number };
   failAt: () => number;
@@ -119,7 +121,7 @@ export function createMcqFlow(s: McqSignals, d: McqDeps) {
     if (allCardIds.length === 0) { s.setState('done'); return; }
 
     const cardType: PickCardType = merged ? 'quiz' : getCardType(d.section.type, false);
-    const result = await d.api.pickNext(allSectionIds, p.config.new_per_session, cardType);
+    const result = await pickNextScheduled(d.api, p, allSectionIds, cardType);
     if (s.flashMode()) return; // Stale: flash mode toggled during pick — flash path handles it
     if (!result.cardId) { s.setState('done'); await d.refreshDue(); return; }
 

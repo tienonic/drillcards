@@ -51,6 +51,7 @@ function validCardRow(row: unknown, slug: string): boolean {
     && isFiniteNumber(row.difficulty)
     && isFiniteNumber(row.elapsed_days)
     && isFiniteNumber(row.scheduled_days)
+    && (row.learning_steps === undefined || (isFiniteNumber(row.learning_steps) && Number.isInteger(row.learning_steps) && row.learning_steps >= 0))
     && isFiniteNumber(row.reps)
     && isFiniteNumber(row.lapses)
     && isNullableString(row.last_review)
@@ -59,6 +60,7 @@ function validCardRow(row: unknown, slug: string): boolean {
     && (row.buried_until === undefined || isNullableString(row.buried_until))
     && isBit(row.leech)
     && (row.in_deck === undefined || isBit(row.in_deck))
+    && (row.priority === undefined || (isFiniteNumber(row.priority) && Number.isInteger(row.priority) && row.priority >= 1))
     && typeof row.updated_at === 'string';
 }
 

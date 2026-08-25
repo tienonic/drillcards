@@ -7,6 +7,7 @@ import { imgSrc } from '../../utils/imgSrc.ts';
 import { stripDuplicateFlashTitle } from './flashIdentity.ts';
 import { getLabel } from '../settings/keybinds.ts';
 import { cleanFlashBack, cleanFlashFront } from '../../projects/studyCopy.ts';
+import { activeProject } from '../../core/store/app.ts';
 
 const RATING_CSS: Record<number, string> = { 1: 'rating-again', 2: 'rating-hard', 3: 'rating-good', 4: 'rating-easy' };
 const RATING_NAMES: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
@@ -19,6 +20,9 @@ export function FlashcardArea(props: { session: FlashView }) {
   const title = () => cleanFlashFront(s.flashTitle());
   const backBody = () => cleanFlashBack(stripDuplicateFlashTitle(s.flashBack(), s.flashTitle()));
   const reviewingHistory = () => s.state() === 'reviewing-history';
+  const listeningEnabled = () => activeProject()?.config.listening.enabled === true;
+  const hasPronunciation = () => !!(s.activeFlashcard()?.pronunciation_override || s.activeFlashcard()?.audio_text);
+  const pronunciationLabel = () => s.pronunciationPlayed() ? 'Replay pronunciation' : 'Play pronunciation';
 
   return (
     <div>
@@ -39,6 +43,21 @@ export function FlashcardArea(props: { session: FlashView }) {
             </Show>
           </div>
         </div>
+
+        <Show when={listeningEnabled() && hasPronunciation()}>
+          <div class="pronunciation-controls">
+            <button
+              type="button"
+              class="action-sm pronunciation-btn"
+              aria-busy={s.pronunciationPlaying()}
+              onClick={(event) => { event.stopPropagation(); s.playPronunciation().catch(() => {}); }}
+            >
+              {s.pronunciationPlaying() ? 'Playing pronunciation…' : pronunciationLabel()}
+              <kbd>{getLabel('replayPronunciation')}</kbd>
+            </button>
+            <Show when={s.pronunciationError()}>{(message) => <span class="pronunciation-error" role="status">{message()}</span>}</Show>
+          </div>
+        </Show>
 
 
         <Show when={reviewingHistory()}>

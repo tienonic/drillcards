@@ -524,6 +524,33 @@
   display: none;
 }
 
+.pronunciation-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pronunciation-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+
+.pronunciation-btn kbd {
+  opacity: 0.7;
+}
+
+.pronunciation-error {
+  max-width: 36rem;
+  color: var(--color-danger);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 .mobile-flip-btn {
   width: 100%;
   border: 1px solid var(--color-primary);

@@ -30,7 +30,7 @@ The landing screen with four tabs:
 - **Review**: select a project to study, view recent projects, see deck stats (new / learning / due)
 - **Stats**: cross-project review history, retention charts, streak tracking
 - **Create**: build new study projects from source material (supports Gemini API for AI-assisted question generation)
-- **Parameters**: tune FSRS settings (desired retention, new cards per session, leech threshold, max interval)
+- **Parameters**: tune FSRS settings (desired retention, new cards per day, leech threshold, max interval)
 
 ### Study modes
 
@@ -43,8 +43,9 @@ The landing screen with four tabs:
 
 Cards are scheduled using the [FSRS algorithm](https://github.com/open-spaced-repetition/ts-fsrs) (Free Spaced Repetition Scheduler). Key concepts:
 
-- **New cards** are introduced up to a daily limit (default: 20 per session)
+- **New cards** are introduced up to a persisted local-day limit (default: 20 per day)
 - **Learning/Review cards** appear when due based on FSRS scheduling
+- **Finite study windows** can redistribute unseen-card exposure toward weekends while keeping exposure, recognition, retrievability, and durable retention separate
 - **Leech detection** flags cards that repeatedly fail (configurable threshold)
 - **Cram mode** reviews all cards in a section by weakest stability, ignoring due dates
 - **Easy mode** auto-rates cards as Good for faster review sessions

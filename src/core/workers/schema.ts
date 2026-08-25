@@ -1,6 +1,6 @@
 import type { SQLiteAPI } from 'wa-sqlite';
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS cards (
@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS cards (
   difficulty REAL DEFAULT 0,
   elapsed_days INTEGER DEFAULT 0,
   scheduled_days INTEGER DEFAULT 0,
+  learning_steps INTEGER NOT NULL DEFAULT 0 CHECK(learning_steps >= 0),
   reps INTEGER DEFAULT 0,
   lapses INTEGER DEFAULT 0,
   last_review TEXT,
@@ -22,11 +23,13 @@ CREATE TABLE IF NOT EXISTS cards (
   buried_until TEXT,
   leech INTEGER NOT NULL DEFAULT 0 CHECK(leech IN (0,1)),
   in_deck INTEGER NOT NULL DEFAULT 1 CHECK(in_deck IN (0,1)),
+  priority INTEGER NOT NULL DEFAULT 100 CHECK(priority >= 1),
   updated_at TEXT DEFAULT (datetime('now')),
   PRIMARY KEY (project_id, card_id)
 );
 CREATE INDEX IF NOT EXISTS idx_cards_due ON cards(project_id, in_deck, due);
 CREATE INDEX IF NOT EXISTS idx_cards_section ON cards(project_id, in_deck, section_id);
+CREATE INDEX IF NOT EXISTS idx_cards_new_priority ON cards(project_id, in_deck, fsrs_state, priority, card_id);
 
 CREATE TABLE IF NOT EXISTS review_log (
   id TEXT PRIMARY KEY,
@@ -144,5 +147,13 @@ export async function migrateToV3(sqlite3: SQLiteAPI, db: number): Promise<void>
       created_at TEXT DEFAULT (datetime('now'))
     );
     CREATE INDEX idx_undo_project ON undo_stack(project_id, id);
+  `);
+}
+
+export async function migrateToV4(sqlite3: SQLiteAPI, db: number): Promise<void> {
+  await sqlite3.exec(db, `
+    ALTER TABLE cards ADD COLUMN priority INTEGER NOT NULL DEFAULT 100 CHECK(priority >= 1);
+    ALTER TABLE cards ADD COLUMN learning_steps INTEGER NOT NULL DEFAULT 0 CHECK(learning_steps >= 0);
+    CREATE INDEX idx_cards_new_priority ON cards(project_id, in_deck, fsrs_state, priority, card_id);
   `);
 }

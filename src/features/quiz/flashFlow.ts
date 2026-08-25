@@ -9,7 +9,10 @@ import type { ProjectApi } from '../../core/hooks/useWorker.ts';
 import type { Guard } from './guard.ts';
 import type { HistoryPosition } from './historyNav.ts';
 import type { Flashcard, Section } from '../../projects/types.ts';
+import type { StudyGoalConfig } from '../../projects/types.ts';
+import { pickNextScheduled } from '../goals/goalScheduling.ts';
 import type { QuizState } from './types.ts';
+import { stopPronunciation } from '../listening/playback.ts';
 
 export interface FlashSignals {
   state: () => QuizState;
@@ -28,6 +31,7 @@ export interface FlashSignals {
   setFlashFrontImage: (v: string) => void;
   flashBackImage: () => string;
   setFlashBackImage: (v: string) => void;
+  setActiveFlashcard: (v: Flashcard | null) => void;
   flashDefFirst: () => boolean;
   ratingLabels: () => Record<number, string>;
   setRatingLabels: (v: Record<number, string>) => void;
@@ -36,7 +40,7 @@ export interface FlashSignals {
 export interface FlashDeps {
   section: Section;
   sourceSections?: Section[];
-  project: () => { slug: string; config: { new_per_session: number } } | null;
+  project: () => { slug: string; config: { new_per_session: number; study_goal?: StudyGoalConfig } } | null;
   guard: Guard;
   timer: { start: () => void; stop: () => number; reset: () => void };
   cramMode: () => boolean;
@@ -144,14 +148,17 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
   }
 
   function setFlashError(msg = 'Card data mismatch') {
+    stopPronunciation();
     d.timer.reset();
-    batch(() => { s.setFlashCardId(null); s.setFlashFront(msg); s.setFlashBack(''); s.setFlashTitle(''); s.setFlashFrontImage(''); s.setFlashBackImage(''); s.setFlashFlipped(false); });
+    batch(() => { s.setFlashCardId(null); s.setActiveFlashcard(null); s.setFlashFront(msg); s.setFlashBack(''); s.setFlashTitle(''); s.setFlashFrontImage(''); s.setFlashBackImage(''); s.setFlashFlipped(false); });
   }
 
   function applyFlashCard(cardId: string, resolved: { card: Flashcard }, opts: { recordHistory?: boolean; flipped?: boolean; reviewing?: boolean } = {}) {
+    stopPronunciation();
     const defFirst = s.flashDefFirst();
     batch(() => {
       s.setFlashCardId(cardId);
+      s.setActiveFlashcard(resolved.card);
       s.setFlashFront(defFirst ? resolved.card.back : resolved.card.front);
       s.setFlashBack(defFirst ? resolved.card.front : resolved.card.back);
       s.setFlashTitle(flashIdentityTitle(resolved.card, allFlashcards));
@@ -172,13 +179,15 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
     const p = d.project();
     if (!p || allFlashcards.length === 0 || allFlashCardIds.length === 0) return;
 
-    const result = await d.api.pickNext(allSectionIds, p.config.new_per_session, 'flashcard');
+    const result = await pickNextScheduled(d.api, p, allSectionIds, 'flashcard');
     if (!s.state()) return; // component unmounted
 
     if (!result.cardId) {
+      stopPronunciation();
       d.timer.reset();
       batch(() => {
         s.setFlashCardId(null);
+        s.setActiveFlashcard(null);
         s.setFlashFront('');
         s.setFlashBack('');
         s.setFlashTitle('');

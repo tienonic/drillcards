@@ -183,6 +183,36 @@ describe('validateProject', () => {
     it('passes with valid questions', () => {
       expect(validateProject(validMcProject())).toHaveLength(0);
     });
+
+    it('rejects duplicate and invalid stable question IDs', () => {
+      const errors = validateProject(validMcProject({
+        sections: [{
+          id: 'quiz', name: 'Quiz', type: 'mc-quiz',
+          questions: [
+            { id: 'same', q: 'Q1', correct: 'A', wrong: ['B'] },
+            { id: 'same', q: 'Q2', correct: 'A', wrong: ['B'] },
+            { id: 'Not Stable', q: 'Q3', correct: 'A', wrong: ['B'] },
+          ],
+        }],
+      }));
+
+      expect(errors).toContain('Duplicate card id: "quiz-same"');
+      expect(errors).toContain('Section "Quiz" question 3 has an invalid stable id');
+    });
+
+    it('allows a flashcard-only section without placeholder questions', () => {
+      const errors = validateProject({
+        name: 'Vocabulary',
+        sections: [{
+          id: 'words',
+          name: 'Words',
+          type: 'mc-quiz',
+          hasFlashcards: true,
+          flashcards: [{ front: 'palabra', back: 'word' }],
+        }],
+      });
+      expect(errors).toHaveLength(0);
+    });
   });
 
   describe('passage-quiz content', () => {
@@ -198,6 +228,20 @@ describe('validateProject', () => {
 
     it('passes with valid scenarios', () => {
       expect(validateProject(validPassageProject())).toHaveLength(0);
+    });
+
+    it('rejects duplicate stable question IDs across scenarios', () => {
+      const errors = validateProject(validPassageProject({
+        sections: [{
+          id: 'pass', name: 'Passage', type: 'passage-quiz',
+          scenarios: [
+            { passage: 'First', questions: [{ id: 'same', q: 'Q1', correct: 'A', wrong: ['B'] }] },
+            { passage: 'Second', questions: [{ id: 'same', q: 'Q2', correct: 'A', wrong: ['B'] }] },
+          ],
+        }],
+      }));
+
+      expect(errors).toContain('Duplicate card id: "pass-same"');
     });
   });
 
@@ -238,6 +282,73 @@ describe('validateProject', () => {
       expect(errors).toContain('Section "only-id" has invalid type: "bad"');
     });
   });
+
+  describe('rich vocabulary cards', () => {
+    const vocabularyCard = {
+      id: 'restaurante',
+      front: 'restaurante',
+      back: 'restaurant',
+      priority: 1,
+      lemma: 'restaurante',
+      display_form: 'restaurante',
+      pronunciation_en: 'rehs-tow-RAHN-teh',
+      meaning_en: 'restaurant',
+      usage_note: 'A neutral word for a sit-down restaurant.',
+      part_of_speech: 'noun',
+      grammar: 'Masculine noun.',
+      tags: ['travel', 'priority:1'],
+      source_refs: ['source:fixture'],
+      audio_text: 'restaurante',
+    };
+
+    it('accepts a complete auditable vocabulary card', () => {
+      const project = validMcProject({
+        config: { listening: { enabled: true, locale: 'es-ES' } },
+        sections: [{
+          id: 'vocab', name: 'Vocabulary', type: 'mc-quiz',
+          questions: [{ q: 'Q', correct: 'A', wrong: ['B'] }],
+          flashcards: [vocabularyCard],
+        }],
+      });
+      expect(validateProject(project)).toEqual([]);
+    });
+
+    it('rejects incomplete vocabulary records and duplicate stable IDs', () => {
+      const incomplete = { ...vocabularyCard, meaning_en: '', source_refs: [] as string[] };
+      const errors = validateProject(validMcProject({
+        sections: [{
+          id: 'vocab', name: 'Vocabulary', type: 'mc-quiz',
+          questions: [{ q: 'Q', correct: 'A', wrong: ['B'] }],
+          flashcards: [incomplete, vocabularyCard],
+        }],
+      }));
+      expect(errors).toContain('Section "Vocabulary" flashcard 1 has invalid or empty "meaning_en"');
+      expect(errors).toContain('Section "Vocabulary" flashcard 1 has invalid or empty "source_refs"');
+      expect(errors).toContain('Duplicate card id: "vocab-flash-restaurante"');
+    });
+
+    it('validates listening and finite-goal settings', () => {
+      const errors = validateProject(validMcProject({
+        config: {
+          listening: { enabled: true, rate: 4 },
+          study_goal: { start_date: '2030-01-20', target_date: '2030-01-15' },
+        },
+      }));
+      expect(errors).toContain('Listening rate must be between 0.5 and 2');
+      expect(errors).toContain('Study goal start date must not be after its target date');
+    });
+
+    it('rejects impossible goal dates and out-of-range weekend intensity', () => {
+      const errors = validateProject(validMcProject({
+        config: {
+          study_goal: { start_date: '2030-02-30', target_date: '2030-03-01', weekend_multiplier: 5 },
+        },
+      }));
+
+      expect(errors).toContain('Study goal "start_date" must be a real date in YYYY-MM-DD form');
+      expect(errors).toContain('Study goal "weekend_multiplier" must be between 1 and 4');
+    });
+  });
 });
 
 // ===========================================================================
@@ -254,6 +365,7 @@ describe('loadProject', () => {
       expect(p.config.new_per_session).toBe(20);
       expect(p.config.leech_threshold).toBe(8);
       expect(p.config.imageSearchSuffix).toBe('');
+      expect(p.config.listening).toEqual({ enabled: false });
     });
 
     it('overrides a single config field', () => {
@@ -271,6 +383,22 @@ describe('loadProject', () => {
     it('preserves imageSearchSuffix override', () => {
       const p = loadProject(validMcProject({ config: { imageSearchSuffix: 'site:example.com' } }));
       expect(p.config.imageSearchSuffix).toBe('site:example.com');
+    });
+
+    it('deep-merges deck-scoped listening settings', () => {
+      const p = loadProject(validMcProject({
+        config: { listening: { enabled: true, locale: 'es-ES', rate: 0.9 } },
+      }));
+      expect(p.config.listening).toEqual({ enabled: true, locale: 'es-ES', rate: 0.9 });
+    });
+
+    it('preserves deck-scoped finite study settings', () => {
+      const p = loadProject(validMcProject({
+        config: { study_goal: { start_date: '2030-01-07', target_date: '2030-01-15', weekend_multiplier: 2 } },
+      }));
+      expect(p.config.study_goal).toEqual({
+        start_date: '2030-01-07', target_date: '2030-01-15', weekend_multiplier: 2,
+      });
     });
   });
 
@@ -454,6 +582,27 @@ describe('loadProject', () => {
       const p = loadProject(data);
       expect(p.sections[0].cardIds).toEqual(['s-0', 's-1']);
       expect(p.sections[0].flashCardIds).toEqual(['s-flash-0']);
+    });
+
+    it('uses explicit IDs so card identity survives reordering', () => {
+      const make = (flashcards: NonNullable<ProjectData['sections'][number]['flashcards']>) => loadProject(validMcProject({
+        sections: [{
+          id: 'stable', name: 'Stable', type: 'mc-quiz',
+          questions: [{ q: 'Q', correct: 'A', wrong: ['B'] }],
+          flashcards,
+        }],
+      }));
+      const first = make([
+        { id: 'hola', front: 'hola', back: 'hello' },
+        { id: 'gracias', front: 'gracias', back: 'thank you' },
+      ]);
+      const reordered = make([
+        { id: 'gracias', front: 'gracias', back: 'thank you' },
+        { id: 'hola', front: 'hola', back: 'hello' },
+      ]);
+
+      expect(first.sections[0].flashCardIds).toEqual(['stable-flash-hola', 'stable-flash-gracias']);
+      expect(reordered.sections[0].flashCardIds).toEqual(['stable-flash-gracias', 'stable-flash-hola']);
     });
   });
 

@@ -71,6 +71,8 @@ export function resolveFlashCard(
 ): { idx: number; card: Flashcard } | null {
   const prefix = section.id + '-flash-';
   if (!cardId.startsWith(prefix)) return null;
+  const explicitIdx = section.flashcards?.findIndex(card => card.id && cardId === `${prefix}${card.id}`) ?? -1;
+  if (explicitIdx >= 0) return { idx: explicitIdx, card: section.flashcards![explicitIdx] };
   const idx = parseInt(cardId.slice(prefix.length), 10);
   if (isNaN(idx)) return null;
   const card = section.flashcards?.[idx];

@@ -20,6 +20,7 @@ export function cardToFSRS(row: Record<string, unknown>): Card {
     difficulty: row.difficulty as number,
     elapsed_days: row.elapsed_days as number,
     scheduled_days: row.scheduled_days as number,
+    learning_steps: typeof row.learning_steps === 'number' ? row.learning_steps : 0,
     reps: row.reps as number,
     lapses: row.lapses as number,
     state: row.fsrs_state as number,

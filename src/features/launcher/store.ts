@@ -10,6 +10,7 @@ import { fetchAutosave, restoreBackup } from '../backup/backup.ts';
 import { sectionToCardType } from '../quiz/helpers.ts';
 import { resolveStudyTab } from '../quiz/merged.ts';
 import type { Project, ProjectData } from '../../projects/types.ts';
+import type { CardRegistration } from '../../core/workers/protocol.ts';
 
 interface OpenProjectOptions {
   preferredSectionId?: string;
@@ -72,7 +73,10 @@ export function getProjectData(slug: string): ProjectData | null {
 }
 
 export function saveProjectConfig(slug: string, config: Partial<Project['config']>) {
-  try { localStorage.setItem(`proj-config-${slug}`, JSON.stringify(config)); } catch {}
+  try {
+    const existing = getProjectConfig(slug) ?? {};
+    localStorage.setItem(`proj-config-${slug}`, JSON.stringify({ ...existing, ...config }));
+  } catch {}
 }
 
 export function getProjectConfig(slug: string): Partial<Project['config']> | null {
@@ -112,7 +116,7 @@ export async function openProject(data: ProjectData, isDefault: boolean, registr
     await initWorker();
 
     // Register cards with SQLite worker
-    const cardRegs: { sectionId: string; cardId: string; cardType: 'mcq' | 'passage' | 'flashcard' }[] = [];
+    const cardRegs: CardRegistration[] = [];
     const sectionIds: string[] = [];
     for (const s of project.sections) {
       sectionIds.push(s.id);
@@ -120,8 +124,13 @@ export async function openProject(data: ProjectData, isDefault: boolean, registr
       for (const id of s.cardIds) {
         cardRegs.push({ sectionId: s.id, cardId: id, cardType: mcqType });
       }
-      for (const id of s.flashCardIds) {
-        cardRegs.push({ sectionId: s.id, cardId: id, cardType: 'flashcard' });
+      for (const [index, id] of s.flashCardIds.entries()) {
+        cardRegs.push({
+          sectionId: s.id,
+          cardId: id,
+          cardType: 'flashcard',
+          priority: s.flashcards?.[index]?.priority,
+        });
       }
     }
     // Count canonical rows before registration. Due-state counts are not an emptiness test:

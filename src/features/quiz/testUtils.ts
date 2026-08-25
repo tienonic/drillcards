@@ -22,6 +22,10 @@ export function createFakeProjectApi(overrides?: Partial<ProjectApi>): ProjectAp
     importProjectData: vi.fn().mockResolvedValue(undefined),
     getDeckStats: vi.fn().mockResolvedValue({ new: 0, learning: 0, due: 0 }),
     getRetention: vi.fn().mockResolvedValue({ retention: null }),
+    getStudyProgress: vi.fn().mockResolvedValue({
+      total: 0, unseen: 0, exposed: 0, learning: 0, recognized: 0, due: 0,
+      estimatedRetrievability: null, durableRetention: 0, introducedToday: 0,
+    }),
     getSectionStats: vi.fn().mockResolvedValue([]),
     deleteProject: vi.fn().mockResolvedValue({ ok: true }),
     reviewCard: vi.fn().mockResolvedValue({ card: { state: 0, due: '', stability: 0, difficulty: 0 }, isLeech: false, lapses: 0 }),
