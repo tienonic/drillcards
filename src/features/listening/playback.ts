@@ -78,14 +78,18 @@ export class PronunciationPlayer {
     const generation = this.generation;
     const provider = config.provider ?? 'auto';
     if ((provider === 'cached-audio' || provider === 'auto') && card.audio_src) {
+      const audio = this.environment.createAudio(audioCacheUrl(card.audio_src, this.environment.development));
+      this.activeAudio = audio;
       try {
-        const audio = this.environment.createAudio(audioCacheUrl(card.audio_src, this.environment.development));
-        this.activeAudio = audio;
         await audio.play();
         if (generation !== this.generation) audio.pause();
         return { played: generation === this.generation, provider: 'cached-audio' };
       } catch {
-        this.activeAudio = null;
+        if (this.activeAudio === audio) this.activeAudio = null;
+        if (generation !== this.generation) {
+          audio.pause();
+          return { played: false, provider: 'cached-audio' };
+        }
         if (provider === 'cached-audio') {
           throw new Error('Pronunciation audio is unavailable. Regenerate this deck\'s audio cache.');
         }

@@ -32,6 +32,29 @@ describe('deck-scoped pronunciation playback', () => {
     expect(first.currentTime).toBe(0);
   });
 
+  it('does not let a cancelled stale play clear the newer active audio', async () => {
+    let rejectFirst: (reason?: unknown) => void = () => {};
+    const first = {
+      play: vi.fn(() => new Promise<void>((_resolve, reject) => { rejectFirst = reject; })),
+      pause: vi.fn(),
+      currentTime: 5,
+    } as unknown as HTMLAudioElement;
+    const second = { play: vi.fn().mockResolvedValue(undefined), pause: vi.fn(), currentTime: 2 } as unknown as HTMLAudioElement;
+    const third = { play: vi.fn().mockResolvedValue(undefined), pause: vi.fn(), currentTime: 1 } as unknown as HTMLAudioElement;
+    const createAudio = vi.fn().mockReturnValueOnce(first).mockReturnValueOnce(second).mockReturnValueOnce(third);
+    const player = new PronunciationPlayer({ createAudio, development: true });
+
+    const stalePlay = player.play(config(), card());
+    await expect(player.play(config(), card())).resolves.toMatchObject({ played: true, provider: 'cached-audio' });
+    rejectFirst(new Error('cancelled'));
+    await expect(stalePlay).resolves.toMatchObject({ played: false, provider: 'cached-audio' });
+    await player.play(config(), card());
+
+    expect(first.pause).toHaveBeenCalled();
+    expect(second.pause).toHaveBeenCalledOnce();
+    expect(second.currentTime).toBe(0);
+  });
+
   it('reports a missing or corrupt required cache with an actionable error', async () => {
     const failedAudio = { play: vi.fn().mockRejectedValue(new Error('404')), pause: vi.fn(), currentTime: 0 } as unknown as HTMLAudioElement;
     const player = new PronunciationPlayer({ createAudio: () => failedAudio, development: true });
