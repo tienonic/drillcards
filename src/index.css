@@ -122,6 +122,11 @@ button, input, textarea, select { font-family: inherit; }
   padding-bottom: 0;
 }
 
+.zen main > div {
+  width: 100%;
+  min-width: 0;
+}
+
 .zen .card {
   box-shadow: none;
   border: none;

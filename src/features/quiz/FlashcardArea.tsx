@@ -23,6 +23,7 @@ export function FlashcardArea(props: { session: FlashView }) {
   const listeningEnabled = () => activeProject()?.config.listening.enabled === true;
   const hasPronunciation = () => !!(s.activeFlashcard()?.pronunciation_override || s.activeFlashcard()?.audio_text);
   const pronunciationLabel = () => s.pronunciationPlayed() ? 'Replay pronunciation' : 'Play pronunciation';
+  const pronunciationStatusLabel = () => s.pronunciationPlaying() ? 'Playing pronunciation' : pronunciationLabel();
 
   return (
     <div>
@@ -41,22 +42,26 @@ export function FlashcardArea(props: { session: FlashView }) {
                 <Show when={front()}><div class="flashcard-copy"><LatexHtml html={front() ?? ''} /></div></Show>
               </div>
             </Show>
+
+            <Show when={listeningEnabled() && hasPronunciation()}>
+              <button
+                type="button"
+                class={`pronunciation-icon ${s.flashFlipped() ? 'pronunciation-icon-back' : 'pronunciation-icon-front'}${s.pronunciationPlaying() ? ' playing' : ''}`}
+                aria-label={pronunciationStatusLabel()}
+                aria-busy={s.pronunciationPlaying()}
+                onClick={(event) => { event.stopPropagation(); s.playPronunciation().catch(() => {}); }}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 9.5v5h3.2L12 18V6L7.2 9.5H4Z" fill="currentColor" />
+                  <path d="M15 9.25c1.7 1.45 1.7 4.05 0 5.5M17.5 7c3.1 2.7 3.1 7.3 0 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+                </svg>
+              </button>
+            </Show>
           </div>
         </div>
 
         <Show when={listeningEnabled() && hasPronunciation()}>
-          <div class="pronunciation-controls">
-            <button
-              type="button"
-              class="action-sm pronunciation-btn"
-              aria-busy={s.pronunciationPlaying()}
-              onClick={(event) => { event.stopPropagation(); s.playPronunciation().catch(() => {}); }}
-            >
-              {s.pronunciationPlaying() ? 'Playing pronunciation…' : pronunciationLabel()}
-              <kbd>{getLabel('replayPronunciation')}</kbd>
-            </button>
-            <Show when={s.pronunciationError()}>{(message) => <span class="pronunciation-error" role="status">{message()}</span>}</Show>
-          </div>
+          <Show when={s.pronunciationError()}>{(message) => <span class="pronunciation-error" role="status">{message()}</span>}</Show>
         </Show>
 
 

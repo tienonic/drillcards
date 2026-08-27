@@ -3,8 +3,10 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const quizCss = readFileSync(resolve(process.cwd(), 'src/features/quiz/quiz.css'), 'utf8');
+const indexCss = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
 const settingsCss = readFileSync(resolve(process.cwd(), 'src/features/settings/settings.css'), 'utf8');
 const anchoredDialog = readFileSync(resolve(process.cwd(), 'src/components/overlays/AnchoredDialog.tsx'), 'utf8');
+const flashcardArea = readFileSync(resolve(process.cwd(), 'src/features/quiz/FlashcardArea.tsx'), 'utf8');
 
 function firstRuleBody(css: string, selector: string): string {
   const start = css.indexOf(selector);
@@ -32,5 +34,31 @@ describe('study UI layout contracts', () => {
     expect(anchoredDialog).toMatch(/window\.visualViewport/);
     expect(anchoredDialog).toMatch(/viewport\.width\s*-\s*16/);
     expect(anchoredDialog).toMatch(/viewport\.height\s*-\s*16/);
+  });
+
+  it('keeps zen-mode flashcards at their configured width', () => {
+    const zenContent = firstRuleBody(indexCss, '.zen main > div {');
+    const flashcard = firstRuleBody(quizCss, '.flashcard-container {');
+    const front = firstRuleBody(quizCss, '.flashcard-front {');
+    const back = firstRuleBody(quizCss, '.flashcard-back {');
+    expect(zenContent).toMatch(/width:\s*100%\s*;/);
+    expect(zenContent).toMatch(/min-width:\s*0\s*;/);
+    expect(flashcard).toMatch(/max-width:\s*420px\s*;/);
+    expect(flashcard).toMatch(/width:\s*min\(100%,\s*420px\)\s*;/);
+    expect(front).toMatch(/font-size:\s*1\.2rem\s*;/);
+    expect(back).toMatch(/font-size:\s*1rem\s*;/);
+  });
+
+  it('uses an accessible transparent speaker instead of a pronunciation text button', () => {
+    const speaker = firstRuleBody(quizCss, '.pronunciation-icon {');
+    expect(speaker).toMatch(/position:\s*absolute\s*;/);
+    expect(speaker).toMatch(/top:\s*8px\s*;/);
+    expect(speaker).toMatch(/right:\s*8px\s*;/);
+    expect(speaker).toMatch(/background:\s*transparent\s*;/);
+    expect(flashcardArea).toMatch(/class=\{`pronunciation-icon /);
+    expect(flashcardArea).toMatch(/aria-label=\{pronunciationStatusLabel\(\)\}/);
+    expect(flashcardArea).toMatch(/<svg[^>]*aria-hidden="true"/);
+    expect(flashcardArea).not.toContain('class="action-sm pronunciation-btn"');
+    expect(flashcardArea).not.toContain('Playing pronunciation…');
   });
 });
