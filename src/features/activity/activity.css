@@ -26,12 +26,13 @@
 
 .activity-widget {
   background: var(--color-card);
-  border: 2px solid var(--color-text);
-  border-radius: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
   padding: 0;
   overflow: visible;
   position: relative;
   font-family: var(--font-ui);
+  box-shadow: 0 5px 18px color-mix(in srgb, var(--color-text) 9%, transparent);
 }
 
 .activity-reset-wrap {
@@ -222,7 +223,7 @@
 
 .activity-score-row {
   position: relative;
-  padding: 6px 6px 0;
+  padding: 7px 8px 1px;
 }
 
 .activity-score-label {
@@ -249,7 +250,7 @@
 .sidebar-timer.skull { font-size: 1.2rem; }
 
 .activity-chart-wrap {
-  padding: 0 4px;
+  padding: 1px 6px 3px;
   position: relative;
 }
 

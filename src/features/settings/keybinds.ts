@@ -57,7 +57,7 @@ export const DEFAULT_KEYBINDS: KeybindMap = {
   flipCard:   { key: 'Space', code: 'Space', label: 'Space' },
   flipAlt:    { key: 'f', label: 'F' },
   flashAgain: { key: '1', label: '1' },
-  flashGood:  { key: '3', label: '3' },
+  flashGood:  { key: '2', label: '2' },
   replayPronunciation: { key: 'p', label: 'P' },
   note:       { key: '/', label: '/' },
   mathSubmit: { key: 'd', label: 'D' },

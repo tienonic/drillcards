@@ -537,26 +537,192 @@
   line-height: 1.6;
 }
 
-.mobile-flash-controller {
-  display: none;
+.syllable-tone-0 { --syllable-front: #d9f0ff; --syllable-back: #125b8a; --syllable-tint: rgba(18, 91, 138, 0.10); }
+.syllable-tone-1 { --syllable-front: #fff1a8; --syllable-back: #7a4800; --syllable-tint: rgba(122, 72, 0, 0.10); }
+.syllable-tone-2 { --syllable-front: #ffd6f5; --syllable-back: #833052; --syllable-tint: rgba(131, 48, 82, 0.10); }
+.syllable-tone-3 { --syllable-front: #e6d6ff; --syllable-back: #57327c; --syllable-tint: rgba(87, 50, 124, 0.10); }
+.syllable-tone-4 { --syllable-front: #c9f2d1; --syllable-back: #176b3a; --syllable-tint: rgba(23, 107, 58, 0.10); }
+.syllable-tone-5 { --syllable-front: #ffe0b2; --syllable-back: #75400b; --syllable-tint: rgba(117, 64, 11, 0.10); }
+.syllable-tone-6 { --syllable-front: #b8f2e6; --syllable-back: #176565; --syllable-tint: rgba(23, 101, 101, 0.10); }
+
+.flashcard.russian-deck .russian-word {
+  display: inline-flex;
+  gap: 1px;
+  margin: 0 0.045em;
+  font-weight: 650;
+  letter-spacing: 0.018em;
+  vertical-align: baseline;
 }
 
-.pronunciation-icon {
+.russian-syllable {
+  display: inline-block;
+  padding: 0.01em 0.1em 0.035em;
+  border-radius: 0.16em;
+  background: var(--syllable-tint);
+  color: var(--syllable-back);
+}
+
+.flashcard.russian-deck .flashcard-front .russian-syllable {
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--syllable-front);
+}
+
+.flashcard.russian-deck .flashcard-back .russian-word {
+  gap: 0;
+  margin: 0;
+}
+
+.flashcard.russian-deck .flashcard-back .russian-word .russian-syllable {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.flashcard.russian-deck .flashcard-back .russian-word.is-syllable-colored {
+  gap: 1px;
+  margin: 0 0.045em;
+}
+
+.flashcard.russian-deck .flashcard-back .russian-word.is-syllable-colored .russian-syllable {
+  padding: 0.01em 0.1em 0.035em;
+  border-radius: 0.16em;
+  background: var(--syllable-tint);
+  color: var(--syllable-back);
+}
+
+.russian-word[data-russian-audio] {
+  cursor: pointer;
+  outline: none;
+}
+
+.russian-word[data-russian-audio].is-syllable-colored:hover .russian-syllable,
+.russian-word[data-russian-audio].is-syllable-colored:focus-visible .russian-syllable {
+  box-shadow: inset 0 -2px 0 currentColor;
+}
+
+.russian-pronunciation-line {
+  display: inline-grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.42em;
+  margin: 0.18em 0;
+}
+
+.russian-pronunciation-form { order: 1; }
+.russian-pronunciation-guide { order: 2; }
+
+.flashcard.russian-deck .flashcard-back .russian-pronunciation-line .russian-word {
+  gap: 1px;
+  margin: 0 0.045em;
+}
+
+.flashcard.russian-deck .flashcard-back .russian-pronunciation-line .russian-word .russian-syllable {
+  padding: 0.01em 0.1em 0.035em;
+  border-radius: 0.16em;
+  background: var(--syllable-tint);
+  color: var(--syllable-back);
+}
+
+.russian-pronunciation-guide {
+  font-size: 0.9em;
+  letter-spacing: 0.025em;
+}
+
+.pronunciation-syllable {
+  color: var(--syllable-back);
+  font-weight: 600;
+}
+
+.pronunciation-divider {
+  color: var(--color-text-light);
+  opacity: 0.68;
+}
+
+.flashcard-tools {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 2;
+  top: 2px;
+  left: 2px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.flashcard-tool {
   display: grid;
-  width: 32px;
-  height: 32px;
-  padding: 7px;
+  width: 36px;
+  height: 36px;
+  padding: 9px;
   place-items: center;
   border: 0;
   border-radius: 50%;
   background: transparent;
   color: inherit;
   cursor: pointer;
-  opacity: 0.52;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.15s, background-color 0.15s;
+}
+
+.flashcard:not(.flipped) .flashcard-tool {
+  color: white;
+}
+
+.flashcard-tool:hover,
+.flashcard-tool:focus-visible,
+.flashcard-tool.is-favorite {
+  background: rgba(255, 255, 255, 0.15);
+  opacity: 1;
+}
+
+.flashcard.flipped .flashcard-tool {
+  color: var(--color-text-light);
+}
+
+.favorite-tool svg {
+  width: 100%;
+  height: 100%;
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.favorite-tool.is-favorite {
+  color: #c74f69;
+}
+
+.favorite-tool.is-favorite svg {
+  fill: currentColor;
+}
+
+.incorrect-tool:hover,
+.incorrect-tool:focus-visible {
+  color: var(--color-danger);
+}
+
+.mobile-flash-controller {
+  display: none;
+}
+
+.pronunciation-icon {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 2;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  padding: 10px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0;
   transition: opacity 0.15s, background-color 0.15s;
 }
 
@@ -694,7 +860,22 @@
 .session-banner--fade { opacity: 0; }
 
 .leech-warning { display: block; margin-top: 8px; }
-.key-hints { margin-top: 12px; }
+.key-hints {
+  width: fit-content;
+  max-width: calc(100vw - 32px);
+  margin: 12px auto 0;
+  color: var(--color-text-light);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.flash-history-hints {
+  padding: 5px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-card) 92%, transparent);
+}
 
 @media (min-width: 601px) and (max-width: 1100px) {
   .card {

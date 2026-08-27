@@ -211,7 +211,7 @@ async function handleMessage(request: WorkerRequest): Promise<unknown> {
     case 'RESET_NEW_COUNT': return cardH.resetNewCount(ctx, request.projectId, request.sectionIds, request.cardType, request.quotaKey);
     case 'PREVIEW_RATINGS': return cardH.previewRatings(ctx, request.projectId, request.cardId);
     case 'REVIEW_CARD': return cardH.reviewCard(ctx, request.cardId, request.projectId, request.sectionId, request.rating, request.quotaKey);
-    case 'UNDO_REVIEW': return cardH.undoReview(ctx, request.projectId);
+    case 'UNDO_REVIEW': return cardH.undoReview(ctx, request.projectId, request.expectedCardId);
     case 'SUSPEND_CARD': return cardH.suspendCard(ctx, request.projectId, request.cardId);
     case 'BURY_CARD': return cardH.buryCard(ctx, request.projectId, request.cardId);
     case 'UNBURY_ALL': return cardH.unburyAll(ctx, request.projectId);

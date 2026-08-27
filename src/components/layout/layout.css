@@ -11,8 +11,8 @@
   position: fixed;
   top: 4px;
   left: 4px;
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: 4px;
@@ -38,10 +38,10 @@
 /* Vertical dropdown menu */
 .header-menu {
   position: fixed;
-  top: 60px;
-  left: 8px;
-  width: min(280px, calc(100vw - 16px));
-  max-height: calc(100dvh - 68px);
+  top: 48px;
+  left: 6px;
+  width: min(250px, calc(100vw - 12px));
+  max-height: calc(100dvh - 54px);
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--color-card);
@@ -51,15 +51,15 @@
   z-index: 451;
   display: flex;
   flex-direction: column;
-  padding: 8px 0;
+  padding: 4px 0;
   pointer-events: auto;
   font-family: var(--font-ui);
   box-sizing: border-box;
 }
 
 .header-menu-label {
-  padding: 4px 14px 8px;
-  font-size: 0.8rem;
+  padding: 3px 12px 5px;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--color-text);
   white-space: nowrap;
@@ -73,12 +73,12 @@
   align-items: center;
   gap: 6px;
   width: 100%;
-  min-height: 48px;
-  padding: 10px 14px;
+  min-height: 34px;
+  padding: 5px 12px;
   background: none;
   border: none;
   color: var(--color-text-light);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 500;
   cursor: pointer;
   text-align: left;
@@ -113,14 +113,14 @@
 .header-menu-divider {
   height: 1px;
   background: var(--color-border);
-  margin: 4px 0;
+  margin: 2px 0;
 }
 
 .header-menu-tab.active {
   color: var(--color-text);
   font-weight: 600;
   border-left: 3px solid var(--color-primary);
-  padding-left: 11px;
+  padding-left: 9px;
 }
 
 main {

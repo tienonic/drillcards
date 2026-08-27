@@ -9,6 +9,7 @@ vi.mock('../glossary/store.ts', () => ({
 
 vi.mock('../activity/store.ts', () => ({
   pushChartEntry: vi.fn(),
+  loadActivity: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../backup/backup.ts', () => ({
@@ -271,6 +272,33 @@ describe('createFlashFlow with injected API', () => {
       expect(s.flashCardId()).toBe('sec1-flash-1');
       expect(s.state()).toBe('answering');
       expect(flow.historyPosition()).toMatchObject({ current: 2, total: 2, reviewing: false, canGoForward: false });
+      dispose();
+    });
+  });
+
+  it('marks a history card incorrect and requests an exact undo when possible', async () => {
+    await createRoot(async dispose => {
+      const api = createFakeProjectApi({
+        pickNext: vi.fn()
+          .mockResolvedValueOnce({ cardId: 'sec1-flash-0' })
+          .mockResolvedValueOnce({ cardId: 'sec1-flash-1' }),
+        reviewCard: vi.fn().mockResolvedValue({ card: {}, isLeech: false, lapses: 0 }),
+        undoReview: vi.fn().mockResolvedValue({ undone: true, cardId: 'sec1-flash-0' }),
+      });
+      const s = createSignals();
+      const deps = makeDeps(api);
+      const flow = createFlashFlow(s, deps);
+
+      await flow.pickNextFlash();
+      flow.flipFlash();
+      await flow.rateFlash(3);
+      flow.goBackHistory();
+      await flow.markFlashWrong();
+
+      expect(api.undoReview).toHaveBeenCalledWith('sec1-flash-0');
+      expect(api.reviewCard).toHaveBeenLastCalledWith('sec1-flash-0', 'sec1', 1);
+      expect(s.flashCardId()).toBe('sec1-flash-0');
+      expect(s.state()).toBe('reviewing-history');
       dispose();
     });
   });

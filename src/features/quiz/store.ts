@@ -16,6 +16,7 @@ import type { Section } from '../../projects/types.ts';
 import type { Flashcard } from '../../projects/types.ts';
 import type { QuizState, QuizSession } from './types.ts';
 import { playPronunciation, stopPronunciation } from '../listening/playback.ts';
+import { createManualPronunciationGate, shouldPlayAfterFlashFlip } from '../listening/playOnFlip.ts';
 import { resetScheduledNewCount, reviewQuotaKey } from '../goals/goalScheduling.ts';
 export type { QuizSession } from './types.ts';
 
@@ -161,6 +162,7 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
     { section, sourceSections, project, guard, timer, refreshDue,
       cramMode: cram.cramMode, cramMarkSeen: cram.markSeen, cramPickNext: cram.pickNextCram, cramRate: cram.rateCram, api },
   );
+  const manualPronunciationGate = createManualPronunciationGate();
 
   async function playCurrentPronunciation(): Promise<void> {
     const card = activeFlashcard();
@@ -183,6 +185,25 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
   function stopCurrentPronunciation(): void {
     stopPronunciation();
     setPronunciationPlaying(false);
+  }
+
+  function noteManualPronunciation(): void {
+    manualPronunciationGate.mark(flashCardId());
+  }
+
+  async function playManualPronunciation(): Promise<void> {
+    noteManualPronunciation();
+    await playCurrentPronunciation();
+  }
+
+  function flipCurrentFlash(): void {
+    const before = flashFlipped();
+    const suppressAutomaticPlayback = manualPronunciationGate.consume(flashCardId());
+    flash.flipFlash();
+    const after = flashFlipped();
+    if (!suppressAutomaticPlayback && shouldPlayAfterFlashFlip(project()?.config.listening, before, after)) {
+      playCurrentPronunciation().catch(() => {});
+    }
   }
 
   createEffect(() => {
@@ -367,9 +388,11 @@ export function createQuizSession(section: Section, api: ProjectApi, sourceSecti
     undo: mcq.undo,
     suspend: mcq.suspend,
     bury: mcq.bury,
-    flipFlash: flash.flipFlash,
+    flipFlash: flipCurrentFlash,
     rateFlash: flash.rateFlash,
-    playPronunciation: playCurrentPronunciation,
+    markFlashWrong: flash.markFlashWrong,
+    playPronunciation: playManualPronunciation,
+    noteManualPronunciation,
     stopPronunciation: stopCurrentPronunciation,
     pronunciationPlaying,
     pronunciationPlayed,

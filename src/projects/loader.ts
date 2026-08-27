@@ -214,6 +214,9 @@ function validateProjectConfig(value: unknown, errors: string[]): void {
         && !['cached-audio', 'speech-synthesis', 'auto'].includes(String(listening.provider))) {
         errors.push('Listening config has an unsupported provider');
       }
+      if (listening.play_on_flip !== undefined && typeof listening.play_on_flip !== 'boolean') {
+        errors.push('Listening config "play_on_flip" must be boolean');
+      }
     }
   }
   if (config.study_goal !== undefined) {

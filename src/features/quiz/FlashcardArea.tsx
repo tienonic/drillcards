@@ -1,4 +1,4 @@
-import { Show, For } from 'solid-js';
+import { Show, For, createEffect, createMemo, createSignal, untrack } from 'solid-js';
 import type { FlashView } from './types.ts';
 import { easyMode } from '../../core/store/app.ts';
 import { LatexHtml } from '../../components/LatexText.tsx';
@@ -8,43 +8,128 @@ import { stripDuplicateFlashTitle } from './flashIdentity.ts';
 import { getLabel } from '../settings/keybinds.ts';
 import { cleanFlashBack, cleanFlashFront } from '../../projects/studyCopy.ts';
 import { activeProject } from '../../core/store/app.ts';
+import { chooseMixedDefinitionFirst, presentFlashcard } from './flashPresentation.ts';
+import { mixedPromptSides } from './mixedPromptSides.ts';
+import { formatRussianStudyHtml } from './russianText.ts';
+import { isFavorite, toggleFavorite } from './favorites.ts';
+import { playPronunciationText } from '../listening/playback.ts';
 
 const RATING_CSS: Record<number, string> = { 1: 'rating-again', 2: 'rating-hard', 3: 'rating-good', 4: 'rating-easy' };
-const RATING_NAMES: Record<number, string> = { 1: 'Again', 2: 'Hard', 3: 'Good', 4: 'Easy' };
+const COMPLEX_RATINGS = [
+  { rating: 1, name: 'Again' },
+  { rating: 3, name: 'Good' },
+  { rating: 2, name: 'Hard' },
+  { rating: 3, name: 'Good' },
+  { rating: 4, name: 'Easy' },
+] as const;
 
 export function FlashcardArea(props: { session: FlashView }) {
   const s = props.session;
-  const answerImage = () => s.flashBackImage() || s.flashFrontImage();
+  const mixedChoices = new Map<string, boolean>();
+  const [mixedDefinitionFirst, setMixedDefinitionFirst] = createSignal<boolean | null>(null);
+  let observedCardId = s.flashCardId();
+
+  createEffect(() => {
+    const cardId = s.flashCardId();
+    if (cardId === observedCardId) return;
+    observedCardId = cardId;
+    if (!cardId || !untrack(mixedPromptSides)) {
+      setMixedDefinitionFirst(null);
+      return;
+    }
+    setMixedDefinitionFirst(chooseMixedDefinitionFirst(mixedChoices, cardId));
+  });
+
+  const definitionFirst = () => mixedDefinitionFirst() ?? s.flashDefFirst();
+  const presentation = createMemo(() => {
+    const card = s.activeFlashcard();
+    if (card) return presentFlashcard(card, definitionFirst());
+    return {
+      front: s.flashFront(),
+      back: s.flashBack(),
+      frontImage: s.flashFrontImage(),
+      backImage: s.flashBackImage(),
+    };
+  });
+  const answerImage = () => presentation().backImage || presentation().frontImage;
   const expandedBack = () => s.flashFlipped() && !!answerImage();
-  const front = () => cleanFlashFront(s.flashFront());
+  const front = () => cleanFlashFront(presentation().front);
   const title = () => cleanFlashFront(s.flashTitle());
-  const backBody = () => cleanFlashBack(stripDuplicateFlashTitle(s.flashBack(), s.flashTitle()));
+  const backBody = () => cleanFlashBack(stripDuplicateFlashTitle(presentation().back, s.flashTitle()));
   const reviewingHistory = () => s.state() === 'reviewing-history';
   const listeningEnabled = () => activeProject()?.config.listening.enabled === true;
   const isRussianDeck = () => activeProject()?.config.listening.locale?.toLowerCase().startsWith('ru') === true;
   const hasPronunciation = () => !!(s.activeFlashcard()?.pronunciation_override || s.activeFlashcard()?.audio_text);
   const pronunciationLabel = () => s.pronunciationPlayed() ? 'Replay pronunciation' : 'Play pronunciation';
   const pronunciationStatusLabel = () => s.pronunciationPlaying() ? 'Playing pronunciation' : pronunciationLabel();
+  const pronunciationVisible = () => listeningEnabled() && hasPronunciation() && (!definitionFirst() || s.flashFlipped());
+  const favorite = () => isFavorite(activeProject()?.slug, s.flashCardId());
+  const readableHtml = (value: string | undefined, interactive = false) => isRussianDeck()
+    ? formatRussianStudyHtml(value, s.activeFlashcard()?.pronunciation_en, interactive)
+    : (value ?? '');
+
+  function russianAudioTarget(event: MouseEvent | KeyboardEvent): HTMLElement | null {
+    const target = event.target instanceof Element
+      ? event.target.closest<HTMLElement>('[data-russian-audio]')
+      : null;
+    if (!target || !s.flashFlipped() || !isRussianDeck()) return null;
+    if (event instanceof KeyboardEvent && event.key !== 'Enter' && event.key !== ' ') return null;
+    return target;
+  }
+
+  function playHighlightedRussian(event: MouseEvent | KeyboardEvent): void {
+    const target = russianAudioTarget(event);
+    if (!target) return;
+    event.preventDefault();
+    event.stopPropagation();
+    target.classList.add('is-syllable-colored');
+    const config = activeProject()?.config.listening;
+    const text = target.dataset.russianAudio?.trim();
+    if (!config?.enabled || !text) return;
+    s.noteManualPronunciation();
+    playPronunciationText(config, text).catch(() => {});
+  }
 
   return (
     <div>
       <Show when={s.state() !== 'done'}>
         <div class="flashcard-container" onClick={() => s.flipFlash()}>
           <div class={`flashcard ${s.flashFlipped() ? 'flipped' : ''}${expandedBack() ? ' has-image' : ''}${isRussianDeck() ? ' russian-deck' : ''}`}>
+            <Show when={s.flashCardId()}>
+              <div class="flashcard-tools" aria-label="Card actions">
+                <button
+                  type="button"
+                  class={`flashcard-tool favorite-tool${favorite() ? ' is-favorite' : ''}`}
+                  aria-label={favorite() ? 'Remove from favorites' : 'Add to favorites'}
+                  aria-pressed={favorite()}
+                  title={favorite() ? 'Remove from favorites' : 'Add to favorites'}
+                  onClick={(event) => { event.stopPropagation(); toggleFavorite(activeProject()?.slug, s.flashCardId()); }}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.4 4.3 13A5.2 5.2 0 0 1 12 6a5.2 5.2 0 0 1 7.7 7Z" /></svg>
+                </button>
+                <button
+                  type="button"
+                  class="flashcard-tool incorrect-tool"
+                  aria-label="Mark incorrect"
+                  title="Mark incorrect and reschedule soon"
+                  onClick={(event) => { event.stopPropagation(); s.markFlashWrong().catch(() => {}); }}
+                >&times;</button>
+              </div>
+            </Show>
             <Show when={!s.flashFlipped()} fallback={
               <div class="flashcard-face flashcard-back">
-                <Show when={title()}><div class="flashcard-title"><LatexHtml html={title() ?? ''} /></div></Show>
+                <Show when={title() && !definitionFirst()}><div class="flashcard-title"><LatexHtml html={readableHtml(title())} /></div></Show>
                 <Show when={answerImage()}>{(image) => <img src={imgSrc(image())} alt="" class="flashcard-image" loading="lazy" crossorigin="anonymous" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}</Show>
-                <Show when={backBody()}><div class="flashcard-copy"><LatexHtml html={backBody() ?? ''} /></div></Show>
+                <Show when={backBody()}><div class="flashcard-copy" onClick={playHighlightedRussian} onKeyDown={playHighlightedRussian}><LatexHtml html={readableHtml(backBody(), listeningEnabled())} /></div></Show>
               </div>
             }>
               <div class="flashcard-face flashcard-front">
-                <Show when={s.flashFrontImage()}><img src={imgSrc(s.flashFrontImage())} alt="" class="flashcard-image" loading="lazy" crossorigin="anonymous" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /></Show>
-                <Show when={front()}><div class="flashcard-copy"><LatexHtml html={front() ?? ''} /></div></Show>
+                <Show when={presentation().frontImage}>{(image) => <img src={imgSrc(image())} alt="" class="flashcard-image" loading="lazy" crossorigin="anonymous" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}</Show>
+                <Show when={front()}><div class="flashcard-copy"><LatexHtml html={readableHtml(front())} /></div></Show>
               </div>
             </Show>
 
-            <Show when={listeningEnabled() && hasPronunciation()}>
+            <Show when={pronunciationVisible()}>
               <button
                 type="button"
                 class={`pronunciation-icon ${s.flashFlipped() ? 'pronunciation-icon-back' : 'pronunciation-icon-front'}${s.pronunciationPlaying() ? ' playing' : ''}`}
@@ -61,13 +146,13 @@ export function FlashcardArea(props: { session: FlashView }) {
           </div>
         </div>
 
-        <Show when={listeningEnabled() && hasPronunciation()}>
+        <Show when={pronunciationVisible()}>
           <Show when={s.pronunciationError()}>{(message) => <span class="pronunciation-error" role="status">{message()}</span>}</Show>
         </Show>
 
 
         <Show when={reviewingHistory()}>
-          <div class="key-hints">History {s.historyPosition().current}/{s.historyPosition().total} — <kbd>{getLabel('goBack')}</kbd>/<kbd>&larr;</kbd> back, <kbd>{getLabel('forward')}</kbd>/<kbd>&rarr;</kbd> forward</div>
+          <div class="key-hints flash-history-hints">History {s.historyPosition().current}/{s.historyPosition().total} — <kbd>{getLabel('goBack')}</kbd>/<kbd>&larr;</kbd> back, <kbd>{getLabel('forward')}</kbd>/<kbd>&rarr;</kbd> forward</div>
         </Show>
 
         <Show when={s.flashCardId() && !reviewingHistory()}>
@@ -84,7 +169,7 @@ export function FlashcardArea(props: { session: FlashView }) {
             </div>
           </Show>
           <Show when={!easyMode()}>
-            <div class="flash-rating-area"><For each={[1, 2, 3, 4]}>{(rating) => <button type="button" class={`flash-rating-btn ${RATING_CSS[rating]}`} onClick={(e) => { e.stopPropagation(); s.rateFlash(rating).catch(() => {}); }}><span class="rating-label">{RATING_NAMES[rating]}</span><span class="rating-interval">{s.ratingLabels()[rating] ?? ''}</span></button>}</For></div>
+            <div class="flash-rating-area flash-rating-area-complex"><For each={COMPLEX_RATINGS}>{(choice) => <button type="button" class={`flash-rating-btn ${RATING_CSS[choice.rating]}`} onClick={(e) => { e.stopPropagation(); s.rateFlash(choice.rating).catch(() => {}); }}><span class="rating-label">{choice.name}</span><span class="rating-interval">{s.ratingLabels()[choice.rating] ?? ''}</span></button>}</For></div>
           </Show>
         </Show>
       </Show>

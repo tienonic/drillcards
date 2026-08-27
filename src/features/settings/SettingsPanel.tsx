@@ -22,6 +22,7 @@ export function SettingsPanel() {
   const [newPerSession, setNewPerSession] = createSignal(20);
   const [leechThreshold, setLeechThreshold] = createSignal(8);
   const [maxInterval, setMaxInterval] = createSignal(90);
+  const [playOnFlip, setPlayOnFlip] = createSignal(true);
   const [goalStartDate, setGoalStartDate] = createSignal('');
   const [goalTargetDate, setGoalTargetDate] = createSignal('');
   const [weekendMultiplier, setWeekendMultiplier] = createSignal(2);
@@ -100,6 +101,7 @@ export function SettingsPanel() {
       setNewPerSession(project.config.new_per_session);
       setLeechThreshold(project.config.leech_threshold);
       setMaxInterval(project.config.max_interval);
+      setPlayOnFlip(project.config.listening.play_on_flip !== false);
       setGoalStartDate(project.config.study_goal?.start_date ?? '');
       setGoalTargetDate(project.config.study_goal?.target_date ?? '');
       setWeekendMultiplier(project.config.study_goal?.weekend_multiplier ?? 2);
@@ -192,6 +194,9 @@ export function SettingsPanel() {
       : undefined;
 
     const tc = Object.keys(timerOverrides()).length > 0 ? timerOverrides() : undefined;
+    const listening = project.config.listening.enabled
+      ? { ...project.config.listening, play_on_flip: playOnFlip() }
+      : project.config.listening;
     const nextConfig = {
       ...project.config,
       desired_retention: ret,
@@ -200,6 +205,7 @@ export function SettingsPanel() {
       max_interval: mi,
       timerConfigs: tc,
       study_goal: studyGoal,
+      listening,
     };
     setActiveProject({ ...project, config: nextConfig });
 
@@ -212,12 +218,14 @@ export function SettingsPanel() {
         max_interval: mi,
         timerConfigs: tc,
         study_goal: studyGoal,
+        listening,
       });
       batch(() => {
         setRetention(ret);
         setNewPerSession(nps);
         setLeechThreshold(lt);
         setMaxInterval(mi);
+        setPlayOnFlip(listening.play_on_flip !== false);
         setWeekendMultiplier(weekend);
         setGoalError(null);
         setSaved(true);
@@ -310,6 +318,11 @@ export function SettingsPanel() {
               <label class="settings-field"><span>Max interval (days)</span><input type="number" min="1" max="365" step="1" value={maxInterval()} onInput={e => { const v = parseInt(e.currentTarget.value, 10); setMaxInterval(isNaN(v) ? 90 : v); }} /></label>
               <label class="settings-field"><span>New cards / day</span><input type="number" min="1" max="10000" step="1" value={newPerSession()} onInput={e => { const v = parseInt(e.currentTarget.value, 10); setNewPerSession(isNaN(v) ? 20 : v); }} /></label>
               <label class="settings-field"><span>Leech threshold</span><input type="number" min="2" max="30" step="1" value={leechThreshold()} onInput={e => { const v = parseInt(e.currentTarget.value, 10); setLeechThreshold(isNaN(v) ? 8 : v); }} /></label>
+              <Show when={activeProject()?.config.listening.enabled}>
+                <div class="settings-backup-divider" />
+                <div class="settings-section-title">Language audio</div>
+                <label class="settings-check"><input type="checkbox" checked={playOnFlip()} onChange={e => setPlayOnFlip(e.currentTarget.checked)} /><span>Play the word after every flip</span></label>
+              </Show>
               <div class="settings-backup-divider" />
               <div class="settings-section-title">Study window</div>
               <div class="settings-hint">A target date adjusts unseen-card exposure. Due FSRS reviews still come first, and changing this window does not rewrite review history.</div>

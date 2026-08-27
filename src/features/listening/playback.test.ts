@@ -90,6 +90,30 @@ describe('deck-scoped pronunciation playback', () => {
     expect(utterance?.lang).toBe('es-ES');
   });
 
+  it('uses browser speech directly for a clicked highlighted word', async () => {
+    let utterance: SpeechSynthesisUtterance | undefined;
+    const synthesis = {
+      cancel: vi.fn(),
+      getVoices: () => [],
+      speak: vi.fn((value: SpeechSynthesisUtterance) => {
+        utterance = value;
+        queueMicrotask(() => value.onstart?.(new Event('start') as SpeechSynthesisEvent));
+      }),
+    } as unknown as SpeechSynthesis;
+    const createAudio = vi.fn();
+    const player = new PronunciationPlayer({
+      createAudio,
+      speechSynthesis: synthesis,
+      createUtterance: text => ({ text } as unknown as SpeechSynthesisUtterance),
+      development: true,
+    });
+
+    await expect(player.playText(config(), 'образ')).resolves.toMatchObject({ played: true, provider: 'speech-synthesis' });
+    expect(createAudio).not.toHaveBeenCalled();
+    expect((utterance as unknown as { text: string })?.text).toBe('образ');
+    expect(utterance?.lang).toBe('es-ES');
+  });
+
   it('fails promptly when speech is denied or never starts', async () => {
     vi.useFakeTimers();
     try {

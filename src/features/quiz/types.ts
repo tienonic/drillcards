@@ -49,6 +49,7 @@ export interface FlashView {
   flashBackImage: () => string;
   flashCardId: () => string | null;
   activeFlashcard: () => Flashcard | null;
+  flashDefFirst: () => boolean;
   dueCount: () => { due: number; newCount: number; total: number };
   historyPosition: () => HistoryPosition;
   ratingLabels: () => Record<number, string>;
@@ -58,7 +59,9 @@ export interface FlashView {
 
   flipFlash: () => void;
   rateFlash: (rating: number) => Promise<void>;
+  markFlashWrong: () => Promise<void>;
   playPronunciation: () => Promise<void>;
+  noteManualPronunciation: () => void;
   stopPronunciation: () => void;
   goBackHistory: () => void;
   advanceFromHistory: () => void;
@@ -78,7 +81,6 @@ export interface FlashModeView {
 export interface QuizSession extends McqView, FlashView {
   cardId: () => string | null;
   flashMode: () => boolean;
-  flashDefFirst: () => boolean;
   toggleFlashMode: () => void;
   setFlashDefFirst: (v: boolean) => void;
   historyReview: () => HistoryEntry | null;

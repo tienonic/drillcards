@@ -5,6 +5,7 @@ import { matchesKey } from '../../features/settings/keybinds.ts';
 import { isAnsweringState, isRatedState, isRevealedState, isReviewingHistoryState } from '../../features/quiz/sessionState.ts';
 import type { MathSession } from '../../features/math/store.ts';
 import type { McqView, FlashView, QuizState } from '../../features/quiz/types.ts';
+import { flashRatingForNumberKey } from '../../features/quiz/flashRatingKeys.ts';
 
 export function useKeyboard() {
   let autoPaused = false;
@@ -171,13 +172,18 @@ function handleFlashcardKeyboard(e: KeyboardEvent, session: FlashView) {
     return;
   }
 
-  // Rating keys when flipped. Flashcard Again/Good are independently configurable;
-  // Hard/Easy keep using the shared 2/4 rating keys.
+  // Number keys keep a fixed muscle-memory layout in both flashcard modes.
   if (isFlipped) {
+    if (/^[1-5]$/.test(e.key)) {
+      e.preventDefault();
+      const rating = flashRatingForNumberKey(e.key, easyMode());
+      if (rating !== null) session.rateFlash(rating).catch(() => {});
+      return;
+    }
     if (matchesKey(e, 'flashAgain')) { e.preventDefault(); session.rateFlash(1).catch(() => {}); return; }
-    if (matchesKey(e, 'answer2')) { e.preventDefault(); session.rateFlash(2).catch(() => {}); return; }
     if (matchesKey(e, 'flashGood')) { e.preventDefault(); session.rateFlash(3).catch(() => {}); return; }
-    if (matchesKey(e, 'answer4')) { e.preventDefault(); session.rateFlash(4).catch(() => {}); return; }
+    if (!easyMode() && matchesKey(e, 'answer2')) { e.preventDefault(); session.rateFlash(2).catch(() => {}); return; }
+    if (!easyMode() && matchesKey(e, 'answer4')) { e.preventDefault(); session.rateFlash(4).catch(() => {}); return; }
   }
 
   if (matchesKey(e, 'flipAlt')) {

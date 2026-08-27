@@ -18,7 +18,7 @@ export type WorkerRequest =
   | { type: 'RESET_NEW_COUNT'; projectId: string; sectionIds: string[]; cardType?: PickCardType; quotaKey?: string }
   | { type: 'PREVIEW_RATINGS'; projectId: string; cardId: string }
   | { type: 'REVIEW_CARD'; cardId: string; projectId: string; sectionId: string; rating: number; quotaKey?: string }
-  | { type: 'UNDO_REVIEW'; projectId: string }
+  | { type: 'UNDO_REVIEW'; projectId: string; expectedCardId?: string }
   | { type: 'SUSPEND_CARD'; projectId: string; cardId: string }
   | { type: 'BURY_CARD'; projectId: string; cardId: string }
   | { type: 'UNBURY_ALL'; projectId: string }

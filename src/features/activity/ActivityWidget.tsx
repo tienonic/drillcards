@@ -182,7 +182,7 @@ export function ActivityWidget(props: { isFlashMode: () => boolean; activeEntry:
           {(pos) => <div class="history-position-badge">card {pos().current}/{pos().total}</div>}
         </Show>
         <div class="activity-chart-wrap">
-          <canvas ref={el => setCanvasRef(el)} width="210" height="120" />
+          <canvas ref={el => setCanvasRef(el)} width="240" height="126" />
           <Show when={copiedFlash()}><span class="copied-flash">Copied</span></Show>
         </div>
         <div class="activity-widget-stats">

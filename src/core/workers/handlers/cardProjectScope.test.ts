@@ -180,4 +180,20 @@ describe('project-scoped card actions', () => {
     expect(ctx.run).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM review_log WHERE id = ? AND project_id = ?'), ['operation-1', 'project-a']);
     expect(ctx.run).toHaveBeenCalledWith(expect.stringContaining('DELETE FROM activity WHERE id = ? AND project_id = ?'), ['operation-1', 'project-a']);
   });
+
+  it('does not undo a different card when correction targets older history', async () => {
+    const ctx = context({
+      queryOne: vi.fn().mockResolvedValue({
+        id: 7,
+        project_id: 'project-a',
+        card_id: 'latest-card',
+        review_log_id: 'operation-1',
+        activity_id: 'operation-1',
+        prev_state: '{}',
+      }),
+    });
+
+    await expect(undoReview(ctx, 'project-a', 'older-card')).resolves.toEqual({ undone: false });
+    expect(ctx.run).not.toHaveBeenCalled();
+  });
 });

@@ -7,6 +7,7 @@ const indexCss = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
 const settingsCss = readFileSync(resolve(process.cwd(), 'src/features/settings/settings.css'), 'utf8');
 const anchoredDialog = readFileSync(resolve(process.cwd(), 'src/components/overlays/AnchoredDialog.tsx'), 'utf8');
 const flashcardArea = readFileSync(resolve(process.cwd(), 'src/features/quiz/FlashcardArea.tsx'), 'utf8');
+const keyboardHook = readFileSync(resolve(process.cwd(), 'src/core/hooks/useKeyboard.ts'), 'utf8');
 
 function firstRuleBody(css: string, selector: string): string {
   const start = css.indexOf(selector);
@@ -52,14 +53,18 @@ describe('study UI layout contracts', () => {
   it('uses an accessible transparent speaker instead of a pronunciation text button', () => {
     const speaker = firstRuleBody(quizCss, '.pronunciation-icon {');
     expect(speaker).toMatch(/position:\s*absolute\s*;/);
-    expect(speaker).toMatch(/top:\s*8px\s*;/);
-    expect(speaker).toMatch(/right:\s*8px\s*;/);
+    expect(speaker).toMatch(/top:\s*2px\s*;/);
+    expect(speaker).toMatch(/right:\s*2px\s*;/);
     expect(speaker).toMatch(/background:\s*transparent\s*;/);
+    expect(speaker).toMatch(/opacity:\s*0\s*;/);
+    expect(quizCss).toMatch(/\.pronunciation-icon:hover,[\s\S]*?opacity:\s*1\s*;/);
     expect(flashcardArea).toMatch(/class=\{`pronunciation-icon /);
     expect(flashcardArea).toMatch(/aria-label=\{pronunciationStatusLabel\(\)\}/);
     expect(flashcardArea).toMatch(/<svg[^>]*aria-hidden="true"/);
     expect(flashcardArea).not.toContain('class="action-sm pronunciation-btn"');
     expect(flashcardArea).not.toContain('Playing pronunciation…');
+    expect(keyboardHook).toContain('session.playPronunciation().catch(() => {});');
+    expect(keyboardHook).not.toContain("document.querySelector('.pronunciation-icon')");
   });
 
   it('loads and scopes a readable Cyrillic face for Russian decks', () => {
@@ -77,5 +82,15 @@ describe('study UI layout contracts', () => {
     expect(russianFront).toMatch(/letter-spacing:\s*0\.01em\s*;/);
     expect(russianBack).toMatch(/font-size:\s*1\.05rem\s*;/);
     expect(russianBack).toMatch(/line-height:\s*1\.6\s*;/);
+  });
+
+  it('reveals back-side syllable colors only after activating a Russian word', () => {
+    const normalBack = firstRuleBody(quizCss, '.flashcard.russian-deck .flashcard-back .russian-word .russian-syllable {');
+    expect(normalBack).toMatch(/background:\s*transparent\s*;/);
+    expect(normalBack).toMatch(/color:\s*inherit\s*;/);
+    expect(quizCss).toContain('.flashcard.russian-deck .flashcard-back .russian-word.is-syllable-colored .russian-syllable {');
+    expect(flashcardArea).toContain("target.classList.add('is-syllable-colored')");
+    expect(firstRuleBody(quizCss, '.russian-pronunciation-form {')).toMatch(/order:\s*1\s*;/);
+    expect(firstRuleBody(quizCss, '.russian-pronunciation-guide {')).toMatch(/order:\s*2\s*;/);
   });
 });

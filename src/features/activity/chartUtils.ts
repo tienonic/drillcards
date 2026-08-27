@@ -38,38 +38,52 @@ export function computeCumScores(entries: { rating: number; correct: boolean }[]
 
 export function drawChartAxes(ctx: CanvasRenderingContext2D, leftPad: number, rightPad: number, topPad: number, plotH: number, w: number, toY: (v: number) => number, minS: number, maxS: number) {
   const zeroY = Math.round(toY(0)) + 0.5;
-  ctx.strokeStyle = 'rgba(45, 42, 38, 0.2)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(leftPad, zeroY); ctx.lineTo(w - rightPad, zeroY); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(leftPad + 0.5, topPad); ctx.lineTo(leftPad + 0.5, topPad + plotH); ctx.stroke();
   const yTicks = niceYTicks(minS, maxS, 5);
-  ctx.fillStyle = 'rgba(45, 42, 38, 0.45)'; ctx.font = '7px sans-serif';
+  ctx.font = '8px system-ui, sans-serif';
   ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
   for (const val of yTicks) {
-    const y = toY(val);
-    ctx.strokeStyle = 'rgba(45, 42, 38, 0.25)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(leftPad - 3, y); ctx.lineTo(leftPad, y); ctx.stroke();
-    ctx.fillStyle = 'rgba(45, 42, 38, 0.45)'; ctx.fillText(String(val), leftPad - 5, y);
+    const y = Math.round(toY(val)) + 0.5;
+    ctx.strokeStyle = val === 0 ? 'rgba(45, 42, 38, 0.20)' : 'rgba(45, 42, 38, 0.075)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(leftPad, y); ctx.lineTo(w - rightPad, y); ctx.stroke();
+    ctx.fillStyle = 'rgba(45, 42, 38, 0.52)'; ctx.fillText(String(val), leftPad - 5, y);
   }
+  ctx.strokeStyle = 'rgba(45, 42, 38, 0.14)';
+  ctx.beginPath(); ctx.moveTo(leftPad + 0.5, topPad); ctx.lineTo(leftPad + 0.5, topPad + plotH); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(leftPad, zeroY); ctx.lineTo(w - rightPad, zeroY); ctx.stroke();
 }
 
 export function drawChartData(ctx: CanvasRenderingContext2D, n: number, toX: (i: number) => number, toY: (v: number) => number, cumScores: number[], recent: { correct: boolean }[], topPad: number, plotH: number) {
   const xStep = n <= 10 ? 1 : n <= 25 ? 5 : 10;
-  ctx.fillStyle = 'rgba(45, 42, 38, 0.45)'; ctx.font = '7px sans-serif';
+  ctx.fillStyle = 'rgba(45, 42, 38, 0.48)'; ctx.font = '8px system-ui, sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   for (let i = 0; i < n; i++) {
     const qNum = i + 1;
     if (qNum === 1 || qNum === n || qNum % xStep === 0) {
       const x = toX(i);
-      ctx.strokeStyle = 'rgba(45, 42, 38, 0.25)'; ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(45, 42, 38, 0.14)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(x, topPad + plotH); ctx.lineTo(x, topPad + plotH + 3); ctx.stroke();
-      ctx.fillStyle = 'rgba(45, 42, 38, 0.45)'; ctx.fillText(String(qNum), x, topPad + plotH + 4);
+      ctx.fillStyle = 'rgba(45, 42, 38, 0.48)'; ctx.fillText(String(qNum), x, topPad + plotH + 4);
     }
   }
-  ctx.strokeStyle = 'rgba(74, 127, 181, 0.8)'; ctx.lineWidth = 1.5; ctx.beginPath();
+  const baseline = topPad + plotH;
+  const gradient = ctx.createLinearGradient(0, topPad, 0, baseline);
+  gradient.addColorStop(0, 'rgba(74, 127, 181, 0.22)');
+  gradient.addColorStop(1, 'rgba(74, 127, 181, 0.01)');
+  ctx.beginPath();
+  ctx.moveTo(toX(0), baseline);
+  for (let i = 0; i < n; i++) ctx.lineTo(toX(i), toY(cumScores[i]));
+  ctx.lineTo(toX(n - 1), baseline);
+  ctx.closePath();
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(55, 108, 161, 0.92)'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.beginPath();
   for (let i = 0; i < n; i++) { const x = toX(i); const y = toY(cumScores[i]); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
   ctx.stroke();
   for (let i = 0; i < n; i++) {
     ctx.fillStyle = recent[i].correct ? '#3d7a4f' : '#a84036';
-    ctx.beginPath(); ctx.arc(toX(i), toY(cumScores[i]), 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(toX(i), toY(cumScores[i]), 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.82)'; ctx.lineWidth = 1; ctx.stroke();
   }
 }

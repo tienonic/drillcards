@@ -263,9 +263,11 @@ export async function deleteUndoRowsForScope(ctx: WorkerContext, projectId: stri
 export async function undoReview(
   ctx: WorkerContext,
   projectId: string,
+  expectedCardId?: string,
 ): Promise<{ undone: false } | { undone: true; cardId: string }> {
   const undoRow = await ctx.queryOne(`SELECT * FROM undo_stack WHERE project_id = ? ORDER BY id DESC LIMIT 1`, [projectId]);
   if (!undoRow) return { undone: false };
+  if (expectedCardId && undoRow.card_id !== expectedCardId) return { undone: false };
 
   const prevState = parseUndoState(undoRow.prev_state)!;
   const reviewLogId = undoRow.review_log_id as string;

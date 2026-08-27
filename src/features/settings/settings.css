@@ -77,6 +77,23 @@
 
 .settings-date-field input { width: 118px; }
 
+.settings-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+  color: var(--color-text);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.settings-check input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--color-primary);
+}
+
 .settings-section-title {
   margin-bottom: 4px;
   color: var(--color-text);

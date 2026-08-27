@@ -88,8 +88,8 @@ export const workerApi = {
       type: 'REVIEW_CARD', cardId, projectId, sectionId, rating, quotaKey,
     }),
 
-  undoReview: (projectId: string) =>
-    sendWorkerMessage<{ undone: boolean; cardId?: string }>({ type: 'UNDO_REVIEW', projectId }),
+  undoReview: (projectId: string, expectedCardId?: string) =>
+    sendWorkerMessage<{ undone: boolean; cardId?: string }>({ type: 'UNDO_REVIEW', projectId, expectedCardId }),
 
   suspendCard: (projectId: string, cardId: string) =>
     sendWorkerMessage({ type: 'SUSPEND_CARD', projectId, cardId }),
@@ -208,7 +208,7 @@ export interface ProjectApi {
   previewRatings: (cardId: string) => ReturnType<typeof workerApi.previewRatings>;
   suspendCard: (cardId: string) => ReturnType<typeof workerApi.suspendCard>;
   buryCard: (cardId: string) => ReturnType<typeof workerApi.buryCard>;
-  undoReview: () => ReturnType<typeof workerApi.undoReview>;
+  undoReview: (expectedCardId?: string) => ReturnType<typeof workerApi.undoReview>;
   resetNewCount: (sectionIds: string[], cardType?: PickCardType, quotaKey?: string) => ReturnType<typeof workerApi.resetNewCount>;
 }
 
@@ -240,7 +240,7 @@ export function forProject(slug: string): ProjectApi {
     previewRatings: (cardId) => workerApi.previewRatings(slug, cardId),
     suspendCard: (cardId) => workerApi.suspendCard(slug, cardId),
     buryCard: (cardId) => workerApi.buryCard(slug, cardId),
-    undoReview: () => workerApi.undoReview(slug),
+    undoReview: (expectedCardId?) => workerApi.undoReview(slug, expectedCardId),
     resetNewCount: (sectionIds, cardType?, quotaKey?) => workerApi.resetNewCount(slug, sectionIds, cardType, quotaKey),
   };
 }

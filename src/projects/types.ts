@@ -83,6 +83,8 @@ export interface ListeningConfig {
   rate?: number;
   engine_version?: string;
   autoplay?: boolean;
+  /** Play the target word after either direction of a flashcard flip. Defaults on for language decks. */
+  play_on_flip?: boolean;
 }
 
 export interface StudyGoalConfig {

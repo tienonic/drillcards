@@ -1,6 +1,6 @@
 import { batch, createSignal } from 'solid-js';
 import { setQuestionContext } from '../glossary/store.ts';
-import { pushChartEntry } from '../activity/store.ts';
+import { loadActivity, pushChartEntry } from '../activity/store.ts';
 import { autoSave } from '../backup/backup.ts';
 import { resolveFlashCard, resolveFlashCardAcross, findOwnerSection } from './helpers.ts';
 import { flashIdentityTitle } from './flashIdentity.ts';
@@ -262,6 +262,32 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
     });
   }
 
+  async function markFlashWrongAction() {
+    const fId = s.flashCardId();
+    const p = d.project();
+    if (!fId || !p) return;
+    if (!isReviewingHistoryState(s.state())) {
+      await rateFlashAction(1);
+      return;
+    }
+
+    await d.guard.withActing(async () => {
+      if (d.cramMode()) {
+        d.cramRate(fId, 1);
+        return;
+      }
+
+      // Replace the last rating exactly when this is the latest reviewed card.
+      // For older history, add an Again review so the card is still scheduled soon.
+      await d.api.undoReview(fId);
+      const quotaKey = reviewQuotaKey(p);
+      if (quotaKey === undefined) await d.api.reviewCard(fId, ownerSectionId(fId), 1);
+      else await d.api.reviewCard(fId, ownerSectionId(fId), 1, quotaKey);
+      autoSave(p.slug);
+      await Promise.all([d.refreshDue(), loadActivity()]);
+    });
+  }
+
   async function shuffleFlashAction() {
     if (allFlashcards.length === 0 || allFlashCardIds.length === 0) return;
     const idx = Math.floor(Math.random() * allFlashcards.length);
@@ -280,6 +306,7 @@ export function createFlashFlow(s: FlashSignals, d: FlashDeps) {
     pickNextFlash,
     flipFlash,
     rateFlash: rateFlashAction,
+    markFlashWrong: markFlashWrongAction,
     shuffleFlash: shuffleFlashAction,
     goBackHistory,
     advanceHistory,

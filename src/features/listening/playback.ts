@@ -102,6 +102,14 @@ export class PronunciationPlayer {
     return this.playSpeech(config, text, generation);
   }
 
+  playText(config: ListeningConfig, text: string): Promise<PronunciationResult> {
+    const audioText = text.normalize('NFC').trim();
+    return this.play(
+      { ...config, provider: 'speech-synthesis' },
+      audioText ? { front: audioText, back: '', audio_text: audioText } : null,
+    );
+  }
+
   private async playSpeech(config: ListeningConfig, text: string, generation: number): Promise<PronunciationResult> {
     const synthesis = this.environment.speechSynthesis;
     const createUtterance = this.environment.createUtterance;
@@ -157,6 +165,11 @@ const sharedPlayer = new PronunciationPlayer();
 
 export function playPronunciation(config: ListeningConfig, card: Flashcard | null) {
   return sharedPlayer.play(config, card);
+}
+
+/** Speak an arbitrary highlighted term without looking for card-level cached audio. */
+export function playPronunciationText(config: ListeningConfig, text: string) {
+  return sharedPlayer.playText(config, text);
 }
 
 export function stopPronunciation() {
