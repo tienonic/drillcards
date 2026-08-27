@@ -21,6 +21,7 @@ export function FlashcardArea(props: { session: FlashView }) {
   const backBody = () => cleanFlashBack(stripDuplicateFlashTitle(s.flashBack(), s.flashTitle()));
   const reviewingHistory = () => s.state() === 'reviewing-history';
   const listeningEnabled = () => activeProject()?.config.listening.enabled === true;
+  const isRussianDeck = () => activeProject()?.config.listening.locale?.toLowerCase().startsWith('ru') === true;
   const hasPronunciation = () => !!(s.activeFlashcard()?.pronunciation_override || s.activeFlashcard()?.audio_text);
   const pronunciationLabel = () => s.pronunciationPlayed() ? 'Replay pronunciation' : 'Play pronunciation';
   const pronunciationStatusLabel = () => s.pronunciationPlaying() ? 'Playing pronunciation' : pronunciationLabel();
@@ -29,7 +30,7 @@ export function FlashcardArea(props: { session: FlashView }) {
     <div>
       <Show when={s.state() !== 'done'}>
         <div class="flashcard-container" onClick={() => s.flipFlash()}>
-          <div class={`flashcard ${s.flashFlipped() ? 'flipped' : ''}${expandedBack() ? ' has-image' : ''}`}>
+          <div class={`flashcard ${s.flashFlipped() ? 'flipped' : ''}${expandedBack() ? ' has-image' : ''}${isRussianDeck() ? ' russian-deck' : ''}`}>
             <Show when={!s.flashFlipped()} fallback={
               <div class="flashcard-face flashcard-back">
                 <Show when={title()}><div class="flashcard-title"><LatexHtml html={title() ?? ''} /></div></Show>

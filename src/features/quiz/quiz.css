@@ -520,6 +520,23 @@
   font-size: clamp(0.98rem, 1.15vw, 1.1rem);
 }
 
+.flashcard.russian-deck {
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+}
+
+.flashcard.russian-deck .flashcard-front {
+  font-size: 1.25rem;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+}
+
+.flashcard.russian-deck .flashcard-back {
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
 .mobile-flash-controller {
   display: none;
 }

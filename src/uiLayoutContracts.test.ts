@@ -61,4 +61,21 @@ describe('study UI layout contracts', () => {
     expect(flashcardArea).not.toContain('class="action-sm pronunciation-btn"');
     expect(flashcardArea).not.toContain('Playing pronunciation…');
   });
+
+  it('loads and scopes a readable Cyrillic face for Russian decks', () => {
+    const russianCard = firstRuleBody(quizCss, '.flashcard.russian-deck {');
+    const russianFront = firstRuleBody(quizCss, '.flashcard.russian-deck .flashcard-front {');
+    const russianBack = firstRuleBody(quizCss, '.flashcard.russian-deck .flashcard-back {');
+    expect(indexCss).toContain('@import "@fontsource/inter/cyrillic-400.css";');
+    expect(indexCss).toContain('@import "@fontsource/inter/cyrillic-600.css";');
+    expect(indexCss).toContain('@import "@fontsource/inter/cyrillic-700.css";');
+    expect(flashcardArea).toMatch(/locale\?\.toLowerCase\(\)\.startsWith\('ru'\)/);
+    expect(flashcardArea).toMatch(/isRussianDeck\(\) \? ' russian-deck' : ''/);
+    expect(russianCard).toMatch(/font-family:\s*'Inter'/);
+    expect(russianCard).toMatch(/text-rendering:\s*optimizeLegibility\s*;/);
+    expect(russianFront).toMatch(/font-size:\s*1\.25rem\s*;/);
+    expect(russianFront).toMatch(/letter-spacing:\s*0\.01em\s*;/);
+    expect(russianBack).toMatch(/font-size:\s*1\.05rem\s*;/);
+    expect(russianBack).toMatch(/line-height:\s*1\.6\s*;/);
+  });
 });
