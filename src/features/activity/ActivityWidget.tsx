@@ -1,7 +1,7 @@
 import './activity.css';
 import { Show, createSignal, onMount, onCleanup, batch } from 'solid-js';
 import {
-  activityScore, reviewStats, sidebarScore,
+  activityScore, reviewStats, sidebarScore, sidebarConcepts,
   setCanvasRef, loadActivity, clearActivity,
 } from './store.ts';
 import {
@@ -41,6 +41,10 @@ export function ActivityWidget(props: { isFlashMode: () => boolean; activeEntry:
   };
   const timerCls = () => { const s = seconds(); const t = tc(); return `sidebar-timer${paused() ? ' paused' : ''}${s >= t.failAt ? ' skull' : s >= t.warnAt ? ' red' : ''}`; };
   const timerContent = () => { const s = seconds(); return paused() ? '\u23F8' : s >= tc().failAt ? '\u{1F480}' : s + 's'; };
+  const conceptProgress = () => {
+    const progress = sidebarConcepts();
+    return progress.exposed > 0 ? `${progress.recognized} / ${progress.exposed}` : `${progress.recognized}`;
+  };
 
   const [resetMenuOpen, setResetMenuOpen] = createSignal(false);
   const [optionsMenuOpen, setOptionsMenuOpen] = createSignal(false);
@@ -187,7 +191,12 @@ export function ActivityWidget(props: { isFlashMode: () => boolean; activeEntry:
         </div>
         <div class="activity-widget-stats">
           <div class="activity-stats"><span class="stat-item">review: <strong>{reviewStats().reviews}</strong></span><span class="stat-item">retention: <strong>{reviewStats().retention}</strong></span></div>
-          <div class="activity-stats"><span class="stat-item">score: <strong>{sidebarScore().correct} / {sidebarScore().attempted}</strong></span><span class="stat-item">due: <strong>{sidebarScore().due} / {sidebarScore().total}</strong></span></div>
+          <div class="activity-stats">
+            <Show when={props.isFlashMode()} fallback={<span class="stat-item">score: <strong>{sidebarScore().correct} / {sidebarScore().attempted}</strong></span>}>
+              <span class="stat-item">concepts: <strong>{conceptProgress()}</strong></span>
+            </Show>
+            <span class="stat-item">due: <strong>{sidebarScore().due} / {sidebarScore().total}</strong></span>
+          </div>
           <div class="activity-reset-wrap" ref={resetWrapRef}>
             <button type="button" class="activity-reset-btn" onClick={() => {
               batch(() => { setResetMenuOpen(false); setConfirmAction(null); });

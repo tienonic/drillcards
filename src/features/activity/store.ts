@@ -13,8 +13,9 @@ import type { Project } from '../../projects/types.ts';
 const [activityScore, setActivityScore] = createSignal(0);
 const [reviewStats, setReviewStats] = createSignal({ reviews: 0, retention: '0%' });
 const [sidebarScore, setSidebarScore] = createSignal({ correct: 0, attempted: 0, due: 0, total: 0 });
+const [sidebarConcepts, setSidebarConcepts] = createSignal({ recognized: 0, exposed: 0 });
 
-export { activityScore, reviewStats, sidebarScore };
+export { activityScore, reviewStats, sidebarScore, sidebarConcepts };
 
 let activityApi: ProjectApi | null = null;
 
@@ -96,9 +97,12 @@ export async function loadSidebarScore() {
     const cardType: PickCardType = merged ? (isFlash ? 'flashcard' : 'quiz') : getCardType(sections[0].type, isFlash);
     const sectionIds = sections.map(section => section.id);
     const sectionIdSet = new Set(sectionIds);
-    const [scores, dueResult] = await Promise.all([
-      activityApi.getScores(),
+    const [scores, dueResult, progress] = await Promise.all([
+      isFlash ? Promise.resolve([]) : activityApi.getScores(),
       activityApi.countDue(sectionIds, cardType),
+      isFlash
+        ? activityApi.getStudyProgress(project.config.desired_retention)
+        : Promise.resolve(null),
     ]);
     const aggregate = scores
       .filter((sc) => sectionIdSet.has(sc.section_id))
@@ -107,11 +111,16 @@ export async function loadSidebarScore() {
         attempted: acc.attempted + (sc.attempted ?? 0),
       }), { correct: 0, attempted: 0 });
     if (activeTab() !== tab || activeProject()?.slug !== slug) return; // Stale result — tab or project changed
-    setSidebarScore({
-      correct: aggregate.correct,
-      attempted: aggregate.attempted,
-      due: dueResult.due + dueResult.newCount,
-      total: dueResult.total,
+    batch(() => {
+      setSidebarScore({
+        correct: aggregate.correct,
+        attempted: aggregate.attempted,
+        due: dueResult.due + dueResult.newCount,
+        total: dueResult.total,
+      });
+      setSidebarConcepts(progress
+        ? { recognized: progress.recognized, exposed: progress.exposed }
+        : { recognized: 0, exposed: 0 });
     });
   } catch {
     // Background refresh — keep stale data on failure

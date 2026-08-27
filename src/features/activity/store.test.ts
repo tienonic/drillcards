@@ -29,8 +29,9 @@ vi.mock('./chartUtils.ts', () => ({
 }));
 
 // Import AFTER mocks are set up
-import { loadActivity, loadSidebarScore, setActivityApi, activityScore, reviewStats, sidebarScore } from './store.ts';
+import { loadActivity, loadSidebarScore, setActivityApi, activityScore, reviewStats, sidebarScore, sidebarConcepts } from './store.ts';
 import { MERGED_TAB_ID } from '../quiz/merged.ts';
+import { sectionHandlers } from '../../core/store/sections.ts';
 
 function section(id: string, type = 'mc-quiz') {
   return {
@@ -45,6 +46,7 @@ function section(id: string, type = 'mc-quiz') {
 describe('activity/store with injected ProjectApi', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sectionHandlers.clear();
     _project = { slug: 'test-proj', sections: [] };
     _tab = 'sec1';
     _syncActivity = true;
@@ -134,6 +136,40 @@ describe('activity/store with injected ProjectApi', () => {
       await loadSidebarScore();
       expect(api.countDue).toHaveBeenCalledWith(['one', 'two'], 'quiz');
       expect(sidebarScore()).toEqual({ correct: 3, attempted: 5, due: 10, total: 20 });
+      dispose();
+    });
+  });
+
+  it('shows recognized concepts instead of a zero score in flashcard mode', async () => {
+    _project = {
+      slug: 'test-proj',
+      config: { desired_retention: 0.9 },
+      sections: [section('sec1')],
+    };
+    _tab = 'sec1';
+    sectionHandlers.set('sec1', { kind: 'quiz', session: { flashMode: () => true } } as any);
+    const api = createFakeProjectApi({
+      countDue: vi.fn().mockResolvedValue({ due: 20, newCount: 3906, total: 4000 }),
+      getScores: vi.fn().mockResolvedValue([]),
+      getStudyProgress: vi.fn().mockResolvedValue({
+        total: 4000,
+        unseen: 3906,
+        exposed: 94,
+        learning: 25,
+        recognized: 69,
+        due: 20,
+        estimatedRetrievability: 1,
+        durableRetention: 0,
+        introducedToday: 94,
+      }),
+    });
+
+    await createRoot(async (dispose) => {
+      setActivityApi(api);
+      await loadSidebarScore();
+      expect(api.getStudyProgress).toHaveBeenCalledWith(0.9);
+      expect(sidebarConcepts()).toEqual({ recognized: 69, exposed: 94 });
+      expect(sidebarScore()).toEqual({ correct: 0, attempted: 0, due: 3926, total: 4000 });
       dispose();
     });
   });
