@@ -10,7 +10,7 @@ import { cleanFlashBack, cleanFlashFront } from '../../projects/studyCopy.ts';
 import { activeProject } from '../../core/store/app.ts';
 import { chooseMixedDefinitionFirst, presentFlashcard } from './flashPresentation.ts';
 import { mixedPromptSides } from './mixedPromptSides.ts';
-import { formatRussianStudyHtml } from './russianText.ts';
+import { formatRussianStudyHtml, type RussianStudyFormatOptions } from './russianText.ts';
 import { isFavorite, toggleFavorite } from './favorites.ts';
 import { playPronunciationText } from '../listening/playback.ts';
 
@@ -64,37 +64,43 @@ export function FlashcardArea(props: { session: FlashView }) {
   const pronunciationStatusLabel = () => s.pronunciationPlaying() ? 'Playing pronunciation' : pronunciationLabel();
   const pronunciationVisible = () => listeningEnabled() && hasPronunciation() && (!definitionFirst() || s.flashFlipped());
   const favorite = () => isFavorite(activeProject()?.slug, s.flashCardId());
-  const readableHtml = (value: string | undefined, interactive = false) => isRussianDeck()
-    ? formatRussianStudyHtml(value, s.activeFlashcard()?.pronunciation_en, interactive)
+  const plainFormInTitle = () => !!title() && !definitionFirst();
+  const russianBackOptions = (showPlainForm: boolean): RussianStudyFormatOptions => ({
+    interactive: listeningEnabled(),
+    showPlainForm,
+    partOfSpeech: s.activeFlashcard()?.part_of_speech,
+  });
+  const readableHtml = (value: string | undefined, options: boolean | RussianStudyFormatOptions = false) => isRussianDeck()
+    ? formatRussianStudyHtml(value, s.activeFlashcard()?.pronunciation_en, options)
     : (value ?? '');
 
-  function russianAudioTarget(event: MouseEvent | KeyboardEvent): HTMLElement | null {
+  function russianAudioTarget(event: MouseEvent | KeyboardEvent): { element: HTMLElement; text: string } | null {
     const target = event.target instanceof Element
-      ? event.target.closest<HTMLElement>('[data-russian-audio]')
+      ? event.target.closest<HTMLElement>('[data-russian-syllable-audio], [data-russian-audio]')
       : null;
-    if (!target || !s.flashFlipped() || !isRussianDeck()) return null;
+    if (!target || !isRussianDeck()) return null;
     if (event instanceof KeyboardEvent && event.key !== 'Enter' && event.key !== ' ') return null;
-    return target;
+    const text = target.dataset.russianSyllableAudio?.trim() || target.dataset.russianAudio?.trim();
+    return text ? { element: target, text } : null;
   }
 
   function playHighlightedRussian(event: MouseEvent | KeyboardEvent): void {
-    const target = russianAudioTarget(event);
-    if (!target) return;
+    const audioTarget = russianAudioTarget(event);
+    if (!audioTarget) return;
     event.preventDefault();
     event.stopPropagation();
-    target.classList.add('is-syllable-colored');
+    audioTarget.element.closest<HTMLElement>('.russian-word')?.classList.add('is-syllable-colored');
     const config = activeProject()?.config.listening;
-    const text = target.dataset.russianAudio?.trim();
-    if (!config?.enabled || !text) return;
+    if (!config?.enabled) return;
     s.noteManualPronunciation();
-    playPronunciationText(config, text).catch(() => {});
+    playPronunciationText(config, audioTarget.text).catch(() => {});
   }
 
   return (
     <div>
       <Show when={s.state() !== 'done'}>
         <div class="flashcard-container" onClick={() => s.flipFlash()}>
-          <div class={`flashcard ${s.flashFlipped() ? 'flipped' : ''}${expandedBack() ? ' has-image' : ''}${isRussianDeck() ? ' russian-deck' : ''}`}>
+          <div class={`flashcard ${s.flashFlipped() ? 'flipped' : ''}${expandedBack() ? ' has-image' : ''}${isRussianDeck() ? ' russian-deck' : ''}`} onClick={playHighlightedRussian} onKeyDown={playHighlightedRussian}>
             <Show when={s.flashCardId()}>
               <div class="flashcard-tools" aria-label="Card actions">
                 <button
@@ -118,14 +124,14 @@ export function FlashcardArea(props: { session: FlashView }) {
             </Show>
             <Show when={!s.flashFlipped()} fallback={
               <div class="flashcard-face flashcard-back">
-                <Show when={title() && !definitionFirst()}><div class="flashcard-title"><LatexHtml html={readableHtml(title())} /></div></Show>
+                <Show when={plainFormInTitle()}><div class="flashcard-title"><LatexHtml html={readableHtml(title(), russianBackOptions(true))} /></div></Show>
                 <Show when={answerImage()}>{(image) => <img src={imgSrc(image())} alt="" class="flashcard-image" loading="lazy" crossorigin="anonymous" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}</Show>
-                <Show when={backBody()}><div class="flashcard-copy" onClick={playHighlightedRussian} onKeyDown={playHighlightedRussian}><LatexHtml html={readableHtml(backBody(), listeningEnabled())} /></div></Show>
+                <Show when={backBody()}><div class="flashcard-copy"><LatexHtml html={readableHtml(backBody(), russianBackOptions(!plainFormInTitle()))} /></div></Show>
               </div>
             }>
               <div class="flashcard-face flashcard-front">
                 <Show when={presentation().frontImage}>{(image) => <img src={imgSrc(image())} alt="" class="flashcard-image" loading="lazy" crossorigin="anonymous" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />}</Show>
-                <Show when={front()}><div class="flashcard-copy"><LatexHtml html={readableHtml(front())} /></div></Show>
+                <Show when={front()}><div class="flashcard-copy"><LatexHtml html={readableHtml(front(), listeningEnabled())} /></div></Show>
               </div>
             </Show>
 

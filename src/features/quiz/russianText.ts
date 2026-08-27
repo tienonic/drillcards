@@ -27,6 +27,12 @@ interface PronunciationHint {
   guideByWord: Map<string, string[]>;
 }
 
+export interface RussianStudyFormatOptions {
+  interactive?: boolean;
+  showPlainForm?: boolean;
+  partOfSpeech?: string;
+}
+
 function stripStress(value: string): string {
   return value.normalize('NFD').replace(/\p{M}/gu, '').normalize('NFC');
 }
@@ -184,19 +190,23 @@ function parsePronunciation(value: string | undefined): PronunciationHint | null
   return { form, guide, guideByWord };
 }
 
-function syllableMarkup(syllables: string[]): string {
+function syllableInteraction(syllable: string, interactive: boolean): string {
+  if (!interactive || !syllable) return '';
+  const audio = stripStress(syllable).normalize('NFC');
+  return ` data-russian-syllable-audio="${audio}" role="button" tabindex="0" aria-label="Play syllable ${audio}"`;
+}
+
+function syllableMarkup(syllables: string[], interactive: boolean): string {
   return syllables
-    .map((syllable, index) => `<span class="russian-syllable syllable-tone-${index % TONE_COUNT}">${syllable}</span>`)
+    .map((syllable, index) => `<span class="russian-syllable syllable-tone-${index % TONE_COUNT}"${syllableInteraction(syllable, interactive)}>${syllable}</span>`)
     .join('');
 }
 
 function wordMarkup(word: string, hint: PronunciationHint | null, interactive: boolean): string {
   const syllables = splitRussianSyllables(word, hint?.guideByWord.get(wordKey(word)));
   const audio = stripStress(word).normalize('NFC');
-  const interaction = interactive
-    ? ` data-russian-audio="${audio}" role="button" tabindex="0"`
-    : '';
-  return `<span class="russian-word" lang="ru"${interaction}>${syllableMarkup(syllables)}</span>`;
+  const interaction = interactive ? ` data-russian-audio="${audio}"` : '';
+  return `<span class="russian-word" lang="ru"${interaction}>${syllableMarkup(syllables, interactive)}</span>`;
 }
 
 function markCyrillicText(text: string, hint: PronunciationHint | null, interactive: boolean): string {
@@ -210,8 +220,17 @@ function markTextNodes(html: string, hint: PronunciationHint | null, interactive
     .join('');
 }
 
-function guideMarkup(guide: string): string {
+function pronunciationAudioSyllables(hint: PronunciationHint): string[] {
+  const formWords = hint.form.match(CYRILLIC_WORD) ?? [];
+  return formWords.flatMap(word => (
+    splitRussianSyllables(word, hint.guideByWord.get(wordKey(word)))
+      .map(syllable => stripStress(syllable).normalize('NFC'))
+  ));
+}
+
+function guideMarkup(guide: string, audioSyllables: string[], interactive: boolean): string {
   let tone = 0;
+  let audioIndex = 0;
   return guide
     .split(/(\s+|-)/)
     .map(part => {
@@ -221,39 +240,81 @@ function guideMarkup(guide: string): string {
         return part;
       }
       if (part === '-') return '<span class="pronunciation-divider">-</span>';
-      const markup = `<span class="pronunciation-syllable syllable-tone-${tone % TONE_COUNT}">${part}</span>`;
+      const audio = audioSyllables[audioIndex++] ?? '';
+      const markup = `<span class="pronunciation-syllable syllable-tone-${tone % TONE_COUNT}"${syllableInteraction(audio, interactive)}>${part}</span>`;
       tone++;
       return markup;
     })
     .join('');
 }
 
-function pronunciationLine(html: string, interactive: boolean): string | null {
+function partOfSpeechGroup(value: string | undefined): string {
+  const words = value?.toLowerCase().split(/[^a-z]+/).filter(Boolean) ?? [];
+  const known = [
+    'noun', 'verb', 'adjective', 'adverb', 'pronoun', 'preposition', 'conjunction',
+    'numeral', 'interjection', 'particle',
+  ];
+  return known.find(group => words.includes(group)) ?? 'other';
+}
+
+function plainFormMarkup(hint: PronunciationHint, options: RussianStudyFormatOptions): string {
+  if (!options.showPlainForm) return '';
+  const audio = stripStress(hint.form).normalize('NFC');
+  const interaction = options.interactive
+    ? ` data-russian-audio="${audio}" role="button" tabindex="0" aria-label="Play ${audio}"`
+    : '';
+  return `<span class="russian-pronunciation-plain russian-pos-${partOfSpeechGroup(options.partOfSpeech)}" lang="ru"${interaction}>${hint.form}</span>`;
+}
+
+function pronunciationLine(
+  html: string,
+  options: RussianStudyFormatOptions,
+): string | null {
   if (html.includes('<')) return null;
   const hint = parsePronunciation(html);
   if (!hint || /[A-Za-z]/.test(hint.form) || !/[A-Za-z]/.test(hint.guide)) return null;
+  const audioSyllables = pronunciationAudioSyllables(hint);
+  const interactive = options.interactive === true;
 
   return [
     '<span class="russian-pronunciation-line">',
     `<span class="russian-pronunciation-form" lang="ru">${markCyrillicText(hint.form, hint, interactive)}</span>`,
-    `<span class="russian-pronunciation-guide">${guideMarkup(hint.guide)}</span>`,
+    `<span class="russian-pronunciation-guide">${guideMarkup(hint.guide, audioSyllables, interactive)}</span>`,
     '</span>',
   ].join('');
+}
+
+function comparablePlainText(value: string): string {
+  return wordKey(value.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim());
+}
+
+function removeDuplicatePlainForm(parts: string[], showPlainForm: boolean): string[] {
+  if (!showPlainForm) return parts;
+  const result = [...parts];
+  for (let index = 2; index < result.length; index++) {
+    const pronunciation = parsePronunciation(result[index]);
+    if (!pronunciation || !BREAK_ONLY.test(result[index - 1])) continue;
+    if (comparablePlainText(result[index - 2]) !== comparablePlainText(pronunciation.form)) continue;
+    result.splice(index - 2, 2);
+    index -= 2;
+  }
+  return result;
 }
 
 /** Presentation-only syllable markup. Source deck copy remains unchanged. */
 export function formatRussianStudyHtml(
   html: string | undefined,
   pronunciation: string | undefined,
-  interactive = false,
+  options: boolean | RussianStudyFormatOptions = false,
 ): string {
   if (!html) return '';
+  const resolved = typeof options === 'boolean' ? { interactive: options } : options;
   const hint = parsePronunciation(pronunciation);
-  return html
-    .split(BREAK)
+  const formatted = removeDuplicatePlainForm(html.split(BREAK), resolved.showPlainForm === true)
     .map(part => {
       if (BREAK_ONLY.test(part)) return part;
-      return pronunciationLine(part, interactive) ?? markTextNodes(part, hint, interactive);
+      return pronunciationLine(part, resolved) ?? markTextNodes(part, hint, resolved.interactive === true);
     })
     .join('');
+  return hint ? `${plainFormMarkup(hint, resolved)}${formatted}` : formatted;
 }

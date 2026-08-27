@@ -89,8 +89,12 @@ describe('study UI layout contracts', () => {
     expect(normalBack).toMatch(/background:\s*transparent\s*;/);
     expect(normalBack).toMatch(/color:\s*inherit\s*;/);
     expect(quizCss).toContain('.flashcard.russian-deck .flashcard-back .russian-word.is-syllable-colored .russian-syllable {');
-    expect(flashcardArea).toContain("target.classList.add('is-syllable-colored')");
+    expect(flashcardArea).toContain("closest<HTMLElement>('.russian-word')?.classList.add('is-syllable-colored')");
+    expect(flashcardArea).toContain("'[data-russian-syllable-audio], [data-russian-audio]'");
     expect(firstRuleBody(quizCss, '.russian-pronunciation-form {')).toMatch(/order:\s*1\s*;/);
     expect(firstRuleBody(quizCss, '.russian-pronunciation-guide {')).toMatch(/order:\s*2\s*;/);
+    expect(quizCss).toContain('.russian-pronunciation-plain {');
+    expect(flashcardArea).toContain('readableHtml(title(), russianBackOptions(true))');
+    expect(flashcardArea).toContain('russianBackOptions(!plainFormInTitle())');
   });
 });

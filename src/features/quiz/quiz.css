@@ -596,6 +596,21 @@
   outline: none;
 }
 
+[data-russian-syllable-audio] {
+  cursor: pointer;
+  outline: none;
+}
+
+[data-russian-syllable-audio]:hover,
+[data-russian-syllable-audio]:focus-visible {
+  box-shadow: inset 0 -2px 0 currentColor;
+}
+
+.pronunciation-syllable[data-russian-syllable-audio] {
+  display: inline-block;
+  border-radius: 0.12em;
+}
+
 .russian-word[data-russian-audio].is-syllable-colored:hover .russian-syllable,
 .russian-word[data-russian-audio].is-syllable-colored:focus-visible .russian-syllable {
   box-shadow: inset 0 -2px 0 currentColor;
@@ -628,6 +643,30 @@
   font-size: 0.9em;
   letter-spacing: 0.025em;
 }
+
+.russian-pronunciation-plain {
+  display: inline-block;
+  margin: 0 0.34em 0.18em 0;
+  padding: 0.01em 0.2em 0.04em;
+  border-radius: 0.16em;
+  background: var(--russian-pos-tint, rgba(45, 42, 38, 0.07));
+  color: var(--russian-pos-text, var(--color-text));
+  font-size: 1.05em;
+  font-weight: 700;
+  letter-spacing: 0.018em;
+  vertical-align: baseline;
+}
+
+.russian-pos-noun { --russian-pos-text: #125b8a; --russian-pos-tint: rgba(18, 91, 138, 0.10); }
+.russian-pos-verb { --russian-pos-text: #8a354f; --russian-pos-tint: rgba(138, 53, 79, 0.10); }
+.russian-pos-adjective { --russian-pos-text: #57327c; --russian-pos-tint: rgba(87, 50, 124, 0.10); }
+.russian-pos-adverb { --russian-pos-text: #176b3a; --russian-pos-tint: rgba(23, 107, 58, 0.10); }
+.russian-pos-pronoun { --russian-pos-text: #176565; --russian-pos-tint: rgba(23, 101, 101, 0.10); }
+.russian-pos-preposition { --russian-pos-text: #7a4800; --russian-pos-tint: rgba(122, 72, 0, 0.10); }
+.russian-pos-conjunction { --russian-pos-text: #75400b; --russian-pos-tint: rgba(117, 64, 11, 0.10); }
+.russian-pos-numeral { --russian-pos-text: #3f4f8a; --russian-pos-tint: rgba(63, 79, 138, 0.10); }
+.russian-pos-interjection { --russian-pos-text: #8a3a2f; --russian-pos-tint: rgba(138, 58, 47, 0.10); }
+.russian-pos-particle { --russian-pos-text: #5c5964; --russian-pos-tint: rgba(92, 89, 100, 0.10); }
 
 .pronunciation-syllable {
   color: var(--syllable-back);
